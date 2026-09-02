@@ -10,7 +10,15 @@ import { badRequest, handleError } from "@/lib/http";
  * httpOnly cookie. De atleet heeft nog niets ingevuld, ook geen naam: die komt
  * uit de consent-stap of uit de documenten. Een intake zonder consent kan niets
  * anders dan bestaan; de databank blokkeert indienen.
+ *
+ * De bewaartermijn staat hier bewust op een korte einddatum. Wie de intake
+ * start en halverwege afhaakt, laat mogelijk medische documenten achter waar
+ * nooit toestemming voor gegeven is. Die horen op te ruimen, niet te blijven
+ * liggen. Pas bij het geven van consent wordt de termijn onbeperkt, met een
+ * benoemde grond. De constraint athletes_indefinite_needs_basis dwingt dat af
+ * en ving deze fout tijdens de eerste UI-test.
  */
+const DRAFT_RETENTION_DAYS = 30;
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as { locale?: string };
@@ -18,9 +26,16 @@ export async function POST(request: Request) {
 
     const db = appDb();
 
+    const draftUntil = new Date();
+    draftUntil.setDate(draftUntil.getDate() + DRAFT_RETENTION_DAYS);
+
     const { data: athlete, error: athleteError } = await db
       .from("athletes")
-      .insert({ locale })
+      .insert({
+        locale,
+        retention_mode: "until_date",
+        retention_until: draftUntil.toISOString().slice(0, 10),
+      })
       .select("id")
       .single();
 

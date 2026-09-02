@@ -12,11 +12,20 @@ import { addProposals } from "@/lib/db/dossier";
  * van wat iemand gezien heeft is waardeloos zodra de tekst wijzigt. IP en
  * user-agent gaan mee als bewijs van het moment.
  *
- * De bewaartermijn wordt hier pas gezet, want die is onderdeel van waar de
- * atleet mee instemt. De retentiejob leest athletes.retention_until.
+ * De bewaartermijn wordt hier pas definitief, want die is onderdeel van waar de
+ * atleet mee instemt. Tot dit moment stond er een korte einddatum op, zodat een
+ * afgebroken intake opruimt in plaats van te blijven liggen.
+ *
+ * Standaard onbeperkt, want de praktijk wil dossiers houden. Dat mag, maar niet
+ * stilzwijgend: de databank eist een benoemde grond. Zet RETENTION_MODE op
+ * until_date met RETENTION_MONTHS als er wel een einddatum moet komen.
  */
 
 export const CONSENT_VERSION = "2026-09-02";
+
+const DEFAULT_BASIS =
+  "Zorgdossier van een begeleide atleet. Bewaard met expliciete toestemming; " +
+  "de atleet kan op elk moment verwijdering vragen.";
 
 const REQUIRED = ["medical_processing", "retention_acknowledged"] as const;
 
@@ -38,9 +47,14 @@ export async function POST(request: Request) {
 
     const db = appDb();
     const now = new Date();
-    const months = Number(process.env.RETENTION_MONTHS ?? 60);
-    const retentionUntil = new Date(now);
-    retentionUntil.setMonth(retentionUntil.getMonth() + months);
+
+    const indefinite = (process.env.RETENTION_MODE ?? "indefinite") === "indefinite";
+    let retentionUntil: string | null = null;
+    if (!indefinite) {
+      const until = new Date(now);
+      until.setMonth(until.getMonth() + Number(process.env.RETENTION_MONTHS ?? 60));
+      retentionUntil = until.toISOString().slice(0, 10);
+    }
 
     const { error: consentError } = await db.from("consents").insert({
       athlete_id: session.athleteId,
@@ -68,7 +82,11 @@ export async function POST(request: Request) {
     await db
       .from("athletes")
       .update({
-        retention_until: retentionUntil.toISOString().slice(0, 10),
+        retention_mode: indefinite ? "indefinite" : "until_date",
+        retention_until: retentionUntil,
+        retention_basis: indefinite
+          ? (process.env.RETENTION_BASIS ?? DEFAULT_BASIS)
+          : null,
         full_name: body.fullName?.trim() || null,
         email: body.email?.trim() || null,
       })
@@ -106,7 +124,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       consentVersion: CONSENT_VERSION,
-      retentionUntil: retentionUntil.toISOString().slice(0, 10),
+      retentionMode: indefinite ? "indefinite" : "until_date",
+      retentionUntil,
       completeness: state.completeness,
     });
   } catch (error) {

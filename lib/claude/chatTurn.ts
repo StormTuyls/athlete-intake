@@ -48,7 +48,7 @@ const SCHEMA = {
     captured: {
       type: "array",
       description:
-        "Velden die uit het laatste antwoord van de atleet blijken. Leeg als het antwoord niets bruikbaars bevatte.",
+        "Elk veld dat uit het laatste antwoord van de atleet blijkt, ook velden waar niet naar gevraagd werd. Leeg als het antwoord niets bruikbaars bevatte.",
       items: {
         type: "object",
         additionalProperties: false,
@@ -103,21 +103,47 @@ function systemPrompt(
 
   const language = locale === "nl" ? "Nederlands" : "Engels";
 
+  // Twee verschillende lijsten, en dat onderscheid is wezenlijk.
+  //
+  // "Nu vragen" is waar de assistent naar VRAAGT: afgekapt op twaalf, want een
+  // prompt met 41 vragen erin levert een assistent die alles door elkaar vraagt.
+  //
+  // "Mag je oppikken" is wat hij uit een antwoord mag HALEN: alles wat open
+  // staat. Zonder die tweede lijst ziet hij optionele velden niet, en dan levert
+  // "182 cm, ik weeg 77 kg, ik sprint bij AC Herentals" wel lengte, gewicht en
+  // sport op maar niet de club. Precies dat ging mis bij de eerste UI-test.
+  const open = new Set(gaps.map((gap) => gap.fieldKey));
+  const capturable = definitions
+    .filter((definition) => open.has(definition.key))
+    .map((definition) => {
+      const type =
+        definition.dataType === "enum"
+          ? `enum(${definition.enumOptions?.join("|")})`
+          : definition.dataType;
+      const label = locale === "nl" ? definition.labelNl : definition.labelEn;
+      return `- ${definition.key} [${type}] ${label}`;
+    })
+    .join("\n");
+
   return `Je begeleidt de intake van een atleet bij een praktijk voor eliteatletenbegeleiding. Je spreekt ${language}. Je bent kort, concreet en vriendelijk zonder overdaad.
 
 Werkwijze:
 
-1. Stel één vraag per beurt. Niet twee, niet een lijst.
-2. Neem de eerste openstaande vraag uit de lijst hieronder, tenzij het antwoord van de atleet logisch om een vervolgvraag vraagt.
-3. Haal uit het laatste antwoord van de atleet elk veld dat er letterlijk in zit, ook velden waar je niet naar vroeg. Zegt iemand bij een vraag over gewicht ook zijn lengte, neem beide.
+1. Stel een vraag per beurt. Niet twee, niet een lijst.
+2. Neem de eerste openstaande vraag uit "Nu vragen", tenzij het antwoord van de atleet logisch om een vervolgvraag vraagt.
+3. Haal uit het laatste antwoord van de atleet ELK veld dat er letterlijk in zit, ook velden waar je niet naar vroeg en ook velden die niet in "Nu vragen" staan. Alles uit "Mag je oppikken" komt in aanmerking. Noemt iemand bij een vraag over lengte ook zijn gewicht, sport en club, dan geef je die alle vier terug.
 4. Leidt niets af. "Ik voetbal" vult identity.sport, maar niet identity.discipline.
 5. Bij een tegenstrijdigheid: leg kort voor wat er in de documenten staat en vraag welke waarde klopt.
 6. Geen medisch advies, geen interpretatie van klachten, geen trainingsadvies. Je verzamelt.
-7. Is de lijst leeg, zet done op true en sluit in één zin af.
+7. Is "Nu vragen" leeg, zet done op true en sluit in een zin af.
 
-Nog open:
+Nu vragen:
 
-${gapList || "(niets meer open)"}`;
+${gapList || "(niets meer open)"}
+
+Mag je oppikken uit een antwoord:
+
+${capturable || "(niets meer open)"}`;
 }
 
 export async function runChatTurn(input: {

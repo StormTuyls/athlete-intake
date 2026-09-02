@@ -176,6 +176,7 @@ Gemeten op de synthetische testset:
 | WhatsApp-export (10 berichten) | 13 velden, 13 van 13 citaten geverifieerd, 1 blessure, 16s |
 | Huurcontract (niet relevant) | 0 velden. Het model verzint niets. |
 | Beide atletendocumenten in één intake | Gewicht 76,5 tegenover 77 wordt `conflicting`, rivaal met herkomst bewaard, indienen blokkeert |
+| Gesprek, één antwoord met zes feiten | Alle zes opgepikt (lengte, gewicht, sport, discipline, club, federatie), niets verzonnen |
 
 Nog te doen: reviewweergave voor de coach, intakerapport als PDF, JSON- en CSV-export, retentiejob,
 verwijderingspad en de meertalige UI. Zie [docs/plan.md](docs/plan.md).
