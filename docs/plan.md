@@ -182,10 +182,20 @@ Als er dagen tekortkomen sneuvelt M4 (de chat) als eerste. Een adaptief formulie
 extractie levert het grootste deel van de tijdswinst. De chat is de meest demo-vriendelijke en de
 minst waardevolle post.
 
-Buiten scope in fase 1, bewust: Notion-koppeling voor facturatie (fase 1b, en dan enkel voor de
-commerciële laag), VALD API (in fase 1 alleen CSV-import, API-toegang is per klant gelicentieerd en
-dat weten we nu niet), wearables, de anonieme benchmark op 150 VALD-profielen (heridentificatierisico
-bij kleine n in nichesporten is een apart traject).
+**Bijgesteld na overleg met de klant:**
+
+- De Notion-koppeling zit in fase 1, niet in 1b. Gebouwd als drie databases (Atleten, Facturatie,
+  Opvolgacties) met een harde filter: alleen niet-medische velden gaan mee, en de sync weigert als
+  een veld uit de synclijst als medisch gemarkeerd raakt.
+- Bewaartermijn is standaard onbeperkt in plaats van 60 maanden, met een verplichte grond in
+  `retention_basis`. Het verwijderingspad blijft los daarvan werken.
+- Het `medical`-schema wordt niet via PostgREST benaderd maar via een directe Postgres-verbinding met
+  een beperkte rol. Sterkere garantie dan RLS zonder policies, en het antwoord op "wie kan bij onze
+  medische data".
+
+Buiten scope in fase 1, bewust: VALD API (in fase 1 alleen CSV-import, API-toegang is per klant
+gelicentieerd en dat weten we nu niet), wearables, de anonieme benchmark op 150 VALD-profielen
+(heridentificatierisico bij kleine n in nichesporten is een apart traject).
 
 ## Verificatie
 

@@ -1,0 +1,21 @@
+{
+  "fields": {
+    "identity.full_name": "Jonas Peeters",
+    "identity.date_of_birth": "2001-03-14",
+    "identity.club": "AC Herentals",
+    "identity.sport": "sprint",
+    "biometrics.height_cm": 182,
+    "biometrics.body_mass_kg": 76.5,
+    "biometrics.dominant_side": "right",
+    "training.weekly_volume_hours": 12,
+    "training.season_phase": "specific_prep",
+    "status.training_availability": "modified"
+  },
+  "forbidden": [
+    "identity.email",
+    "identity.coach_name",
+    "status.goals",
+    "training.strength_training_years"
+  ],
+  "minVerifiedQuotes": 12
+}

@@ -10,8 +10,12 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "eval": "tsx evals/run.ts",
-    "db:reset": "supabase db reset",
-    "db:diff": "supabase db diff -f"
+    "db:reset": "supabase db reset && tsx scripts/db-local.ts",
+    "db:diff": "supabase db diff -f",
+    "notion:setup": "tsx scripts/notion-setup.ts",
+    "notion:sync": "tsx scripts/notion-sync.ts",
+    "db:local-role": "tsx scripts/db-local.ts",
+    "test": "tsx evals/unit/pages.test.ts && tsx evals/unit/jsonb-null.test.ts && tsx evals/unit/notion-guard.test.ts && tsx evals/conflict.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
@@ -19,6 +23,7 @@
     "@supabase/supabase-js": "^2.113.0",
     "next": "^16.3.4",
     "next-intl": "^4.14.2",
+    "pg": "^8.23.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "unpdf": "^1.8.1",
@@ -27,6 +32,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.4.1",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "eslint": "^9.39.5",

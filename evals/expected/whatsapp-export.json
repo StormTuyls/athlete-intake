@@ -1,0 +1,18 @@
+{
+  "fields": {
+    "identity.full_name": "Jonas Peeters",
+    "identity.club": "AC Herentals",
+    "identity.sport": "sprint",
+    "identity.phone": "0470 12 34 56",
+    "biometrics.body_mass_kg": 77,
+    "status.pain_now": true,
+    "status.training_availability": "modified"
+  },
+  "forbidden": [
+    "identity.date_of_birth",
+    "identity.email",
+    "medical.surgeries",
+    "medical.allergies"
+  ],
+  "minVerifiedQuotes": 8
+}

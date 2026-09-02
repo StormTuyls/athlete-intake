@@ -1,0 +1,18 @@
+{
+  "fields": {},
+  "forbidden": [
+    "identity.full_name",
+    "identity.date_of_birth",
+    "identity.email",
+    "identity.phone",
+    "identity.club",
+    "identity.sport",
+    "biometrics.height_cm",
+    "biometrics.body_mass_kg",
+    "medical.injury_history",
+    "medical.current_complaints",
+    "status.goals",
+    "training.weekly_volume_hours"
+  ],
+  "minVerifiedQuotes": 0
+}

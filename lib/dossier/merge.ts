@@ -1,13 +1,117 @@
+import { comparisonKey, validateValue } from "@/lib/dossier/validate";
+import { deriveConfidence } from "@/lib/dossier/completeness";
+import type {
+  ConflictCandidate,
+  FieldDefinition,
+  Proposal,
+  ProposedBy,
+  ResolvedField,
+} from "@/lib/types";
+
 /**
- * Mergen van voorgestelde veldwaarden in het dossier. M3.
+ * Voorstellen omzetten naar de opgeloste toestand van een veld.
  *
- * Regels:
- * - Niets wordt overschreven. Een nieuwe waarde krijgt een nieuwe rij en de
- *   oude rij krijgt `superseded_by`. De historie is onderdeel van het audit-spoor.
- * - Twee bronnen met verschillende waarden voor hetzelfde veld leveren
- *   `conflicting` op. Het systeem kiest niet stil, de coach beslist.
- * - Een waarde van de coach verslaat altijd een waarde van het model.
+ * Regels, in deze volgorde:
+ *
+ * 1. Rangorde: coach verslaat atleet, atleet verslaat model. De coach is
+ *    eindverantwoordelijk, en de atleet is over zichzelf een primaire bron waar
+ *    het model dat over hem niet is.
+ * 2. Binnen dezelfde rang wint het meest recente voorstel als kandidaat.
+ * 3. Spreken voorstellen binnen die rang elkaar tegen na normalisatie, dan is
+ *    het veld `conflicting` en gaan de rivalen mee naar het reviewscherm. Het
+ *    systeem kiest niet stil tussen twee geboortedatums.
+ * 4. Verschil in notatie of spelling is geen conflict. Verschil in betekenis wel.
+ *
+ * `status` beschrijft hoe de waarde in het dossier kwam, `proposedBy` wie hem
+ * aandroeg. Een antwoord van de atleet is dus `extracted` met
+ * `proposedBy: 'athlete'`, en pas `confirmed` als de coach het aftikt.
  */
-export function mergeProposals(): never {
-  throw new Error("niet geïmplementeerd: M3");
+
+const RANK: Record<ProposedBy, number> = { coach: 3, athlete: 2, model: 1 };
+
+export function resolveField(
+  definition: FieldDefinition,
+  proposals: Proposal[],
+): ResolvedField {
+  if (proposals.length === 0) {
+    return {
+      fieldKey: definition.key,
+      value: null,
+      status: "missing",
+      confidence: "low",
+      winningProposalId: null,
+      conflicts: [],
+    };
+  }
+
+  const topRank = Math.max(...proposals.map((p) => RANK[p.proposedBy]));
+  const tier = proposals
+    .filter((p) => RANK[p.proposedBy] === topRank)
+    .sort((a, b) => b.id - a.id);
+
+  const winner = tier[0];
+  const validation = validateValue(definition, winner.value);
+  const winnerValue = validation.valid ? validation.normalised : winner.value;
+  const winnerKey = comparisonKey(definition.dataType, winnerValue);
+
+  const conflicts: ConflictCandidate[] = [];
+  for (const rival of tier.slice(1)) {
+    const rivalValidation = validateValue(definition, rival.value);
+    const rivalValue = rivalValidation.valid
+      ? rivalValidation.normalised
+      : rival.value;
+    if (comparisonKey(definition.dataType, rivalValue) === winnerKey) continue;
+
+    conflicts.push({
+      proposalId: rival.id,
+      value: rivalValue,
+      proposedBy: rival.proposedBy,
+      sourceDocumentId: rival.sourceDocumentId,
+      sourcePage: rival.sourcePage,
+      sourceQuote: rival.sourceQuote,
+    });
+  }
+
+  const status =
+    conflicts.length > 0
+      ? "conflicting"
+      : winner.proposedBy === "coach"
+        ? "confirmed"
+        : "extracted";
+
+  return {
+    fieldKey: definition.key,
+    value: winnerValue,
+    status,
+    confidence: deriveConfidence({
+      status,
+      proposedBy: winner.proposedBy,
+      quoteVerified: winner.quoteVerified,
+      typeValid: validation.valid,
+    }),
+    winningProposalId: winner.id,
+    conflicts,
+  };
+}
+
+/** Alle velden van een intake in één keer oplossen. */
+export function resolveDossier(
+  definitions: FieldDefinition[],
+  proposals: Proposal[],
+): Map<string, ResolvedField> {
+  const byField = new Map<string, Proposal[]>();
+  for (const proposal of proposals) {
+    const list = byField.get(proposal.fieldKey);
+    if (list) list.push(proposal);
+    else byField.set(proposal.fieldKey, [proposal]);
+  }
+
+  const resolved = new Map<string, ResolvedField>();
+  for (const definition of definitions) {
+    resolved.set(
+      definition.key,
+      resolveField(definition, byField.get(definition.key) ?? []),
+    );
+  }
+  return resolved;
 }

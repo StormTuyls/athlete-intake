@@ -77,3 +77,64 @@ export interface ExtractedField {
   sourcePage: number | null;
   sourceQuote: string;
 }
+
+export type FieldDataType =
+  | "text"
+  | "long_text"
+  | "number"
+  | "date"
+  | "boolean"
+  | "enum"
+  | "list";
+
+/** Een rij uit public.field_definitions. De taxonomie, bevroren na M1. */
+export interface FieldDefinition {
+  key: string;
+  section: string;
+  sortOrder: number;
+  labelNl: string;
+  labelEn: string;
+  dataType: FieldDataType;
+  required: boolean;
+  isMedical: boolean;
+  enumOptions: string[] | null;
+  questionNl: string | null;
+  questionEn: string | null;
+}
+
+/**
+ * Een voorstel uit medical.field_proposals. Append-only: elk voorstel blijft
+ * staan, ook als het niet gewonnen heeft. De historie is deel van het spoor.
+ */
+export interface Proposal {
+  id: number;
+  fieldKey: string;
+  value: unknown;
+  proposedBy: ProposedBy;
+  sourceDocumentId: string | null;
+  sourcePage: number | null;
+  sourceQuote: string | null;
+  quoteVerified: boolean;
+  modelId: string | null;
+  createdAt: string;
+}
+
+/** Een rivaal bij een conflict, zoals opgeslagen in dossier_fields.conflicts. */
+export interface ConflictCandidate {
+  proposalId: number;
+  value: unknown;
+  proposedBy: ProposedBy;
+  sourceDocumentId: string | null;
+  sourcePage: number | null;
+  sourceQuote: string | null;
+}
+
+/** Een rij uit medical.dossier_fields: de opgeloste toestand van een veld. */
+export interface ResolvedField {
+  fieldKey: string;
+  value: unknown;
+  status: FieldStatus;
+  confidence: Confidence;
+  winningProposalId: number | null;
+  conflicts: ConflictCandidate[];
+}

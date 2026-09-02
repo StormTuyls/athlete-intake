@@ -47,8 +47,9 @@ browser -> signed upload URL -> Supabase Storage (ruw bestand, permanent, onaang
 - **Supabase** in regio Frankfurt: Postgres, Storage, Auth. Postgres is de single source of truth
   vanaf dag één, niet Notion.
 - **Anthropic SDK** met `claude-opus-5`. Niet via een abstractielaag: we hebben eerstelijns toegang
-  nodig tot document content blocks met pagina-locaties, de Files API, expliciete prompt-caching en
-  structured outputs.
+  nodig tot document content blocks met pagina-locaties, expliciete prompt-caching en structured
+  outputs.
+- **Notion** voor de commerciele laag: facturatie en opvolgacties. Met opzet zonder medische data.
 - **Geen aparte OCR-dienst.** Gescande PDF's gaan als `document` content block naar Claude,
   screenshots als `image` block. Eén integratie en één subverwerker minder.
 - **Tailwind 4**, **next-intl** (NL/EN).
@@ -58,12 +59,34 @@ browser -> signed upload URL -> Supabase Storage (ruw bestand, permanent, onaang
 Twee Postgres-schema's, met opzet gescheiden:
 
 - **`public`** — identiteit, administratie, consent, audit-log. De browser mag hier via RLS bij.
-- **`medical`** — documenten, veldwaarden, blessuretijdlijn, testmetingen, rapporten. Dit schema is
-  **niet** via PostgREST bereikbaar (zie de waarschuwing in `supabase/config.toml`). Alle toegang
-  loopt via server-side route handlers met de service role, na autorisatie en een audit-log entry.
+- **`medical`** — documenten, voorstellen, dossier, blessuretijdlijn, testmetingen, rapporten. Dit
+  schema staat **niet** in de exposed schemas van Supabase, dus PostgREST heeft er geen route naartoe.
+  De server praat er rechtstreeks met Postgres, via de rol `intake_server` die verder niets mag.
+
+Die tweede regel is het belangrijkste ontwerpbesluit in deze repo. De gebruikelijke aanpak (schema
+wel exposen, en toegang tegenhouden met RLS zonder policies) werkt tot iemand een policy of een
+grant toevoegt. Nu kan de HTTP-API die het internet aanspreekt medische data per constructie niet
+bereiken. Bij artikel 9-data is dat het verschil tussen een uitleg en een incident.
+
+Drie lagen, elk voldoende op zichzelf:
+
+1. `medical` staat niet in `[api] schemas` in `supabase/config.toml`. PostgREST antwoordt
+   `Invalid schema: medical`.
+2. `anon` en `authenticated` hebben geen enkel recht op het schema.
+3. RLS staat aan op alle tabellen, met nul policies.
 
 Medische data valt onder artikel 9 AVG. De consequenties daarvan (rechtsgrond, bewaartermijn,
 subverwerkerslijst, verwijderingspad) zijn geen bijzaak maar een deel van de opdracht.
+
+### Bewaartermijn
+
+`athletes.retention_mode` is `indefinite` of `until_date`, met een constraint die de combinatie
+afdwingt: onbeperkt bewaren vraagt een benoemde grond in `retention_basis`, en een einddatum vraagt
+een datum. Zo is er geen dubbelzinnige `null` die zowel "vergeten" als "voor altijd" kan betekenen.
+
+Standaard is onbeperkt, want de praktijk wil dossiers houden. Dat is verdedigbaar met een grond zoals
+de bewaarplicht voor een zorgdossier, niet als stilzwijgende default. Het verwijderingspad blijft
+altijd werken: het recht op wissing staat los van de bewaartermijn.
 
 ## Aan de slag
 
@@ -109,6 +132,8 @@ curl -s http://localhost:3000/api/health
 | `npm run db:reset` | Alle migraties plus seed schoon doorheen draaien |
 | `npm run db:diff -- <naam>` | Nieuwe migratie genereren uit lokale schemawijzigingen |
 | `npm run eval` | Evalharnas op de fixtures, zie [evals/README.md](evals/README.md) |
+| `npm run test` | Unit- en integratietests, inclusief de conflict- en lektests |
+| `npm run notion:setup -- <page_id>` | Maakt de Notion-databases eenmalig aan |
 
 ## Structuur
 
@@ -118,11 +143,14 @@ app/
   intake/         publieke intake, bereikbaar via de linktree
   review/         coach-reviewscherm, één pagina
 lib/
-  claude/         Anthropic client en documentextractie
+  claude/         Anthropic client, documentextractie, intakegesprek
   extract/        paginatekst uit PDF's, WhatsApp-exportparser
   verify/         citaatverificatie
-  dossier/        merge, conflictdetectie, volledigheid en betrouwbaarheid
-  supabase/       browserclient (RLS) en serviceclient (medical)
+  dossier/        merge, conflictdetectie, validatie, volledigheid, betrouwbaarheid
+  db/             sql.ts (directe Postgres), medical.ts (alle medische queries)
+  intake/         sessie via capability token, documentverwerking
+  notion/         commerciele sync, met de lekcontrole
+  supabase/       browserclient (RLS) en serverclient (public + storage)
 supabase/
   migrations/     versienummerde schemawijzigingen
 evals/            testset en verwachte output
@@ -138,6 +166,16 @@ docs/plan.md      scope, milestones, randvoorwaarden
 
 ## Status
 
-M1 in opbouw: repo-fundament staat, datamodel en migraties volgen. De pipeline-modules in `lib/`
-bestaan als contract (types en signatures) en gooien bewust een fout tot ze in hun milestone
-geïmplementeerd worden. Zie [docs/plan.md](docs/plan.md).
+De intake werkt end-to-end tegen een lokale Postgres in Docker, met echte modelcalls.
+
+Gemeten op de synthetische testset:
+
+| Fixture | Resultaat |
+| --- | --- |
+| Kinesitherapieverslag (tekst-PDF, 1 pagina) | 20 velden, 20 van 20 citaten geverifieerd, 3 blessures, 17s |
+| WhatsApp-export (10 berichten) | 13 velden, 13 van 13 citaten geverifieerd, 1 blessure, 16s |
+| Huurcontract (niet relevant) | 0 velden. Het model verzint niets. |
+| Beide atletendocumenten in één intake | Gewicht 76,5 tegenover 77 wordt `conflicting`, rivaal met herkomst bewaard, indienen blokkeert |
+
+Nog te doen: reviewweergave voor de coach, intakerapport als PDF, JSON- en CSV-export, retentiejob,
+verwijderingspad en de meertalige UI. Zie [docs/plan.md](docs/plan.md).
