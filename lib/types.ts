@@ -137,4 +137,14 @@ export interface ResolvedField {
   confidence: Confidence;
   winningProposalId: number | null;
   conflicts: ConflictCandidate[];
+  /**
+   * Wie de winnende waarde aandroeg. Niet opgeslagen in dossier_fields: dit
+   * komt uit de merge en is null als het dossier uit de databank gelezen wordt.
+   *
+   * Nodig omdat "betrouwbaarheid medium" twee heel verschillende oorzaken heeft:
+   * een citaat uit een scan dat niet te verifieren was, of een antwoord dat de
+   * atleet zelf typte. Die tweede tegen "het origineel" laten controleren is
+   * onzinnig advies, en dat deed de samenvatting voor deze correctie.
+   */
+  proposedBy: ProposedBy | null;
 }

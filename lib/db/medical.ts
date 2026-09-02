@@ -277,6 +277,8 @@ export async function readDossier(intakeId: string): Promise<DossierRow[]> {
     confidence: row.confidence,
     winningProposalId: row.winning_proposal_id ? Number(row.winning_proposal_id) : null,
     conflicts: row.conflicts ?? [],
+    // Niet opgeslagen: alleen de merge weet dit. Zie ResolvedField.
+    proposedBy: null,
   }));
 }
 

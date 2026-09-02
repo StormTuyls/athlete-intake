@@ -50,7 +50,8 @@ const CONSENT_ITEMS = [
     key: "share_with_practitioners",
     required: false,
     label: "Mijn gegevens mogen gedeeld worden met mijn behandelaars",
-    detail: "Bijvoorbeeld je kinesist of sportarts, als dat de begeleiding helpt.",
+    detail:
+      "Je kinesist of sportarts krijgt dan een samenvatting van je intake in de beveiligde werkomgeving waarin hij werkt. Zonder dit vinkje blijft je medische informatie alleen bij je coach, en krijgt je behandelaar enkel je contactgegevens.",
   },
   {
     key: "retention_acknowledged",

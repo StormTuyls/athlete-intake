@@ -1,4 +1,5 @@
 import { comparisonKey, validateValue } from "@/lib/dossier/validate";
+import { isConflictable, mostInformative } from "@/lib/dossier/conflictable";
 import { deriveConfidence } from "@/lib/dossier/completeness";
 import type {
   ConflictCandidate,
@@ -21,6 +22,10 @@ import type {
  *    het veld `conflicting` en gaan de rivalen mee naar het reviewscherm. Het
  *    systeem kiest niet stil tussen twee geboortedatums.
  * 4. Verschil in notatie of spelling is geen conflict. Verschil in betekenis wel.
+ * 5. Alleen velden die echt tegenstrijdig kunnen zijn leveren een conflict op,
+ *    zie lib/dossier/conflictable.ts. Bij vrije tekst wint de meest informatieve
+ *    waarde en is er geen conflict: twee beschrijvingen van dezelfde klacht
+ *    vullen elkaar aan, ze spreken elkaar niet tegen.
  *
  * `status` beschrijft hoe de waarde in het dossier kwam, `proposedBy` wie hem
  * aandroeg. Een antwoord van de atleet is dus `extracted` met
@@ -41,6 +46,7 @@ export function resolveField(
       confidence: "low",
       winningProposalId: null,
       conflicts: [],
+      proposedBy: null,
     };
   }
 
@@ -49,27 +55,36 @@ export function resolveField(
     .filter((p) => RANK[p.proposedBy] === topRank)
     .sort((a, b) => b.id - a.id);
 
-  const winner = tier[0];
+  const conflictable = isConflictable(definition.key, definition.dataType);
+
+  // Bij vrije tekst wint de meest informatieve waarde en is er geen conflict.
+  // Bij gestructureerde velden wint het meest recente voorstel als kandidaat en
+  // is elk afwijkend voorstel een rivaal.
+  const winner = conflictable ? tier[0] : mostInformative(tier);
+
   const validation = validateValue(definition, winner.value);
   const winnerValue = validation.valid ? validation.normalised : winner.value;
   const winnerKey = comparisonKey(definition.dataType, winnerValue);
 
   const conflicts: ConflictCandidate[] = [];
-  for (const rival of tier.slice(1)) {
-    const rivalValidation = validateValue(definition, rival.value);
-    const rivalValue = rivalValidation.valid
-      ? rivalValidation.normalised
-      : rival.value;
-    if (comparisonKey(definition.dataType, rivalValue) === winnerKey) continue;
+  if (conflictable) {
+    for (const rival of tier) {
+      if (rival.id === winner.id) continue;
+      const rivalValidation = validateValue(definition, rival.value);
+      const rivalValue = rivalValidation.valid
+        ? rivalValidation.normalised
+        : rival.value;
+      if (comparisonKey(definition.dataType, rivalValue) === winnerKey) continue;
 
-    conflicts.push({
-      proposalId: rival.id,
-      value: rivalValue,
-      proposedBy: rival.proposedBy,
-      sourceDocumentId: rival.sourceDocumentId,
-      sourcePage: rival.sourcePage,
-      sourceQuote: rival.sourceQuote,
-    });
+      conflicts.push({
+        proposalId: rival.id,
+        value: rivalValue,
+        proposedBy: rival.proposedBy,
+        sourceDocumentId: rival.sourceDocumentId,
+        sourcePage: rival.sourcePage,
+        sourceQuote: rival.sourceQuote,
+      });
+    }
   }
 
   const status =
@@ -91,6 +106,7 @@ export function resolveField(
     }),
     winningProposalId: winner.id,
     conflicts,
+    proposedBy: winner.proposedBy,
   };
 }
 

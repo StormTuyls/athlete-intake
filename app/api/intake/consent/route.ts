@@ -21,7 +21,15 @@ import { addProposals } from "@/lib/db/dossier";
  * until_date met RETENTION_MONTHS als er wel een einddatum moet komen.
  */
 
-export const CONSENT_VERSION = "2026-09-02";
+/**
+ * Versie van de consent-tekst.
+ *
+ * Bumpen zodra de tekst wijzigt. Dat is niet administratie: wie versie
+ * 2026-09-02 aanvinkte gaf geen toestemming voor een tekst die daarna is
+ * uitgebreid met het delen van een samenvatting met behandelaars. De
+ * registratie moet zeggen wat iemand werkelijk gezien heeft.
+ */
+export const CONSENT_VERSION = "2026-09-02b";
 
 const DEFAULT_BASIS =
   "Zorgdossier van een begeleide atleet. Bewaard met expliciete toestemming; " +

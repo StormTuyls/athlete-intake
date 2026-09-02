@@ -30,7 +30,7 @@ values
   ('identity.club', 'identity', 7, 'Club', 'Club', 'text', false, false, null, 'Bij welke club train je?', 'Which club do you train with?'),
   ('identity.federation', 'identity', 8, 'Federatie', 'Federation', 'text', false, false, null, 'Onder welke federatie val je?', 'Which federation are you registered with?'),
   ('identity.coach_name', 'identity', 9, 'Huidige coach', 'Current coach', 'text', false, false, null, 'Wie is je huidige coach?', 'Who is your current coach?'),
-  ('identity.medical_network', 'identity', 10, 'Medisch netwerk', 'Medical network', 'long_text', false, false, null, 'Met welke arts, kinesist of osteopaat werk je samen?', 'Which doctor, physiotherapist or osteopath do you work with?'),
+  ('identity.medical_network', 'identity', 10, 'Medisch netwerk', 'Medical network', 'long_text', false, true, null, 'Met welke arts, kinesist of osteopaat werk je samen?', 'Which doctor, physiotherapist or osteopath do you work with?'),
 
   -- 3. Biometrie en basisgegevens.
   ('biometrics.height_cm', 'biometrics', 1, 'Lengte (cm)', 'Height (cm)', 'number', true, true, null, 'Hoe groot ben je, in centimeter?', 'How tall are you, in centimetres?'),

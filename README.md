@@ -49,7 +49,7 @@ browser -> signed upload URL -> Supabase Storage (ruw bestand, permanent, onaang
 - **Anthropic SDK** met `claude-opus-5`. Niet via een abstractielaag: we hebben eerstelijns toegang
   nodig tot document content blocks met pagina-locaties, expliciete prompt-caching en structured
   outputs.
-- **Notion** voor de commerciele laag: facturatie en opvolgacties. Met opzet zonder medische data.
+- **Notion** als werkomgeving van de behandelend kinesist: een korte atleetkaart plus de klinische samenvatting op de pagina. Medische inhoud gaat alleen mee als de atleet toestemming gaf om met behandelaars te delen.
 - **Geen aparte OCR-dienst.** Gescande PDF's gaan als `document` content block naar Claude,
   screenshots als `image` block. Eén integratie en één subverwerker minder.
 - **Tailwind 4**, **next-intl** (NL/EN).
@@ -177,6 +177,8 @@ Gemeten op de synthetische testset:
 | Huurcontract (niet relevant) | 0 velden. Het model verzint niets. |
 | Beide atletendocumenten in één intake | Gewicht 76,5 tegenover 77 wordt `conflicting`, rivaal met herkomst bewaard, indienen blokkeert |
 | Gesprek, één antwoord met zes feiten | Alle zes opgepikt (lengte, gewicht, sport, discipline, club, federatie), niets verzonnen |
+| Blessuretijdlijn uit twee documenten | Vier vermeldingen van twee blessures teruggebracht tot twee entries, met de bronnen als bevestiging |
+| Klinische samenvatting | Vond zelf een tegenstrijdigheid (12-08 tegenover 11-08) en het recidiefverband, zonder een diagnose te stellen |
 
 Nog te doen: reviewweergave voor de coach, intakerapport als PDF, JSON- en CSV-export, retentiejob,
 verwijderingspad en de meertalige UI. Zie [docs/plan.md](docs/plan.md).

@@ -9,6 +9,7 @@ import { appDb, storage, DOCUMENTS_BUCKET } from "../lib/supabase/service";
 import { newToken } from "../lib/intake/session";
 import { processDocument } from "../lib/intake/processDocument";
 import { syncDossier } from "../lib/db/dossier";
+import { getInjuryEntries } from "../lib/db/review";
 
 /**
  * Evalharnas.
@@ -41,6 +42,13 @@ interface Expectation {
   /** Velden die er absoluut NIET mogen staan: het model mag niets verzinnen. */
   forbidden?: string[];
   minVerifiedQuotes?: number;
+  /**
+   * Blessures met hun startdatum. Datums in een medische tijdlijn moeten exact
+   * kloppen: de klinische samenvatting van deze fixture vond een afwijking van
+   * één dag tussen het tekstveld en de tijdlijn, en dat is precies het soort
+   * fout dat je niet wil laten wegzakken.
+   */
+  injuries?: Array<{ bodyRegion: string; onsetDate?: string | null }>;
 }
 
 async function createIntake(): Promise<string> {
@@ -153,6 +161,27 @@ async function main() {
       for (const key of expectation.forbidden ?? []) {
         if (found.has(key)) {
           problems.push(`${key}: VERZONNEN, staat niet in de bron maar is wel gevuld`);
+        }
+      }
+
+      if (expectation.injuries) {
+        const entries = await getInjuryEntries(intakeId);
+        for (const want of expectation.injuries) {
+          const match = entries.filter((entry) =>
+            entry.bodyRegion.toLowerCase().includes(want.bodyRegion.toLowerCase()),
+          );
+          if (match.length === 0) {
+            problems.push(`blessure ${want.bodyRegion}: niet gevonden`);
+            continue;
+          }
+          if (want.onsetDate !== undefined) {
+            const dates = match.map((entry) => entry.onsetDate);
+            if (!dates.includes(want.onsetDate)) {
+              problems.push(
+                `blessure ${want.bodyRegion}: startdatum ${JSON.stringify(dates)}, verwacht ${JSON.stringify(want.onsetDate)}`,
+              );
+            }
+          }
         }
       }
 
