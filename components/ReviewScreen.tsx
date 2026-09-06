@@ -206,6 +206,13 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
+      {/* Zichtbaar, niet alleen in een comment: wie dit scherm openslaat moet
+          weten dat er geen login voor staat. Verdwijnt zodra requireCoach() er is. */}
+      <p className="mb-6 rounded-lg border border-red-500/40 bg-red-500/5 p-3 text-xs text-red-700 dark:text-red-400">
+        Nog niet productieklaar: dit scherm heeft geen coach-login. Iedereen met
+        de link ziet het volledige medische dossier.
+      </p>
+
       <header className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">
           {data.athleteName ?? "Naam onbekend"}
