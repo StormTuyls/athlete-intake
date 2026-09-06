@@ -17,5 +17,14 @@
     "status.goals",
     "training.strength_training_years"
   ],
-  "minVerifiedQuotes": 12
+  "minVerifiedQuotes": 12,
+  "injuries": [
+    {
+      "bodyRegion": "hamstring",
+      "onsetDate": "2026-08-12"
+    },
+    {
+      "bodyRegion": "knie"
+    }
+  ]
 }

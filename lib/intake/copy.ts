@@ -91,7 +91,12 @@ export const CONSENT_ITEMS = [
     key: "share_with_practitioners",
     required: false,
     label: "My data may be shared with my practitioners",
-    detail: "Your physiotherapist or sports physician, where it helps your care.",
+    // Dit vinkje is de grond waarop de samenvatting naar de werkomgeving van de
+    // behandelaar gaat. Het moet dus zeggen wat er werkelijk gedeeld wordt en
+    // wat er gebeurt als je het niet aanvinkt, niet alleen dat er "gedeeld" mag
+    // worden. Zonder die precisie is het geen geldige toestemming.
+    detail:
+      "Your physiotherapist or sports physician then receives a summary of your intake in the secure workspace they use. Without this box, your medical information stays with your coach only, and your practitioner receives just your contact details.",
   },
   {
     key: "retention_acknowledged",
