@@ -10,11 +10,11 @@ import { IntakeAuthError } from "@/lib/intake/session";
  */
 export function handleError(error: unknown): NextResponse {
   if (error instanceof IntakeAuthError) {
-    return NextResponse.json({ error: "geen geldige sessie" }, { status: 401 });
+    return NextResponse.json({ error: "Your session has expired. Start the intake again." }, { status: 401 });
   }
 
   console.error("[intake]", error);
-  return NextResponse.json({ error: "er ging iets mis" }, { status: 500 });
+  return NextResponse.json({ error: "Something went wrong. Nothing you sent was lost." }, { status: 500 });
 }
 
 export function badRequest(message: string): NextResponse {

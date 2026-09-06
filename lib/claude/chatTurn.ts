@@ -151,15 +151,34 @@ export async function runChatTurn(input: {
   gaps: Gap[];
   definitions: FieldDefinition[];
   locale: "nl" | "en";
+  /**
+   * Aanleiding voor een beurt zonder nieuw antwoord van de atleet. Wordt als
+   * user-bericht meegestuurd maar NIET opgeslagen: de atleet heeft dit niet
+   * gezegd, en zijn stem nabootsen in een transcriptie die geaudit wordt kan
+   * niet. Zie de guard hieronder.
+   */
+  nudge?: string;
 }): Promise<ChatTurnResult> {
   const client = anthropic();
 
-  // Een eerste beurt zonder geschiedenis heeft geen user-bericht om op te
-  // reageren; de Messages API vereist er wel een.
-  const messages =
-    input.history.length > 0
-      ? input.history
-      : [{ role: "user" as const, content: "Ik wil de intake starten." }];
+  // De Messages API wil dat de laatste beurt van de gebruiker is. Dat is niet
+  // alleen zo bij een leeg gesprek: na een upload of een bevestiging eindigt de
+  // geschiedenis op een assistent-bericht, en dan zou het model gevraagd worden
+  // zijn eigen beurt voort te zetten onder een json_schema-config. Vandaar de
+  // bredere voorwaarde: eindigt de historie niet op de atleet, dan komt er een
+  // regel bij die zegt wat er zojuist gebeurd is.
+  const last = input.history.at(-1);
+  const needsOpener = last === undefined || last.role !== "user";
+
+  const messages: ChatMessage[] = needsOpener
+    ? [
+        ...input.history,
+        {
+          role: "user" as const,
+          content: input.nudge ?? "Ik wil de intake starten.",
+        },
+      ]
+    : input.history;
 
   const response = await client.messages.create({
     model: MODEL,

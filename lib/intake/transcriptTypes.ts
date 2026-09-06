@@ -1,0 +1,105 @@
+import type {
+  Confidence,
+  DocumentKind,
+  FieldDataType,
+  FieldStatus,
+} from "@/lib/types";
+
+/**
+ * Wat het chatscherm van de server krijgt.
+ *
+ * Alleen types, geen imports die naar de databank leiden. Dat is de reden dat
+ * dit bestand los staat van lib/intake/transcript.ts: die trekt `pg` binnen en
+ * mag daarom nooit vanuit een client component geimporteerd worden, terwijl de
+ * types dat juist wel moeten kunnen.
+ *
+ * Let op wat er NIET in staat: sourceQuote, sourcePage, sourceDocumentId of
+ * proposedBy. app/api/intake/state/route.ts strippt die bewust voor de atleet,
+ * en het chatscherm volgt dezelfde regel. Herkomst is voor het coachscherm.
+ */
+
+/** Een veld dat de assistent uit een antwoord of document heeft opgepikt. */
+export interface CaptureCard {
+  fieldKey: string;
+  /** Label in de taal van de intake, server-side gekozen. */
+  label: string;
+  section: string;
+  sectionLabel: string;
+  /** Weergaveklare tekst, niet de ruwe jsonb-waarde. */
+  value: string;
+  status: FieldStatus;
+  confidence: Confidence;
+  /**
+   * Waar zolang het winnende voorstel van het model komt. Stuurt Confirm/Edit.
+   * Afgeleid uit winning_proposal_id, dus geen extra kolom en na een reload nog
+   * steeds waar.
+   */
+  needsConfirmation: boolean;
+  /** Voor het invulveld bij Edit. Nooit het bronquote. */
+  dataType: FieldDataType;
+  enumOptions: string[] | null;
+}
+
+/** De sectie waar de assistent nu naar vraagt. */
+export interface Collecting {
+  section: string;
+  label: string;
+}
+
+/** Voortgang in secties, plus de verplichte velden die submit poorten. */
+export interface Progress {
+  sectionsDone: number;
+  sectionsTotal: number;
+  requiredFilled: number;
+  requiredTotal: number;
+}
+
+export type DocumentState = "uploading" | "processing" | "read" | "failed";
+
+export type TranscriptItem =
+  | { kind: "assistant"; id: string; at: string; text: string }
+  | { kind: "athlete"; id: string; at: string; text: string }
+  | { kind: "capture"; id: string; at: string; card: CaptureCard }
+  | {
+      kind: "document";
+      id: string;
+      at: string;
+      /** Null zolang de upload nog loopt en de server het document nog niet kent. */
+      documentId: string | null;
+      filename: string;
+      mimeType: string;
+      byteSize: number;
+      documentKind: DocumentKind | null;
+      pageCount: number | null;
+      state: DocumentState;
+      error: string | null;
+    }
+  | {
+      kind: "extraction";
+      id: string;
+      at: string;
+      documentId: string;
+      filename: string;
+      cards: CaptureCard[];
+      fieldsProposed: number;
+      quotesVerified: number;
+    };
+
+export interface Completeness {
+  total: number;
+  filled: number;
+  requiredTotal: number;
+  requiredFilled: number;
+  conflicts: number;
+  readyToSubmit: boolean;
+}
+
+/** Antwoord van GET /api/intake/transcript. Alles wat het scherm bij mount nodig heeft. */
+export interface TranscriptResponse {
+  transcript: TranscriptItem[];
+  collecting: Collecting | null;
+  progress: Progress;
+  completeness: Completeness;
+  status: string;
+  consentGrantedAt: string | null;
+}

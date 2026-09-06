@@ -1,18 +1,68 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #18181b;
-}
+/**
+ * Ontwerptokens.
+ *
+ * Bewust klein: alleen wat op meer dan een plek terugkomt. Een tokenlijst die
+ * alles dekt wordt een tweede stylesheet die niemand onderhoudt.
+ *
+ * Tailwind v4 genereert utilities uit de namespaces hieronder, dus
+ * --color-brand-600 geeft bg-brand-600 en text-brand-600, en --radius-bubble
+ * geeft rounded-bubble. Er is daarom geen tailwind.config nodig.
+ *
+ * Geen prefers-color-scheme-blok meer. Dat zette body op #09090b, en het
+ * chatscherm is een licht ontwerp met witte bubbels: op een donkere OS gaf dat
+ * zwart achter witte kaarten en onleesbare transparante invoervelden. Licht of
+ * donker is hier een keuze per scherm (chat licht, login donker), geen
+ * OS-voorkeur.
+ */
+@theme {
+  /* Teal uit het ontwerp. 600 is de knop- en bubbelkleur. */
+  --color-brand-50: #eff9f7;
+  --color-brand-100: #d3efeb;
+  --color-brand-200: #a8dfd8;
+  --color-brand-500: #12a594;
+  --color-brand-600: #0e9384;
+  --color-brand-700: #0b766b;
+  --color-brand-800: #095c53;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b;
-    --foreground: #fafafa;
-  }
+  /* Ondergrond van de berichtenlijst, kaarten daarop, en de haarlijn. */
+  --color-canvas: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-hairline: #e8eaee;
+
+  --color-ink: #101828;
+  --color-ink-muted: #667085;
+  --color-ink-faint: #98a2b3;
+
+  /* Statuskleuren. Amber betekent 'kijk hier naar', nooit alleen decoratie. */
+  --color-ok: #0e9384;
+  --color-warn: #b54708;
+  --color-warn-soft: #fffaeb;
+  --color-danger: #b42318;
+  --color-danger-soft: #fef3f2;
+
+  /* Aparte kleur voor 'citaat niet teruggevonden'. Zie ConfidenceChip: die
+     staat bewust niet in hetzelfde teal als een geverifieerde waarde. */
+  --color-unverified: #475467;
+  --color-unverified-soft: #f2f4f7;
+
+  --radius-bubble: 1.25rem;
+  --radius-card: 1rem;
+  --radius-chip: 9999px;
+
+  /* Kleine uppercase sectielabels. De letterspacing hoort bij de maat, niet bij
+     de plek waar het label toevallig staat, dus zit hij in de token. */
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1rem;
+  --text-label--letter-spacing: 0.08em;
+  --text-label--font-weight: 600;
+
+  --shadow-bubble: 0 1px 2px rgb(16 24 40 / 0.06);
+  --shadow-card: 0 1px 3px rgb(16 24 40 / 0.08);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-surface);
+  color: var(--color-ink);
 }

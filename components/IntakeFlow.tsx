@@ -1,7 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
+import { ChatScreen } from "@/components/intake/ChatScreen";
+import {
+  CONSENT_ITEMS,
+  chat as chatCopy,
+  consent as consentCopy,
+  errors,
+  intake,
+} from "@/lib/intake/copy";
 
 /**
  * De intake zoals de atleet hem doorloopt.
@@ -33,36 +41,9 @@ interface DocumentRow {
   error?: string;
 }
 
-interface ChatLine {
-  role: "user" | "assistant";
-  content: string;
-}
-
-const CONSENT_ITEMS = [
-  {
-    key: "medical_processing",
-    required: true,
-    label: "Ik geef toestemming om mijn medische gegevens te verwerken",
-    detail:
-      "Nodig om je blessurehistoriek, klachten en testgegevens te kunnen opnemen in je dossier.",
-  },
-  {
-    key: "share_with_practitioners",
-    required: false,
-    label: "Mijn gegevens mogen gedeeld worden met mijn behandelaars",
-    detail: "Bijvoorbeeld je kinesist of sportarts, als dat de begeleiding helpt.",
-  },
-  {
-    key: "retention_acknowledged",
-    required: true,
-    label: "Ik weet hoe lang mijn dossier bewaard blijft",
-    detail:
-      "Je dossier blijft bewaard zolang de begeleiding loopt en daarna als zorgdossier. Je kunt op elk moment vragen om het te verwijderen.",
-  },
-] as const;
-
 export function IntakeFlow() {
   const [step, setStep] = useState<Step>("consent");
+  const [resuming, setResuming] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,17 +52,46 @@ export function IntakeFlow() {
   const [email, setEmail] = useState("");
 
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
-  const [chat, setChat] = useState<ChatLine[]>([]);
-  const [draft, setDraft] = useState("");
   const [completeness, setCompleteness] = useState<Completeness | null>(null);
   const [submitted, setSubmitted] = useState<{ notionCreated: boolean | null } | null>(
     null,
   );
 
-  const chatEnd = useRef<HTMLDivElement>(null);
+  /**
+   * Een lopende intake hervatten in plaats van opnieuw beginnen.
+   *
+   * De sessie zit dertig dagen in een cookie, dus wie zijn tab sluit en morgen
+   * terugkomt heeft nog een intake. Zonder deze controle landt hij weer op het
+   * toestemmingsscherm terwijl hij al toestemming gaf, en dan is de logische
+   * conclusie dat zijn antwoorden weg zijn. Ze staan er gewoon nog.
+   *
+   * Geen sessie geeft een 401, en dat is geen fout maar de normale situatie voor
+   * iemand die hier voor het eerst komt.
+   */
   useEffect(() => {
-    chatEnd.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat]);
+    let ignore = false;
+
+    fetch("/api/intake/state")
+      .then(async (response) => {
+        if (ignore) return;
+        if (!response.ok) return;
+        const state = (await response.json()) as {
+          consentGrantedAt: string | null;
+          status: string;
+          completeness: Completeness;
+        };
+        if (ignore || !state.consentGrantedAt) return;
+        setCompleteness(state.completeness);
+        setStep(state.status === "draft" ? "chat" : "done");
+      })
+      .finally(() => {
+        if (!ignore) setResuming(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const call = useCallback(
     async <T,>(path: string, body?: unknown): Promise<T> => {
@@ -91,7 +101,7 @@ export function IntakeFlow() {
         body: body === undefined ? undefined : JSON.stringify(body),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "er ging iets mis");
+      if (!response.ok) throw new Error(payload.error ?? errors.generic);
       return payload as T;
     },
     [],
@@ -101,7 +111,10 @@ export function IntakeFlow() {
     setBusy(true);
     setError(null);
     try {
-      await call("/api/intake", { locale: "nl" });
+      // De interface is Engels, dus de intake ook: de locale stuurt de taal van
+      // de assistent en welke labels de server teruggeeft. Staat hier "nl", dan
+      // antwoordt een Engelstalig scherm in het Nederlands.
+      await call("/api/intake", { locale: "en" });
       const result = await call<{ completeness: Completeness }>("/api/intake/consent", {
         purposes,
         fullName,
@@ -110,7 +123,7 @@ export function IntakeFlow() {
       setCompleteness(result.completeness);
       setStep("upload");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "er ging iets mis");
+      setError(caught instanceof Error ? caught.message : errors.generic);
     } finally {
       setBusy(false);
     }
@@ -164,7 +177,7 @@ export function IntakeFlow() {
             fieldsProposed: 0,
             quotesVerified: 0,
             injuriesFound: 0,
-            error: caught instanceof Error ? caught.message : "verwerking mislukt",
+            error: caught instanceof Error ? caught.message : intake.documentFailed,
           },
         ]);
       }
@@ -180,25 +193,6 @@ export function IntakeFlow() {
     setBusy(false);
   }
 
-  async function chatTurn(message?: string) {
-    setBusy(true);
-    setError(null);
-    if (message) setChat((lines) => [...lines, { role: "user", content: message }]);
-    try {
-      const result = await call<{
-        reply: string;
-        done: boolean;
-        completeness: Completeness;
-      }>("/api/intake/chat", message ? { message } : {});
-      setChat((lines) => [...lines, { role: "assistant", content: result.reply }]);
-      setCompleteness(result.completeness);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "er ging iets mis");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function submit() {
     setBusy(true);
     setError(null);
@@ -209,7 +203,7 @@ export function IntakeFlow() {
       setSubmitted({ notionCreated: result.notion?.created ?? null });
       setStep("done");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "nog niet volledig");
+      setError(caught instanceof Error ? caught.message : intake.notComplete);
     } finally {
       setBusy(false);
     }
@@ -219,46 +213,51 @@ export function IntakeFlow() {
     (item) => purposes[item.key],
   );
 
+  // Even niets tonen zolang niet vaststaat of er een lopende intake is. Het
+  // toestemmingsscherm laten opflitsen bij iemand die al toestemming gaf leest
+  // als "je moet opnieuw beginnen".
+  if (resuming) return null;
+
+  // Het gesprek is een eigen scherm op volle hoogte, geen sectie binnen de
+  // kolom hierboven. Vandaar een aparte return in plaats van een tak in de JSX.
+  if (step === "chat") {
+    return <ChatScreen onSubmit={submit} externalError={error} submitting={busy} />;
+  }
+
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Intake</h1>
-        <p className="mt-2 text-sm opacity-70">
-          Lever aan wat je hebt. De assistent leest het uit en vraagt alleen naar
-          wat nog ontbreekt.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{intake.title}</h1>
+        <p className="mt-2 text-sm opacity-70">{intake.intro}</p>
       </header>
 
       {completeness && step !== "consent" && (
-        <div className="mb-8 rounded-lg border border-black/10 p-4 text-sm dark:border-white/15">
+        <div className="mb-8 rounded-lg border border-hairline p-4 text-sm">
           <div className="flex justify-between">
-            <span>
-              {completeness.filled} van {completeness.total} velden bekend
-            </span>
+            <span>{intake.fieldsKnown(completeness.filled, completeness.total)}</span>
             <span className="opacity-60">
-              {completeness.requiredFilled}/{completeness.requiredTotal} verplicht
+              {intake.requiredCount(
+                completeness.requiredFilled,
+                completeness.requiredTotal,
+              )}
             </span>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded bg-black/10 dark:bg-white/15">
+          <div className="mt-2 h-1.5 overflow-hidden rounded bg-hairline">
             <div
-              className="h-full bg-emerald-600"
+              className="h-full bg-brand-600"
               style={{
                 width: `${Math.round((completeness.filled / Math.max(completeness.total, 1)) * 100)}%`,
               }}
             />
           </div>
           {completeness.conflicts > 0 && (
-            <p className="mt-2 text-amber-700 dark:text-amber-400">
-              {completeness.conflicts} tegenstrijdigheid
-              {completeness.conflicts === 1 ? "" : "heden"} tussen je documenten. De
-              assistent vraagt je welke waarde klopt.
-            </p>
+            <p className="mt-2 text-warn">{intake.conflicts(completeness.conflicts)}</p>
           )}
         </div>
       )}
 
       {error && (
-        <p className="mb-6 rounded-lg border border-red-500/40 bg-red-500/5 p-3 text-sm text-red-700 dark:text-red-400">
+        <p className="mb-6 rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger">
           {error}
         </p>
       )}
@@ -267,21 +266,21 @@ export function IntakeFlow() {
         <section className="space-y-6">
           <div className="space-y-3">
             <label className="block text-sm">
-              <span className="opacity-70">Naam</span>
+              <span className="opacity-70">{consentCopy.name}</span>
               <input
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
-                className="mt-1 w-full rounded-md border border-black/15 bg-transparent px-3 py-2 dark:border-white/20"
+                className="mt-1 w-full rounded-md border border-hairline bg-surface px-3 py-2 outline-none focus-visible:border-brand-500"
                 autoComplete="name"
               />
             </label>
             <label className="block text-sm">
-              <span className="opacity-70">E-mail</span>
+              <span className="opacity-70">{consentCopy.email}</span>
               <input
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 type="email"
-                className="mt-1 w-full rounded-md border border-black/15 bg-transparent px-3 py-2 dark:border-white/20"
+                className="mt-1 w-full rounded-md border border-hairline bg-surface px-3 py-2 outline-none focus-visible:border-brand-500"
                 autoComplete="email"
               />
             </label>
@@ -303,7 +302,7 @@ export function IntakeFlow() {
                 />
                 <span>
                   {item.label}
-                  {item.required && <span className="text-red-600"> *</span>}
+                  {item.required && <span className="text-danger"> *</span>}
                   <span className="mt-0.5 block text-xs opacity-60">{item.detail}</span>
                 </span>
               </label>
@@ -313,9 +312,9 @@ export function IntakeFlow() {
           <button
             onClick={startAndConsent}
             disabled={!consentOk || busy}
-            className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-black"
+            className="rounded-md bg-brand-600 px-4 py-2 text-sm text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
           >
-            {busy ? "Bezig" : "Verder"}
+            {busy ? consentCopy.busy : consentCopy.continue}
           </button>
         </section>
       )}
@@ -323,11 +322,8 @@ export function IntakeFlow() {
       {step === "upload" && (
         <section className="space-y-6">
           <div>
-            <h2 className="text-sm font-medium">Documenten</h2>
-            <p className="mt-1 text-xs opacity-60">
-              Medische verslagen, scans, je trainingsschema, testrapporten,
-              screenshots of een WhatsApp-export. PDF, JPEG, PNG, tekst of CSV.
-            </p>
+            <h2 className="text-sm font-medium">{intake.documents}</h2>
+            <p className="mt-1 text-xs opacity-60">{intake.documentsHint}</p>
           </div>
 
           <input
@@ -346,20 +342,22 @@ export function IntakeFlow() {
               {documents.map((document, index) => (
                 <li
                   key={`${document.filename}-${index}`}
-                  className="rounded-md border border-black/10 p-3 dark:border-white/15"
+                  className="rounded-md border border-hairline p-3"
                 >
                   <div className="font-medium">{document.filename}</div>
                   {document.error ? (
-                    <div className="mt-1 text-xs text-red-700 dark:text-red-400">
-                      {document.error} (het bestand blijft bewaard)
+                    <div className="mt-1 text-xs text-danger">
+                      {document.error} ({intake.documentKept})
                     </div>
                   ) : (
                     <div className="mt-1 text-xs opacity-60">
-                      {document.kind} · {document.fieldsProposed} veld
-                      {document.fieldsProposed === 1 ? "" : "en"} gevonden,{" "}
-                      {document.quotesVerified} met geverifieerd citaat
+                      {document.kind} ·{" "}
+                      {intake.documentSummary(
+                        document.fieldsProposed,
+                        document.quotesVerified,
+                      )}
                       {document.injuriesFound > 0 &&
-                        ` · ${document.injuriesFound} blessure${document.injuriesFound === 1 ? "" : "s"}`}
+                        ` · ${intake.injuriesFound(document.injuriesFound)}`}
                     </div>
                   )}
                 </li>
@@ -369,86 +367,22 @@ export function IntakeFlow() {
 
           <div className="flex gap-3">
             <button
-              onClick={() => {
-                setStep("chat");
-                void chatTurn();
-              }}
+              onClick={() => setStep("chat")}
               disabled={busy}
-              className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-black"
+              className="rounded-md bg-brand-600 px-4 py-2 text-sm text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
             >
-              {busy ? "Bezig" : "Verder naar de vragen"}
+              {busy ? consentCopy.busy : intake.toQuestions}
             </button>
           </div>
-        </section>
-      )}
-
-      {step === "chat" && (
-        <section className="space-y-4">
-          <div className="space-y-3">
-            {chat.map((line, index) => (
-              <div
-                key={index}
-                className={
-                  line.role === "user"
-                    ? "ml-auto max-w-[85%] rounded-lg bg-black/5 px-3 py-2 text-sm dark:bg-white/10"
-                    : "max-w-[85%] rounded-lg border border-black/10 px-3 py-2 text-sm dark:border-white/15"
-                }
-              >
-                {line.content}
-              </div>
-            ))}
-            <div ref={chatEnd} />
-          </div>
-
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!draft.trim() || busy) return;
-              const message = draft.trim();
-              setDraft("");
-              void chatTurn(message);
-            }}
-            className="flex gap-2"
-          >
-            <input
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Je antwoord"
-              disabled={busy}
-              className="flex-1 rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm dark:border-white/20"
-            />
-            <button
-              type="submit"
-              disabled={busy || !draft.trim()}
-              className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-black"
-            >
-              Stuur
-            </button>
-          </form>
-
-          {completeness?.readyToSubmit && (
-            <button
-              onClick={submit}
-              disabled={busy}
-              className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm text-white disabled:opacity-40"
-            >
-              Intake afronden
-            </button>
-          )}
         </section>
       )}
 
       {step === "done" && (
         <section className="space-y-3">
-          <h2 className="text-lg font-medium">Ingediend</h2>
-          <p className="text-sm opacity-70">
-            Je coach kijkt je dossier na en neemt contact op. De documenten die je
-            aanleverde blijven bewaard naast de gegevens die eruit gehaald zijn.
-          </p>
+          <h2 className="text-lg font-medium">{intake.submitted}</h2>
+          <p className="text-sm opacity-70">{intake.submittedBody}</p>
           {submitted?.notionCreated && (
-            <p className="text-xs opacity-50">
-              Opvolgactie en factuurregel voor je coach zijn aangemaakt.
-            </p>
+            <p className="text-xs opacity-50">{intake.submittedNotion}</p>
           )}
         </section>
       )}

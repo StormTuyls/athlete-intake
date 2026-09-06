@@ -111,6 +111,8 @@ export interface DocumentSummary {
   id: string;
   originalFilename: string;
   mimeType: string;
+  /** Nodig voor de regel "1.3 MB · scanned" onder een bestandsbubbel na een reload. */
+  byteSize: number;
   kind: DocumentKind;
   pageCount: number | null;
   uploadedAt: string;
@@ -123,13 +125,14 @@ export async function listDocuments(intakeId: string): Promise<DocumentSummary[]
     id: string;
     original_filename: string;
     mime_type: string;
+    byte_size: string;
     kind: DocumentKind;
     page_count: number | null;
     uploaded_at: Date;
     processed_at: Date | null;
     processing_error: string | null;
   }>(
-    `select id, original_filename, mime_type, kind, page_count,
+    `select id, original_filename, mime_type, byte_size, kind, page_count,
             uploaded_at, processed_at, processing_error
      from medical.documents where intake_id = $1 order by uploaded_at`,
     [intakeId],
@@ -139,6 +142,8 @@ export async function listDocuments(intakeId: string): Promise<DocumentSummary[]
     id: row.id,
     originalFilename: row.original_filename,
     mimeType: row.mime_type,
+    // byte_size is bigint en komt als string uit pg.
+    byteSize: Number(row.byte_size),
     kind: row.kind,
     pageCount: row.page_count,
     uploadedAt: row.uploaded_at.toISOString(),
@@ -221,6 +226,19 @@ export async function getProposals(intakeId: string): Promise<Proposal[]> {
   }));
 }
 
+/**
+ * Schrijft de herberekende stand weg, maar alleen waar hij echt veranderd is.
+ *
+ * `dossier_fields` is een afgeleide cache die bij elke read opnieuw berekend
+ * wordt (zie syncDossier). Zonder de where-clausule hieronder schrijft elke read
+ * alle 41 rijen, en omdat audit_dossier_fields een row-trigger is levert dat 41
+ * auditregels op met `changed: ["updated_at"]`. Een paar keer een dossier openen
+ * begraaft het echte spoor dan onder ruis, en dat spoor is precies waar dit
+ * systeem voor bestaat.
+ *
+ * `is distinct from` en niet `<>`, want een kolom die van null naar een waarde
+ * gaat (of omgekeerd) moet als wijziging tellen; `<>` geeft daar null.
+ */
 export async function saveDossier(
   intakeId: string,
   fields: ResolvedField[],
@@ -237,7 +255,12 @@ export async function saveDossier(
                confidence = excluded.confidence,
                winning_proposal_id = excluded.winning_proposal_id,
                conflicts = excluded.conflicts,
-               updated_at = now()`,
+               updated_at = now()
+         where dossier_fields.value               is distinct from excluded.value
+            or dossier_fields.status              is distinct from excluded.status
+            or dossier_fields.confidence          is distinct from excluded.confidence
+            or dossier_fields.winning_proposal_id is distinct from excluded.winning_proposal_id
+            or dossier_fields.conflicts           is distinct from excluded.conflicts`,
         [
           intakeId,
           field.fieldKey,

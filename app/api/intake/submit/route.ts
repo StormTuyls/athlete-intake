@@ -20,7 +20,7 @@ export async function POST() {
     const session = await requireIntake();
 
     if (session.status !== "draft") {
-      return badRequest("deze intake is al ingediend");
+      return badRequest("This intake has already been submitted.");
     }
 
     const state = await syncDossier(session.intakeId, session.locale);

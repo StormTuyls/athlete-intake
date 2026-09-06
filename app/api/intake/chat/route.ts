@@ -2,10 +2,29 @@ import { NextResponse } from "next/server";
 import { appDb } from "@/lib/supabase/service";
 import { requireIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
-import { addProposals, syncDossier } from "@/lib/db/dossier";
+import { addProposals, getProposals, syncDossier } from "@/lib/db/dossier";
 import { runChatTurn, type ChatMessage } from "@/lib/claude/chatTurn";
+import {
+  buildCard,
+  collectingFrom,
+  computeProgress,
+  winnerIsModel,
+} from "@/lib/intake/transcript";
+import type { CaptureCard } from "@/lib/intake/transcriptTypes";
 
 export const maxDuration = 120;
+
+/**
+ * Aanleidingen voor een beurt waarin de atleet niets getypt heeft.
+ *
+ * Een vaste lijst, geen vrije tekst uit de body: dit wordt als user-bericht aan
+ * het model gegeven, en een client die daar zelf tekst in mag zetten schrijft de
+ * prompt mee. De tekst wordt nooit opgeslagen in chat_messages.
+ */
+const NUDGES = {
+  document_uploaded:
+    "Ik heb net een document geupload. Bevestig kort wat je eruit hebt gehaald en stel dan de volgende openstaande vraag.",
+} as const;
 
 /**
  * Eén beurt van het intakegesprek.
@@ -24,10 +43,13 @@ export async function POST(request: Request) {
     const session = await requireIntake();
 
     if (!session.consentGrantedAt) {
-      return badRequest("geef eerst toestemming voor het verwerken van je gegevens");
+      return badRequest("Please give consent before we process your data.");
     }
 
-    const body = (await request.json().catch(() => ({}))) as { message?: string };
+    const body = (await request.json().catch(() => ({}))) as {
+      message?: string;
+      nudge?: keyof typeof NUDGES;
+    };
     const db = appDb();
 
     // Antwoord van de atleet eerst opslaan, dan pas het model erbij halen. Zo
@@ -60,6 +82,7 @@ export async function POST(request: Request) {
       gaps: state.gaps,
       definitions: state.definitions,
       locale: session.locale,
+      nudge: body.nudge ? NUDGES[body.nudge] : undefined,
     });
 
     if (turn.captured.length > 0) {
@@ -86,9 +109,36 @@ export async function POST(request: Request) {
 
     const after = await syncDossier(session.intakeId, session.locale);
 
+    // Het scherm toont per opgepikt veld een kaart met label, waarde en
+    // betrouwbaarheid. Alleen de sleutels teruggeven zou de client dwingen om
+    // daarna alsnog de hele veldenlijst op te halen.
+    //
+    // De kaarten worden met dezelfde functies gebouwd als in de transcriptie,
+    // want de client plakt beide in één lijst. Twee bouwers zouden vroeg of laat
+    // twee verschillende waarheden opleveren voor hetzelfde veld.
+    const proposalById = new Map((await getProposals(session.intakeId)).map((p) => [p.id, p]));
+    const definitionByKey = new Map(after.definitions.map((d) => [d.key, d]));
+
+    const captured: CaptureCard[] = [];
+    for (const item of turn.captured) {
+      const definition = definitionByKey.get(item.fieldKey);
+      if (!definition) continue;
+      const resolved = after.resolved.get(item.fieldKey);
+      captured.push(
+        buildCard(definition, resolved, winnerIsModel(resolved, proposalById), session.locale),
+      );
+    }
+
     return NextResponse.json({
       reply: turn.reply,
-      captured: turn.captured.map((c) => c.fieldKey),
+      captured,
+      collecting: collectingFrom(after.gaps),
+      progress: computeProgress(
+        after.definitions,
+        after.gaps,
+        after.completeness.requiredFilled,
+        after.completeness.requiredTotal,
+      ),
       done: turn.done || after.gaps.length === 0,
       completeness: after.completeness,
       openGaps: after.gaps.length,

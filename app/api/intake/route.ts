@@ -64,5 +64,5 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  return badRequest("gebruik POST om een intake te starten");
+  return badRequest("Use POST to start an intake.");
 }

@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const session = await requireIntake();
 
     if (!session.consentGrantedAt) {
-      return badRequest("geef eerst toestemming voor het verwerken van je gegevens");
+      return badRequest("Please give consent before we process your data.");
     }
 
     const body = (await request.json()) as {
@@ -40,13 +40,13 @@ export async function POST(request: Request) {
     };
 
     if (!body.filename || !body.mimeType) {
-      return badRequest("filename en mimeType zijn verplicht");
+      return badRequest("A filename and a file type are required.");
     }
     if (!ALLOWED.has(body.mimeType)) {
       return badRequest(`bestandstype ${body.mimeType} wordt niet geaccepteerd`);
     }
     if ((body.byteSize ?? 0) > MAX_BYTES) {
-      return badRequest("bestand is groter dan 50 MB");
+      return badRequest("That file is larger than 50 MB.");
     }
 
     // Pad per intake, met een eigen id per bestand. De originele naam gaat naar

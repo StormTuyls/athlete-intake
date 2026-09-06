@@ -29,6 +29,31 @@ const DEFAULT_BASIS =
 
 const REQUIRED = ["medical_processing", "retention_acknowledged"] as const;
 
+/**
+ * Toegestane doelen, en welke daarvan ook een dossierveld zijn.
+ *
+ * `consents.purposes` is jsonb en is het juridische register: daar mag een doel
+ * bij zonder migratie. De taxonomie in `field_definitions` is bevroren en heeft
+ * maar drie `consent.*`-velden. Zonder deze scheiding wordt elk onbekend doel
+ * een voorstel met een field_key die niet bestaat, en dat is een FK-schending
+ * die als een kale 500 bij de atleet landt.
+ *
+ * Onbekende sleutels worden geweigerd in plaats van genegeerd: een doel dat de
+ * client stuurt en de server stil laat vallen, staat straks in geen enkel
+ * register terwijl de atleet denkt dat hij iets afgesproken heeft.
+ */
+const KNOWN_PURPOSES = [
+  "medical_processing",
+  "share_with_practitioners",
+  "retention_acknowledged",
+] as const;
+
+const PURPOSES_WITH_FIELD: ReadonlySet<string> = new Set([
+  "medical_processing",
+  "share_with_practitioners",
+  "retention_acknowledged",
+]);
+
 export async function POST(request: Request) {
   try {
     const session = await requireIntake();
@@ -40,9 +65,17 @@ export async function POST(request: Request) {
     };
 
     const purposes = body.purposes ?? {};
+
+    const unknown = Object.keys(purposes).filter(
+      (key) => !(KNOWN_PURPOSES as readonly string[]).includes(key),
+    );
+    if (unknown.length > 0) {
+      return badRequest(`Unknown consent purpose: ${unknown.join(", ")}`);
+    }
+
     const missing = REQUIRED.filter((key) => purposes[key] !== true);
     if (missing.length > 0) {
-      return badRequest(`verplichte toestemming ontbreekt: ${missing.join(", ")}`);
+      return badRequest(`Required consent is missing: ${missing.join(", ")}`);
     }
 
     const db = appDb();
@@ -93,13 +126,16 @@ export async function POST(request: Request) {
       .eq("id", session.athleteId);
 
     // De consentvinkjes en de naam zijn ook dossiervelden, zodat het
-    // reviewscherm en het rapport ze in één lijst kunnen tonen.
+    // reviewscherm en het rapport ze in één lijst kunnen tonen. Alleen de doelen
+    // die echt in de taxonomie staan: de rest leeft in `consents.purposes`.
     await addProposals(session.intakeId, [
-      ...Object.entries(purposes).map(([key, value]) => ({
-        fieldKey: `consent.${key}`,
-        value,
-        proposedBy: "athlete" as const,
-      })),
+      ...Object.entries(purposes)
+        .filter(([key]) => PURPOSES_WITH_FIELD.has(key))
+        .map(([key, value]) => ({
+          fieldKey: `consent.${key}`,
+          value,
+          proposedBy: "athlete" as const,
+        })),
       ...(body.fullName?.trim()
         ? [
             {

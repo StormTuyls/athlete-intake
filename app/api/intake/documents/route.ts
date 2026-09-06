@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const session = await requireIntake();
 
     if (!session.consentGrantedAt) {
-      return badRequest("geef eerst toestemming voor het verwerken van je gegevens");
+      return badRequest("Please give consent before we process your data.");
     }
 
     const body = (await request.json()) as {
@@ -31,13 +31,13 @@ export async function POST(request: Request) {
     };
 
     if (!body.path || !body.filename || !body.mimeType) {
-      return badRequest("path, filename en mimeType zijn verplicht");
+      return badRequest("A path, filename and file type are required.");
     }
 
     // Het pad moet in de map van deze intake liggen. Anders zou een geldige
     // sessie het document van een andere atleet kunnen laten verwerken.
     if (!body.path.startsWith(`${session.intakeId}/`)) {
-      return badRequest("pad hoort niet bij deze intake");
+      return badRequest("That file does not belong to this intake.");
     }
 
     const result = await processDocument({

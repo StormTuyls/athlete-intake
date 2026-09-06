@@ -79,7 +79,7 @@ export async function processDocument(input: {
       });
       await markProcessed(
         documentId,
-        `beeldformaat ${input.mimeType} kan niet geanalyseerd worden, upload als JPEG of PNG`,
+        `This image format (${input.mimeType}) cannot be read. Please upload a JPEG or PNG.`,
       );
       throw new Error(`beeldformaat ${input.mimeType} niet ondersteund`);
     }
@@ -123,7 +123,7 @@ export async function processDocument(input: {
   } catch (error) {
     await markProcessed(
       documentId,
-      error instanceof Error ? error.message : "extractie mislukt",
+      error instanceof Error ? error.message : "This document could not be read.",
     );
     throw error;
   }
