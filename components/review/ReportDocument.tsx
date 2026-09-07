@@ -135,9 +135,16 @@ export function ReportDocument({
           <h2 className="text-label uppercase text-ink-faint">
             Generated summary ({snapshot.summary.kind})
           </h2>
+          {/* Het label moet zeggen DAT dit machinewerk is, want de klant vroeg
+              expliciet om onderscheid tussen wat er staat en wat iemand eruit
+              concludeert. Welk model het schreef hoort daar niet bij: dat is een
+              technisch gegeven en het staat in het snapshot en in het
+              auditspoor, waar het reproduceerbaar is. Op papier zegt een
+              modelnaam een kinesist niets en suggereert hij precisie over de
+              inhoud die er niet is. */}
           <p className="mt-1 text-xs text-ink-muted">
-            Written by {snapshot.summary.modelId}. Facts come from the documents provided;
-            observations are interpretation, not diagnosis.
+            Automatically generated, not written by a clinician. Facts come from the
+            documents provided; observations are interpretation, not diagnosis.
           </p>
           <div className="mt-2 space-y-1 text-sm">
             {toSummaryBlocks(snapshot.summary.text).map((block, index) =>
