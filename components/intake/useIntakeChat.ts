@@ -22,6 +22,13 @@ import type {
  * een eigen waarheid opbouwt die naast het dossier gaat staan.
  */
 
+interface FieldActionResponse {
+  card: CaptureCard;
+  collecting: Collecting | null;
+  progress: Progress;
+  completeness: Completeness;
+}
+
 interface ChatTurnResponse {
   reply: string;
   captured: CaptureCard[];
@@ -238,6 +245,62 @@ export function useIntakeChat() {
   }, [draft, busy, runTurn]);
 
   /**
+   * Een modelvoorstel bevestigen of corrigeren.
+   *
+   * De server beslist wat er precies wordt weggeschreven; hier gaat alleen de
+   * veldsleutel heen, en bij een correctie de nieuwe waarde. De kaart wordt
+   * daarna vervangen door wat de server teruggeeft, niet door wat wij denken dat
+   * het geworden is: de merge-regel bepaalt de uitkomst, en die kent de client
+   * niet.
+   *
+   * Gooit door bij een fout, zodat de kaart zelf de melding kan tonen naast het
+   * veld waar het over gaat, in plaats van bovenaan het scherm.
+   */
+  const resolveField = useCallback(
+    async (fieldKey: string, value?: string) => {
+      inFlight.current = true;
+      try {
+        const result = await call<FieldActionResponse>("/api/intake/fields/confirm", {
+          fieldKey,
+          ...(value === undefined ? {} : { value }),
+        });
+
+        setItems((current) =>
+          current.map((item) =>
+            item.kind === "capture" && item.card.fieldKey === fieldKey
+              ? { ...item, card: result.card }
+              : item.kind === "extraction"
+                ? {
+                    ...item,
+                    cards: item.cards.map((card) =>
+                      card.fieldKey === fieldKey ? result.card : card,
+                    ),
+                  }
+                : item,
+          ),
+        );
+
+        setCollecting(result.collecting);
+        setProgress(result.progress);
+        setCompleteness(result.completeness);
+      } finally {
+        inFlight.current = false;
+      }
+    },
+    [],
+  );
+
+  const confirmField = useCallback(
+    (fieldKey: string) => resolveField(fieldKey),
+    [resolveField],
+  );
+
+  const editField = useCallback(
+    (fieldKey: string, value: string) => resolveField(fieldKey, value),
+    [resolveField],
+  );
+
+  /**
    * Bestanden toevoegen vanuit het gesprek.
    *
    * De bubbel komt er meteen bij, voordat er iets geupload is. Dat is geen
@@ -374,6 +437,8 @@ export function useIntakeChat() {
     error,
     send,
     uploadFiles,
+    confirmField,
+    editField,
     notice,
     reload: load,
   };

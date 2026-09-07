@@ -20,9 +20,13 @@ import type { TranscriptItem } from "@/lib/intake/transcriptTypes";
 export function Transcript({
   items,
   busy,
+  onConfirm,
+  onEdit,
 }: {
   items: TranscriptItem[];
   busy: boolean;
+  onConfirm?: (fieldKey: string) => Promise<void>;
+  onEdit?: (fieldKey: string, value: string) => Promise<void>;
 }) {
   const bottom = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -76,7 +80,13 @@ export function Transcript({
               <MessageBubble role="athlete">{item.text}</MessageBubble>
             )}
 
-            {item.kind === "capture" && <CaptureCardView card={item.card} />}
+            {item.kind === "capture" && (
+              <CaptureCardView
+                card={item.card}
+                onConfirm={onConfirm}
+                onEdit={onEdit}
+              />
+            )}
 
             {item.kind === "document" && (
               <FileBubble
@@ -104,6 +114,8 @@ export function Transcript({
                 filename={item.filename}
                 cards={item.cards}
                 fieldsProposed={item.fieldsProposed}
+                onConfirm={onConfirm}
+                onEdit={onEdit}
               />
             )}
           </div>

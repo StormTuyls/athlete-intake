@@ -15,10 +15,14 @@ export function ExtractionCard({
   filename,
   cards,
   fieldsProposed,
+  onConfirm,
+  onEdit,
 }: {
   filename: string;
   cards: CaptureCard[];
   fieldsProposed: number;
+  onConfirm?: (fieldKey: string) => Promise<void>;
+  onEdit?: (fieldKey: string, value: string) => Promise<void>;
 }) {
   const sentence =
     fieldsProposed === 0
@@ -31,7 +35,12 @@ export function ExtractionCard({
     <div className="flex flex-col gap-2">
       <MessageBubble role="assistant">{sentence}</MessageBubble>
       {cards.map((card) => (
-        <CaptureCardView key={card.fieldKey} card={card} />
+        <CaptureCardView
+          key={card.fieldKey}
+          card={card}
+          onConfirm={onConfirm}
+          onEdit={onEdit}
+        />
       ))}
     </div>
   );

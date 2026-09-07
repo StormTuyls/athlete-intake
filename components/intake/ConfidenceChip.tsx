@@ -1,10 +1,10 @@
 import { cn } from "@/lib/cn";
-import type { Confidence } from "@/lib/types";
+import type { Confidence, ProposedBy } from "@/lib/types";
 
 /**
  * Het chipje dat zegt hoe hard een waarde is.
  *
- * Twee dingen wijken bewust af van het ontwerp.
+ * Drie dingen wijken bewust af van het ontwerp.
  *
  * Ten eerste staat "medium" er niet als grade maar als wat het betekent: het
  * citaat van het model is niet teruggevonden in de paginatekst, meestal een scan
@@ -15,10 +15,17 @@ import type { Confidence } from "@/lib/types";
  * Medium allebei teal, en dan ziet een onverifieerde waarde eruit als een
  * geverifieerde. Dat is precies de vergissing die de confidence-regels moeten
  * voorkomen.
+ *
+ * Ten derde zegt het chipje eerst waar een waarde vandaan komt en pas daarna hoe
+ * hard hij is. Het ontwerp kent alleen gradaties, en dan krijgt een antwoord dat
+ * de atleet zelf intypte het label "citaat niet teruggevonden" terwijl er geen
+ * document is om in te zoeken.
  */
 
 export type ChipVariant =
   | "confirmed"
+  | "you-confirmed"
+  | "self-reported"
   | "high"
   | "unverified"
   | "inferred"
@@ -27,12 +34,22 @@ export type ChipVariant =
 
 const VARIANTS: Record<ChipVariant, { label: string; className: string; dot: string }> = {
   confirmed: {
-    label: "Confirmed",
+    label: "Confirmed by coach",
     className: "bg-brand-600 text-white",
     dot: "bg-white",
   },
+  "you-confirmed": {
+    label: "You confirmed",
+    className: "bg-brand-50 text-brand-700 ring-1 ring-brand-100 ring-inset",
+    dot: "bg-brand-600",
+  },
+  "self-reported": {
+    label: "You told us",
+    className: "bg-brand-50 text-brand-700 ring-1 ring-brand-100 ring-inset",
+    dot: "bg-brand-500",
+  },
   high: {
-    label: "High",
+    label: "Quote verified",
     className: "bg-brand-50 text-brand-700 ring-1 ring-brand-100 ring-inset",
     dot: "bg-brand-600",
   },
@@ -59,10 +76,31 @@ const VARIANTS: Record<ChipVariant, { label: string; className: string; dot: str
 };
 
 /**
- * Confidence is afgeleid, nooit door het model zelf opgegeven (zie
- * lib/dossier/completeness.ts). Deze mapping voegt niets toe, hij vertaalt.
+ * Welk chipje bij een veld hoort.
+ *
+ * Confidence alleen is niet genoeg, want het zegt hoe hard een waarde is en niet
+ * waar hij vandaan komt. Die twee door elkaar halen levert precies één fout op,
+ * en die is erg: een antwoord dat de atleet zelf intypte kreeg "Quote not
+ * found", terwijl er geen document is waarin een citaat gezocht kon worden. Dat
+ * zet iemand aan het zoeken naar een origineel dat niet bestaat, en dat is
+ * slechter dan helemaal geen label.
+ *
+ * Dus eerst de herkomst, dan de hardheid.
  */
-export function confidenceVariant(confidence: Confidence): ChipVariant {
+export function confidenceVariant(
+  confidence: Confidence,
+  proposedBy?: ProposedBy | null,
+): ChipVariant {
+  if (proposedBy === "coach") return "confirmed";
+
+  // De atleet kan op twee manieren de bron zijn, en dat verschil is zichtbaar in
+  // de data: bevestigt hij een waarde uit een document, dan is de herkomst van
+  // dat voorstel meegekopieerd en blijft het citaat geverifieerd, dus high.
+  // Typt hij zelf een antwoord, dan is er geen citaat om te verifieren en is het
+  // medium. "You confirmed" en "You told us" zijn dus twee verschillende feiten.
+  if (proposedBy === "athlete") {
+    return confidence === "high" ? "you-confirmed" : "self-reported";
+  }
   if (confidence === "high") return "high";
   if (confidence === "medium") return "unverified";
   return "inferred";

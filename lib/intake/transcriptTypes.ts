@@ -1,4 +1,4 @@
-import type { Confidence, FieldDataType, FieldStatus } from "@/lib/types";
+import type { Confidence, FieldDataType, FieldStatus, ProposedBy } from "@/lib/types";
 
 // Doorgeven, zodat een client component het type kan gebruiken zonder
 // lib/types.ts te importeren en daarmee de serverkant binnen te trekken.
@@ -29,6 +29,12 @@ export interface CaptureCard {
   value: string;
   status: FieldStatus;
   confidence: Confidence;
+  /**
+   * Wie de winnende waarde aandroeg. Nodig voor een eerlijk label: "citaat niet
+   * teruggevonden" klopt bij een document, maar niet bij wat de atleet zelf
+   * intypte. Daar is geen origineel om te zoeken.
+   */
+  proposedBy: ProposedBy | null;
   /**
    * Waar zolang het winnende voorstel van het model komt. Stuurt Confirm/Edit.
    * Afgeleid uit winning_proposal_id, dus geen extra kolom en na een reload nog

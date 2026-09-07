@@ -15,6 +15,27 @@ import type { CaptureCard } from "@/lib/intake/transcriptTypes";
 export const maxDuration = 120;
 
 /**
+ * Toestemming is geen gespreksonderwerp.
+ *
+ * De `consent.*`-velden zijn een spiegel van public.consents, en dat is het
+ * juridische register: versie van de tekst, tijdstip, IP, user agent. Dat wordt
+ * alleen op het toestemmingsscherm geschreven.
+ *
+ * Zonder deze filter kan de assistent ernaar vragen (ze staan als openstaande
+ * velden in de gatenlijst) en het antwoord als dossierveld wegschrijven. Dat is
+ * niet theoretisch: lib/notion/sync.ts poort de medische samenvatting op de
+ * waarde van `consent.share_with_practitioners`. Een "ja hoor, stuur maar naar
+ * mijn kinesist" in een chatbericht zou dus een klinische samenvatting naar een
+ * werkomgeving van een derde openen, terwijl er geen consentregistratie bestaat
+ * die zegt dat de atleet dat ooit heeft afgesproken.
+ *
+ * Toestemming vraag je met een vinkje en een versienummer, niet in een gesprek.
+ */
+function isConsentField(fieldKey: string): boolean {
+  return fieldKey.startsWith("consent.");
+}
+
+/**
  * Aanleidingen voor een beurt waarin de atleet niets getypt heeft.
  *
  * Een vaste lijst, geen vrije tekst uit de body: dit wordt als user-bericht aan
@@ -79,23 +100,27 @@ export async function POST(request: Request) {
 
     const turn = await runChatTurn({
       history: (history ?? []) as ChatMessage[],
-      gaps: state.gaps,
+      gaps: state.gaps.filter((gap) => !isConsentField(gap.fieldKey)),
       definitions: state.definitions,
       locale: session.locale,
       nudge: body.nudge ? NUDGES[body.nudge] : undefined,
     });
 
-    if (turn.captured.length > 0) {
+    // Tweede slot op hetzelfde: ook als het model een consentveld zou teruggeven
+    // omdat de atleet er zelf over begint, wordt het niet weggeschreven.
+    const captured = turn.captured.filter((item) => !isConsentField(item.fieldKey));
+
+    if (captured.length > 0) {
       await addProposals(
         session.intakeId,
-        turn.captured.map((captured) => ({
-          fieldKey: captured.fieldKey,
-          value: captured.value,
+        captured.map((item) => ({
+          fieldKey: item.fieldKey,
+          value: item.value,
           proposedBy: "athlete" as const,
           // Wat de atleet zei is zijn eigen woord; er valt niets te verifieren
           // tegen een brondocument, dus quote_verified blijft false en het veld
           // komt op 'medium' tot de coach het aftikt.
-          sourceQuote: captured.quote,
+          sourceQuote: item.quote,
         })),
       );
     }
@@ -119,19 +144,19 @@ export async function POST(request: Request) {
     const proposalById = new Map((await getProposals(session.intakeId)).map((p) => [p.id, p]));
     const definitionByKey = new Map(after.definitions.map((d) => [d.key, d]));
 
-    const captured: CaptureCard[] = [];
-    for (const item of turn.captured) {
+    const cards: CaptureCard[] = [];
+    for (const item of captured) {
       const definition = definitionByKey.get(item.fieldKey);
       if (!definition) continue;
       const resolved = after.resolved.get(item.fieldKey);
-      captured.push(
+      cards.push(
         buildCard(definition, resolved, winnerIsModel(resolved, proposalById), session.locale),
       );
     }
 
     return NextResponse.json({
       reply: turn.reply,
-      captured,
+      captured: cards,
       collecting: collectingFrom(after.gaps),
       progress: computeProgress(
         after.definitions,

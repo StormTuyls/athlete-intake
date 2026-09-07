@@ -60,7 +60,17 @@ export function resolveField(
   // Bij vrije tekst wint de meest informatieve waarde en is er geen conflict.
   // Bij gestructureerde velden wint het meest recente voorstel als kandidaat en
   // is elk afwijkend voorstel een rivaal.
-  const winner = conflictable ? tier[0] : mostInformative(tier);
+  //
+  // Maar 'meest informatief' geldt alleen binnen de model-tier. De reden achter
+  // die regel is dat twee documenten dezelfde klacht beschrijven en elkaar
+  // aanvullen, dus dat de volledigste beschrijving de betere is. Een mens die
+  // zijn eigen antwoord corrigeert is geen tweede bron maar een vervanging, en
+  // een correctie is vaak korter: wie "uitstraling naar het been" weghaalt,
+  // schrapt tekst. Zou de lengte daar beslissen, dan wint de oude waarde en
+  // verdwijnt de correctie geruisloos. Bij athlete en coach wint dus het
+  // nieuwste voorstel, ook bij vrije tekst.
+  const humanTier = topRank > RANK.model;
+  const winner = conflictable || humanTier ? tier[0] : mostInformative(tier);
 
   const validation = validateValue(definition, winner.value);
   const winnerValue = validation.valid ? validation.normalised : winner.value;

@@ -41,7 +41,12 @@ export function ChatScreen({
         </p>
       )}
 
-      <Transcript items={state.items} busy={state.busy} />
+      <Transcript
+        items={state.items}
+        busy={state.busy}
+        onConfirm={state.confirmField}
+        onEdit={state.editField}
+      />
 
       {state.notice && (
         <p className="mx-4 mb-2 rounded-card bg-canvas px-3 py-2 text-xs text-ink-muted ring-1 ring-hairline ring-inset">

@@ -33,15 +33,29 @@ import type { FieldDefinition, Proposal, ResolvedField } from "@/lib/types";
  */
 
 /**
- * Waarom athlete-voorstellen met een citaat, en niet alle athlete-voorstellen?
+ * Welke athlete-voorstellen een eigen kaart in het gesprek krijgen.
  *
- * Omdat de consent-stap ook athlete-voorstellen schrijft (de vinkjes, naam,
- * e-mail) en die horen niet als "field captured" in het gesprek. De chatroute
- * zet altijd het letterlijke antwoord als citaat, de consent-route nooit. Dat
- * ene verschil is dus een precieze scheidslijn, zonder extra kolom.
+ * Er zijn drie soorten, en alleen de eerste hoort hier:
+ *
+ *   chatantwoord  citaat (de eigen woorden), geen brondocument
+ *   Confirm       citaat EN brondocument, overgenomen van het modelvoorstel
+ *   consent       geen van beide
+ *
+ * Alleen op het citaat filteren was fout zodra Confirm bestond: die kopieert de
+ * herkomst van het modelvoorstel, dus ook het citaat, en dan is een bevestiging
+ * niet van een chatantwoord te onderscheiden. Het veld verscheen daardoor twee
+ * keer, een keer in de extractiekaart van het document en een keer als losse
+ * kaart. Zichtbaar geworden bij het teruglezen na een reload.
+ *
+ * Het brondocument is de sluitende scheidslijn: wat de atleet typt komt uit geen
+ * enkel document, wat hij bevestigt komt er altijd uit een.
  */
 function isChatCapture(proposal: Proposal): boolean {
-  return proposal.proposedBy === "athlete" && Boolean(proposal.sourceQuote);
+  return (
+    proposal.proposedBy === "athlete" &&
+    Boolean(proposal.sourceQuote) &&
+    proposal.sourceDocumentId === null
+  );
 }
 
 /**
@@ -77,6 +91,7 @@ export function buildCard(
     value: formatValue(definition, resolved?.value ?? null),
     status: resolved?.status ?? "missing",
     confidence: resolved?.confidence ?? "medium",
+    proposedBy: resolved?.proposedBy ?? null,
     needsConfirmation: winnerIsModel,
     dataType: definition.dataType,
     enumOptions: definition.enumOptions,
