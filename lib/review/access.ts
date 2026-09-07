@@ -1,49 +1,93 @@
-/**
- * De poort voor het coachdossier, zolang er geen coach-login is.
- *
- * Het reviewscherm en zijn endpoints tonen het volledige medische dossier,
- * inclusief bronciteten, aan iedereen die een intake-id kent. Er stond een
- * comment bij dat dit niet naar een publieke omgeving mag, en een comment is
- * geen controle. Dit is de controle.
- *
- * Twee voorwaarden, en beide doen werk:
- *
- * 1. Productie weigert onvoorwaardelijk. Geen omgevingsvariabele die iemand op
- *    een vrijdagavond omzet. VERCEL_ENV en niet NODE_ENV, want previews draaien
- *    met NODE_ENV=production en die moeten wel demonstreerbaar blijven.
- * 2. Elke andere omgeving is standaard dicht en vraagt een expliciete vlag. Zo
- *    staat de vlag in .env.example met de waarschuwing erbij, in plaats van dat
- *    iemand vergeet dat het scherm openstaat.
- *
- * Waarom dit nu al nodig is en niet pas bij oplevering: lib/notion/sync.ts
- * schrijft de dossier-URL in de Notion-rij van de atleet. Zonder poort is die
- * rij een sleutel tot een medisch dossier voor iedereen die de werkomgeving kan
- * openen.
- *
- * Wat hierna komt: Supabase Auth met public.profiles.role, waarvoor de policies
- * in 20260902090300_rls.sql al klaarstaan. Dan vervangt requireCoach() deze
- * functie en krijgt de auditregel eindelijk een actor_id.
- */
-export function reviewAccessAllowed(): boolean {
-  if (process.env.VERCEL_ENV === "production") return false;
-  return process.env.REVIEW_UNAUTHENTICATED === "true";
-}
+import { createServerSupabase } from "@/lib/supabase/server";
 
 /**
- * 404 en geen 403.
+ * Wie het coachdossier mag zien.
  *
- * Een 403 bevestigt dat de intake bestaat, en dat is precies het ene bit dat een
- * dossier dat er niet mag zijn niet hoort te lekken.
+ * Hier stond eerst een omgevingsvariabele: het scherm was open en alleen
+ * dichtgezet met REVIEW_UNAUTHENTICATED plus een harde weigering in productie.
+ * Dat was een rem, geen slot. Nu is er een echte login, en de rem is weg: een
+ * vlag die authenticatie omzeilt hoort niet in een codebase die artikel
+ * 9-gegevens verwerkt, ook niet "alleen lokaal".
+ *
+ * De controle is dubbel, en dat is opzet. Deze functie beslist in de applicatie,
+ * en de RLS-policies in 20260902090300_rls.sql beslissen nog eens in de
+ * databank via private.is_staff(). Wie een van de twee vergeet, wordt door de
+ * ander tegengehouden.
+ *
+ * getUser() en niet getSession(): de eerste laat de authserver het token
+ * valideren, de tweede leest wat er in de cookie staat. Voor een
+ * autorisatiebeslissing over een medisch dossier is dat verschil het hele punt.
  */
-export class ReviewClosedError extends Error {
+
+export class CoachAuthError extends Error {
   constructor() {
-    super("reviewscherm staat dicht");
-    this.name = "ReviewClosedError";
+    super("geen geldige coachsessie");
+    this.name = "CoachAuthError";
   }
 }
 
-export function assertReviewEnabled(): void {
-  if (!reviewAccessAllowed()) throw new ReviewClosedError();
+export interface Coach {
+  id: string;
+  role: "coach" | "admin";
+  fullName: string | null;
+  email: string | null;
+}
+
+/**
+ * Waarom niet inloggen en geen coach zijn twee verschillende uitkomsten zijn.
+ *
+ * Niet ingelogd hoort naar de login. Ingelogd maar geen behandelaar hoort naar
+ * een 404: die persoon heeft niets aan het inlogformulier, en hem er toch heen
+ * sturen levert een lus op (login, link aanvragen, opnieuw inloggen, nog steeds
+ * geen coach, terug naar de login). Bovendien hoort een atleet niet te weten
+ * dat dit dossier bestaat.
+ */
+export type CoachCheck =
+  | { kind: "coach"; coach: Coach }
+  | { kind: "anonymous" }
+  | { kind: "not-a-coach" };
+
+export async function checkCoach(): Promise<CoachCheck> {
+  const supabase = await createServerSupabase();
+
+  const { data: auth, error } = await supabase.auth.getUser();
+  if (error || !auth.user) return { kind: "anonymous" };
+
+  // De rol staat in public.profiles en niet in de tokenclaims. Bewust: een rol
+  // in een token blijft geldig tot het verloopt, dus wie zijn coachrol verliest
+  // zou nog een uur binnen kunnen. De policy profiles_select_self laat alleen de
+  // eigen rij zien, dus dit lekt niets over anderen.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, full_name")
+    .eq("id", auth.user.id)
+    .single();
+
+  if (!profile || (profile.role !== "coach" && profile.role !== "admin")) {
+    return { kind: "not-a-coach" };
+  }
+
+  return {
+    kind: "coach",
+    coach: {
+      id: auth.user.id,
+      role: profile.role,
+      fullName: profile.full_name ?? null,
+      email: auth.user.email ?? null,
+    },
+  };
+}
+
+export async function currentCoach(): Promise<Coach | null> {
+  const result = await checkCoach();
+  return result.kind === "coach" ? result.coach : null;
+}
+
+/** Gooit als er geen coach is. Voor routes die zonder identiteit niets mogen doen. */
+export async function requireCoach(): Promise<Coach> {
+  const coach = await currentCoach();
+  if (!coach) throw new CoachAuthError();
+  return coach;
 }
 
 /**

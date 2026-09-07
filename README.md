@@ -190,6 +190,9 @@ Het rapport is te downloaden als PDF (via de printweergave), JSON (het snapshot 
 (per veld een rij, met herkomst). Alle drie lezen een vastgelegde versie; `?version=1` geeft exact
 die versie terug, ook als het dossier daarna veranderd is.
 
-Nog te doen: coach-login (het reviewscherm staat nu dicht achter `REVIEW_UNAUTHENTICATED` en weigert
-in productie altijd), retentiejob, verwijderingspad en de meertalige UI. Zie
+Het coachdossier zit achter een login: een magic link naar het werkadres, rol `coach` of `admin` uit
+`public.profiles`, en geen zelfregistratie (`npm run coach:create -- adres "Naam"`). Elke leesactie
+en elke export staat met actor in het audit-spoor.
+
+Nog te doen: retentiejob, verwijderingspad, goedkeuren door de coach en de meertalige UI. Zie
 [docs/plan.md](docs/plan.md).

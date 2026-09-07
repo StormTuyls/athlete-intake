@@ -74,6 +74,84 @@ export async function getInjuries(intakeId: string): Promise<TimelineEntry[]> {
   return resolveInjuryTimeline(await getInjuryEntries(intakeId));
 }
 
+export interface IntakeListRow {
+  id: string;
+  athleteName: string | null;
+  status: string;
+  submittedAt: string | null;
+  requiredFilled: number;
+  requiredTotal: number;
+  conflicts: number;
+}
+
+/**
+ * De werklijst van de behandelaar.
+ *
+ * Rekent de standen uit `medical.dossier_fields` in SQL, niet door 41 velden per
+ * intake in TypeScript te halen. Met een handvol atleten maakt dat niets uit,
+ * maar de query is even lang en dit schaalt wel.
+ *
+ * Alleen tellingen, geen waarden. Een overzicht mag geen medische inhoud tonen:
+ * dit is de pagina die openstaat terwijl er iemand meekijkt.
+ */
+export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
+  const rows = await query<{
+    id: string;
+    status: string;
+    submitted_at: Date | null;
+    required_filled: string;
+    required_total: string;
+    conflicts: string;
+  }>(
+    `select
+       i.id,
+       i.status::text as status,
+       i.submitted_at,
+       count(*) filter (
+         where d.required and f.status is not null
+           and f.status not in ('missing', 'conflicting')
+       ) as required_filled,
+       count(*) filter (where d.required) as required_total,
+       count(*) filter (where f.status = 'conflicting') as conflicts
+     from public.intakes i
+     cross join public.field_definitions d
+     left join medical.dossier_fields f
+       on f.intake_id = i.id and f.field_key = d.key
+     group by i.id, i.status, i.submitted_at
+     order by i.submitted_at desc nulls last, i.started_at desc`,
+  );
+
+  // De naam staat in public.athletes en die tabel is voor deze rol alleen
+  // leesbaar via PostgREST, niet via de directe verbinding. Vandaar apart.
+  const { data: athletes } = await appDb()
+    .from("intakes")
+    .select("id, athletes(full_name)");
+
+  // PostgREST geeft een ingebedde relatie soms als object en soms als array,
+  // afhankelijk van hoe hij de kardinaliteit inschat. Beide afhandelen is
+  // goedkoper dan erop vertrouwen dat het niet verandert.
+  const nameOf = (embedded: unknown): string | null => {
+    const row = Array.isArray(embedded) ? embedded[0] : embedded;
+    if (!row || typeof row !== "object") return null;
+    const value = (row as { full_name?: unknown }).full_name;
+    return typeof value === "string" ? value : null;
+  };
+
+  const nameById = new Map<string, string | null>(
+    (athletes ?? []).map((row) => [row.id as string, nameOf(row.athletes)]),
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    athleteName: nameById.get(row.id) ?? null,
+    status: row.status,
+    submittedAt: row.submitted_at?.toISOString() ?? null,
+    requiredFilled: Number(row.required_filled),
+    requiredTotal: Number(row.required_total),
+    conflicts: Number(row.conflicts),
+  }));
+}
+
 /** Alle voorstellen per veld, zodat de coach ziet wat in welk document stond. */
 export async function getProposalsByField(
   intakeId: string,
@@ -160,7 +238,12 @@ function athleteNameFrom(embedded: unknown): string | null {
   return value.full_name ?? null;
 }
 
-export async function getReviewData(intakeId: string): Promise<ReviewData | null> {
+export async function getReviewData(
+  intakeId: string,
+  /** Wie het dossier opvraagt. Gaat mee in het spoor; zonder actor is een
+   *  leesregel alleen "iemand heeft gekeken", en dat is te weinig. */
+  actorId?: string,
+): Promise<ReviewData | null> {
   const { data: intake, error } = await appDb()
     .from("intakes")
     .select("id, status, submitted_at, locale, athlete_id, athletes(full_name)")
@@ -179,6 +262,7 @@ export async function getReviewData(intakeId: string): Promise<ReviewData | null
   await logAudit({
     action: "read",
     actorKind: "coach",
+    actorId: actorId ?? null,
     entitySchema: "medical",
     entityTable: "dossier_fields",
     entityId: intakeId,

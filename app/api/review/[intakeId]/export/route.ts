@@ -3,7 +3,7 @@ import { handleError } from "@/lib/http";
 import { ensureFrozenReport, getReport } from "@/lib/report/freeze";
 import { toCsv } from "@/lib/report/csv";
 import { logAudit } from "@/lib/audit";
-import { isIntakeId, reviewAccessAllowed } from "@/lib/review/access";
+import { isIntakeId, requireCoach } from "@/lib/review/access";
 
 export const maxDuration = 120;
 
@@ -19,9 +19,7 @@ export const maxDuration = 120;
  * versie gewijzigd is); met `?version=1` komt exact die versie terug, ook als
  * het dossier daarna veranderd is. Dat is de hele reden dat versies bestaan.
  *
- * BEPERKING: er is nog geen coach-login. Zie lib/review/access.ts. Elke
- * auditregel zegt daarom `unauthenticated: true`; er is geen actor om te loggen
- * en het spoor hoort niet te suggereren dat er wel een was.
+ * Achter een coachlogin, en elke download staat met naam en al in het spoor.
  */
 export async function GET(
   request: Request,
@@ -30,7 +28,9 @@ export async function GET(
   try {
     const { intakeId } = await context.params;
 
-    if (!reviewAccessAllowed() || !isIntakeId(intakeId)) {
+    const coach = await requireCoach();
+
+    if (!isIntakeId(intakeId)) {
       return NextResponse.json({ error: "niet gevonden" }, { status: 404 });
     }
 
@@ -62,6 +62,7 @@ export async function GET(
     await logAudit({
       action: "export",
       actorKind: "coach",
+      actorId: coach.id,
       entitySchema: "medical",
       entityTable: "intake_reports",
       entityId: intakeId,
@@ -69,7 +70,6 @@ export async function GET(
         format,
         version: report.version,
         contentHash: report.snapshot.contentHash.slice(0, 16),
-        unauthenticated: true,
       },
     });
 

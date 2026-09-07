@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ensureFrozenReport, getReport } from "@/lib/report/freeze";
-import { isIntakeId, reviewAccessAllowed } from "@/lib/review/access";
+import { checkCoach, isIntakeId } from "@/lib/review/access";
 import { ReportDocument } from "@/components/review/ReportDocument";
 import { AutoPrint } from "@/components/review/AutoPrint";
 import { PRACTICE_NAME } from "@/lib/report/branding";
@@ -41,7 +41,14 @@ export default async function PrintPage({
   const { intakeId } = await params;
   const { version } = await searchParams;
 
-  if (!reviewAccessAllowed() || !isIntakeId(intakeId)) notFound();
+  if (!isIntakeId(intakeId)) notFound();
+
+  const access = await checkCoach();
+  // Niet ingelogd hoort naar de login; ingelogd zonder coachrol hoort een 404 te
+  // zien in plaats van een inlogformulier waar hij niets aan heeft.
+  if (access.kind === "anonymous") redirect(`/coach/login?next=/review/${intakeId}/print`);
+  if (access.kind !== "coach") notFound();
+  const coach = access.coach;
 
   const requested = version === undefined ? null : Number(version);
   if (requested !== null && (!Number.isInteger(requested) || requested < 1)) notFound();
@@ -57,6 +64,7 @@ export default async function PrintPage({
   await logAudit({
     action: "export",
     actorKind: "coach",
+    actorId: coach.id,
     entitySchema: "medical",
     entityTable: "intake_reports",
     entityId: intakeId,
@@ -64,7 +72,6 @@ export default async function PrintPage({
       format: "print",
       version: report.version,
       contentHash: report.snapshot.contentHash.slice(0, 16),
-      unauthenticated: true,
     },
   });
 
