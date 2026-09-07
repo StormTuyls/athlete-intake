@@ -167,21 +167,44 @@ async function readMessages(intakeId: string): Promise<ChatMessageRow[]> {
 /**
  * Voortgang in secties.
  *
- * Een sectie is af als er geen verplicht gat en geen conflict meer in zit. Dat
- * is dezelfde grens als readyToSubmit hanteert, dus de ring en de indienknop
- * kunnen niet uit elkaar lopen. Optionele lege velden tellen niet mee: 26 van de
- * 41 velden zijn optioneel, en anders raakt geen enkele sectie ooit af.
+ * Alleen secties die het gesprek ook echt kan afwerken tellen mee, en dat is
+ * niet hetzelfde als "alle secties". Twee vielen er buiten en dat maakte de ring
+ * onbruikbaar: hij stond op 2/7 voordat de atleet één woord had getypt.
+ *
+ *   consent  twee verplichte velden, maar die worden bij het aanmaken van de
+ *            intake gevuld uit de accountconsent en de assistent mag er niet
+ *            naar vragen. Altijd af, dus geen voortgang.
+ *   uploads  vier velden, geen enkele verplicht. Kan per definitie niets
+ *            blokkeren, dus was ook altijd af.
+ *
+ * De regel is nu: een sectie doet mee als er minstens één verplicht veld in zit
+ * dat via het gesprek gevuld kan worden. Dat sluit consent en uploads uit zonder
+ * ze bij naam te noemen, en het blijft kloppen als de taxonomie ooit wijzigt.
+ *
+ * Af blijft: geen verplicht gat en geen conflict. Dezelfde grens als
+ * readyToSubmit, zodat de ring en de indienknop niet uit elkaar kunnen lopen.
  */
+function inRingScope(definition: FieldDefinition): boolean {
+  return definition.required && !definition.key.startsWith("consent.");
+}
+
 export function computeProgress(
   definitions: FieldDefinition[],
-  gaps: Array<{ section: string; required: boolean; reason: string }>,
+  gaps: Array<{ fieldKey: string; section: string; required: boolean; reason: string }>,
   requiredFilled: number,
   requiredTotal: number,
 ): Progress {
-  const sections = [...new Set(definitions.map((d) => d.section))];
+  const sections = [
+    ...new Set(definitions.filter(inRingScope).map((d) => d.section)),
+  ];
+
   const blocked = new Set(
     gaps
-      .filter((gap) => gap.required || gap.reason === "conflicting")
+      .filter(
+        (gap) =>
+          !gap.fieldKey.startsWith("consent.") &&
+          (gap.required || gap.reason === "conflicting"),
+      )
       .map((gap) => gap.section),
   );
 
@@ -349,6 +372,7 @@ export async function buildTranscript(
   const items = sortTranscript(entries);
 
   return {
+    intakeId,
     transcript: items,
     collecting: collectingFrom(state.gaps),
     progress: computeProgress(

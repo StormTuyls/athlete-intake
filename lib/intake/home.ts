@@ -101,6 +101,12 @@ export async function loadHome(input: {
          d.section,
          d.sort_order,
          d.required,
+         -- Zelfde regel als de ring in het gesprek: een sectie doet mee als er
+         -- een verplicht veld in zit dat het gesprek kan vullen. consent wordt
+         -- bij het aanmaken gevuld en nooit gevraagd, uploads heeft geen enkel
+         -- verplicht veld. Zonder deze filter staat de balk op 2 van 7 voordat
+         -- de atleet iets heeft gezegd.
+         (d.required and d.key not like 'consent.%') as counts_for_progress,
          coalesce(f.status::text, 'missing') as field_status
        from public.intakes i
        cross join public.field_definitions d
@@ -113,16 +119,20 @@ export async function loadHome(input: {
        min(status::text) as status,
        min(started_at) as started_at,
        min(submitted_at) as submitted_at,
-       count(distinct section) as sections_total,
+       count(distinct section) filter (where counts_for_progress) as sections_total,
        count(distinct section) filter (
-         where (required and field_status = 'missing') or field_status = 'conflicting'
+         where counts_for_progress
+           and ((required and field_status = 'missing') or field_status = 'conflicting')
        ) as sections_blocked,
        count(*) filter (
          where required and field_status not in ('missing', 'conflicting')
        ) as required_filled,
        count(*) filter (where required) as required_total,
        (array_agg(section order by required desc, sort_order)
-         filter (where (required and field_status = 'missing') or field_status = 'conflicting')
+         filter (
+           where key not like 'consent.%'
+             and ((required and field_status = 'missing') or field_status = 'conflicting')
+         )
        )[1] as next_section
      from field_state
      group by intake_id

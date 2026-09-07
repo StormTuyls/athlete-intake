@@ -102,6 +102,8 @@ export interface Completeness {
 
 /** Antwoord van GET /api/intake/transcript. Alles wat het scherm bij mount nodig heeft. */
 export interface TranscriptResponse {
+  /** Nodig om naar het rapport van deze intake te kunnen linken. */
+  intakeId: string;
   transcript: TranscriptItem[];
   collecting: Collecting | null;
   progress: Progress;

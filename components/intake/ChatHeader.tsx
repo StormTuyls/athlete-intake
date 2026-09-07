@@ -1,6 +1,7 @@
 import { cn } from "@/lib/cn";
 import { chat } from "@/lib/intake/copy";
 import { ChevronLeftIcon } from "@/components/intake/icons";
+import Link from "next/link";
 import { ProgressRing } from "@/components/intake/ProgressRing";
 
 /**
@@ -13,6 +14,7 @@ import { ProgressRing } from "@/components/intake/ProgressRing";
 export function ChatHeader({
   collecting,
   ready = false,
+  reportHref = null,
   sectionsDone,
   sectionsTotal,
   requiredFilled,
@@ -33,6 +35,8 @@ export function ChatHeader({
   requiredFilled: number;
   requiredTotal: number;
   onBack?: () => void;
+  /** Zet de ring om in een link naar het rapport. Null zolang de intake onbekend is. */
+  reportHref?: string | null;
   className?: string;
 }) {
   return (
@@ -67,16 +71,37 @@ export function ChatHeader({
         </p>
       </div>
 
-      <ProgressRing
-        done={sectionsDone}
-        total={sectionsTotal}
-        label={chat.progressLabel(
-          sectionsDone,
-          sectionsTotal,
-          requiredFilled,
-          requiredTotal,
-        )}
-      />
+      {/* De ring is de enige plek in het gesprek waar de stand staat, dus is hij
+          ook de plek waar je op tikt om te zien wat er verzameld is. */}
+      {reportHref ? (
+        <Link
+          href={reportHref}
+          aria-label={chat.openReport}
+          className="shrink-0 rounded-chip transition-opacity hover:opacity-80"
+        >
+          <ProgressRing
+            done={sectionsDone}
+            total={sectionsTotal}
+            label={chat.progressLabel(
+              sectionsDone,
+              sectionsTotal,
+              requiredFilled,
+              requiredTotal,
+            )}
+          />
+        </Link>
+      ) : (
+        <ProgressRing
+          done={sectionsDone}
+          total={sectionsTotal}
+          label={chat.progressLabel(
+            sectionsDone,
+            sectionsTotal,
+            requiredFilled,
+            requiredTotal,
+          )}
+        />
+      )}
     </header>
   );
 }

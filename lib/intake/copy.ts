@@ -44,6 +44,7 @@ export const chat = {
   collectingIdle: "All questions answered",
   /** Alles wat indienen blokkeert is klaar; optionele velden mogen open blijven. */
   collectingReady: "Ready to send",
+  openReport: "See what has been collected so far",
   today: "Today",
   fieldCaptured: "Field captured",
   placeholder: "Type your answer...",

@@ -30,6 +30,7 @@ export function ChatScreen({
       <ChatHeader
         collecting={state.collecting?.label ?? null}
         ready={state.completeness?.readyToSubmit ?? false}
+        reportHref={state.intakeId ? `/report/${state.intakeId}` : null}
         sectionsDone={state.progress.sectionsDone}
         sectionsTotal={state.progress.sectionsTotal}
         requiredFilled={state.progress.requiredFilled}

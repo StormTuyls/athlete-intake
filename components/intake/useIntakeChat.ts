@@ -54,9 +54,16 @@ interface UploadResult {
   completeness: Completeness;
 }
 
+/**
+ * De stand voordat de server hem heeft gestuurd.
+ *
+ * Alles op nul, en niet een geraden noemer. Hier stond 7, het aantal secties in
+ * de taxonomie, en dat was twee keer fout: de ring telt maar vijf secties, en
+ * een verkeerde noemer flitst zichtbaar voorbij op de eerste render.
+ */
 const EMPTY_PROGRESS: Progress = {
   sectionsDone: 0,
-  sectionsTotal: 7,
+  sectionsTotal: 0,
   requiredFilled: 0,
   requiredTotal: 0,
 };
@@ -77,6 +84,7 @@ export function useIntakeChat() {
   const [collecting, setCollecting] = useState<Collecting | null>(null);
   const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
   const [completeness, setCompleteness] = useState<Completeness | null>(null);
+  const [intakeId, setIntakeId] = useState<string | null>(null);
 
   const [draft, setDraft] = useState("");
   /** Korte terugkoppeling op een actie die geen bericht oplevert. */
@@ -102,6 +110,7 @@ export function useIntakeChat() {
 
   /** Zet de opgehaalde stand op het scherm. Los van het ophalen zelf. */
   const apply = useCallback((data: TranscriptResponse) => {
+    setIntakeId(data.intakeId);
     setItems(data.transcript);
     setCollecting(data.collecting);
     setProgress(data.progress);
@@ -427,6 +436,7 @@ export function useIntakeChat() {
 
   return {
     items,
+    intakeId,
     collecting,
     progress,
     completeness,

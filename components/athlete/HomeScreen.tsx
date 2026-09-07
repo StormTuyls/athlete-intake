@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { SectionLabel } from "@/components/intake/SectionLabel";
@@ -221,10 +222,11 @@ export function HomeScreen({ data }: { data: HomeData }) {
         ) : (
           <ul className="mt-2 divide-y divide-hairline rounded-card bg-surface shadow-card ring-1 ring-hairline ring-inset">
             {data.recent.map((intake) => (
-              <li
-                key={intake.id}
-                className="flex items-baseline justify-between gap-3 px-4 py-3"
-              >
+              <li key={intake.id}>
+                <Link
+                  href={`/report/${intake.id}`}
+                  className="flex items-baseline justify-between gap-3 px-4 py-3 transition-colors hover:bg-canvas"
+                >
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
                     <span className="size-1.5 rounded-chip bg-brand-600" aria-hidden />
@@ -237,6 +239,7 @@ export function HomeScreen({ data }: { data: HomeData }) {
                 <span className="shrink-0 text-xs text-ink-faint">
                   {shortDate(intake.submittedAt ?? intake.startedAt)}
                 </span>
+                </Link>
               </li>
             ))}
           </ul>
