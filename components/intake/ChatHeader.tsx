@@ -12,6 +12,7 @@ import { ProgressRing } from "@/components/intake/ProgressRing";
  */
 export function ChatHeader({
   collecting,
+  ready = false,
   sectionsDone,
   sectionsTotal,
   requiredFilled,
@@ -21,6 +22,12 @@ export function ChatHeader({
 }: {
   /** Naam van de sectie waar nu naar gevraagd wordt, of null als alles beantwoord is. */
   collecting: string | null;
+  /**
+   * Niets blokkeert indienen meer. Dan geen sectienaam tonen: de ring staat op
+   * 7/7 en er tegelijk "Collecting: body measurements" bij zetten leest als een
+   * tegenspraak, ook al zijn beide waar. De optionele velden mogen open blijven.
+   */
+  ready?: boolean;
   sectionsDone: number;
   sectionsTotal: number;
   requiredFilled: number;
@@ -51,7 +58,11 @@ export function ChatHeader({
         <p className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-muted">
           <span className="size-1.5 shrink-0 rounded-chip bg-brand-600" aria-hidden />
           <span className="truncate">
-            {collecting ? chat.collecting(collecting) : chat.collectingIdle}
+            {ready
+              ? chat.collectingReady
+              : collecting
+                ? chat.collecting(collecting)
+                : chat.collectingIdle}
           </span>
         </p>
       </div>

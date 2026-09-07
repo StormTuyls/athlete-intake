@@ -1,57 +1,54 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { PRACTICE_NAME } from "@/lib/report/branding";
 
 /**
- * Het inlogscherm van de behandelaar.
+ * Inloggen voor de behandelaar: e-mail en wachtwoord.
  *
- * Zegt met opzet niet of een adres bestaat. "Als dit adres bij ons bekend is,
- * ligt er een link in je mailbox" is de enige melding die geen ledenlijst
- * weggeeft, en dat is hier geen formaliteit: wie hier staat, staat bij een
- * praktijk voor eliteatleten.
+ * Was eerst een magic link. Twee inlogmanieren voor twee soorten gebruikers is
+ * twee keer onderhoud, twee keer testen en twee plekken waar iets kan misgaan,
+ * en de winst was klein: een behandelaar logt in vanaf een werkplek en heeft
+ * een wachtwoordmanager.
+ *
+ * Accounts worden door de praktijk aangemaakt (npm run coach:create). Er is dus
+ * geen registratieformulier, en met opzet ook geen melding die het verschil
+ * verraadt tussen een onbekend adres en een verkeerd wachtwoord: wie hier staat,
+ * staat bij een praktijk voor eliteatleten.
  */
-export function CoachLogin({
-  next,
-  linkFailed,
-}: {
-  next: string | null;
-  linkFailed: boolean;
-}) {
-  const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [failed, setFailed] = useState(false);
+export function CoachLogin({ next }: { next: string | null }) {
+  const router = useRouter();
 
-  async function send() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
     setBusy(true);
-    setFailed(false);
+    setError(null);
     try {
       const supabase = createClient();
-      const callback = new URL("/auth/callback", window.location.origin);
-      if (next) callback.searchParams.set("next", next);
-
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
-        options: {
-          emailRedirectTo: callback.toString(),
-          // Geen accounts uit een inlogpoging. Een coach wordt aangemaakt door
-          // de praktijk, niet door wie het formulier vindt.
-          shouldCreateUser: false,
-        },
+        password,
       });
+      if (signInError) throw new Error("Those details do not match an account.");
 
-      // Ook bij een fout hetzelfde tonen: een foutmelding bij een onbekend
-      // adres is een manier om te vragen wie hier werkt.
-      if (error) console.error("[auth]", error.message);
-      setSent(true);
-    } catch {
-      setFailed(true);
+      router.replace(next && next.startsWith("/") ? next : "/coach");
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "something went wrong");
     } finally {
       setBusy(false);
     }
   }
+
+  const field =
+    "mt-1.5 w-full rounded-md border border-hairline bg-surface px-3.5 py-2.5 text-base outline-none focus-visible:border-brand-500";
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
@@ -60,57 +57,61 @@ export function CoachLogin({
         Sign in to review athlete intakes.
       </p>
 
-      {linkFailed && (
-        <p className="mt-5 rounded-card border border-warn/30 bg-warn-soft p-3 text-sm text-warn">
-          That link did not work. It may have expired or already been used.
-          Request a new one below.
-        </p>
-      )}
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (email.trim() && password && !busy) void submit();
+        }}
+        className="mt-6"
+      >
+        <label className="block">
+          <span className="text-label uppercase text-ink-faint">Work email</span>
+          <input
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            type="email"
+            required
+            autoComplete="email"
+            autoFocus
+            className={field}
+          />
+        </label>
 
-      {sent ? (
-        <p className="mt-5 rounded-card border border-hairline bg-canvas p-3 text-sm">
-          If that address belongs to a practitioner here, a sign-in link is on its
-          way. The link works once and expires shortly.
-        </p>
-      ) : (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (email.trim() && !busy) void send();
-          }}
-          className="mt-5 space-y-3"
+        <label className="mt-4 block">
+          <span className="flex items-baseline justify-between">
+            <span className="text-label uppercase text-ink-faint">Password</span>
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="text-xs font-medium text-brand-600"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </span>
+          <input
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            type={showPassword ? "text" : "password"}
+            required
+            autoComplete="current-password"
+            className={field}
+          />
+        </label>
+
+        {error && <p className="mt-4 text-sm text-danger">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={busy || !email.trim() || !password}
+          className="mt-6 w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
         >
-          <label className="block text-sm">
-            <span className="text-ink-muted">Work email</span>
-            <input
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              type="email"
-              required
-              autoComplete="email"
-              autoFocus
-              className="mt-1 w-full rounded-md border border-hairline bg-surface px-3 py-2 text-base outline-none focus-visible:border-brand-500"
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={busy || !email.trim()}
-            className="w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
-          >
-            {busy ? "Sending" : "Send sign-in link"}
-          </button>
-
-          {failed && (
-            <p className="text-sm text-danger">
-              Could not reach the server. Please try again.
-            </p>
-          )}
-        </form>
-      )}
+          {busy ? "Signing in" : "Sign in"}
+        </button>
+      </form>
 
       <p className="mt-6 text-xs text-ink-faint">
-        Accounts are created by the practice. There is no self-registration.
+        Accounts are created by the practice. Ask an administrator to reset your
+        password if you cannot sign in.
       </p>
     </main>
   );

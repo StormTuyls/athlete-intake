@@ -67,7 +67,7 @@ export function AthleteAuth({
         const response = await fetch("/api/athlete/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ locale: "en" }),
+          body: JSON.stringify({ locale: "en", consented: true }),
         });
         if (!response.ok) {
           throw new Error((await response.json()).error ?? "could not finish signing up");

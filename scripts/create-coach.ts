@@ -1,6 +1,7 @@
 import { loadEnv } from "./env";
 loadEnv();
 
+import { randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 /**
@@ -15,12 +16,31 @@ import { createClient } from "@supabase/supabase-js";
  * kan iemand inloggen en ziet hij niets, want requireCoach() leest de rol uit
  * profiles en niet uit het token.
  *
- * Gebruik: npm run coach:create -- naam@praktijk.be "Volledige Naam"
+ * Het wachtwoord wordt hier gezet en één keer afgedrukt. Er is nog geen
+ * herstelflow per e-mail, dus dit script is ook de manier om een wachtwoord
+ * opnieuw te zetten. Voor een praktijk met een handvol behandelaars is dat een
+ * werkbare afspraak; voor echt gebruik hoort er een herstelmail bij, en dat
+ * staat als openstaand punt in de README.
+ *
+ * Gebruik: npm run coach:create -- naam@praktijk.be "Volledige Naam" [wachtwoord]
  */
+function generatePassword(): string {
+  // Leesbaar genoeg om over te typen, lang genoeg om niet te raden. Geen
+  // tekens die in een terminal of een mail verminkt raken.
+  const alphabet = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = randomBytes(20);
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+}
+
 async function main() {
-  const [email, fullName] = process.argv.slice(2);
+  const [email, fullName, given] = process.argv.slice(2);
   if (!email) {
-    throw new Error('gebruik: npm run coach:create -- e-mail "Volledige Naam"');
+    throw new Error('gebruik: npm run coach:create -- e-mail "Volledige Naam" [wachtwoord]');
+  }
+
+  const password = given ?? generatePassword();
+  if (password.length < 12) {
+    throw new Error("wachtwoord moet minstens 12 tekens zijn");
   }
 
   const admin = createClient(
@@ -29,11 +49,12 @@ async function main() {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  // Geen wachtwoord: inloggen gaat via een magic link. Wel meteen bevestigd,
-  // anders moet er eerst een uitnodigingsmail langs voordat de eerste link
-  // werkt, en dat is voor een lokale opzet alleen maar in de weg.
+  // Meteen bevestigd: er is geen uitnodigingsmail in deze opzet, en een account
+  // dat niet kan inloggen tot iemand een mail opent is voor een praktijk die
+  // zelf de accounts aanmaakt alleen maar in de weg.
   const created = await admin.auth.admin.createUser({
     email,
+    password,
     email_confirm: true,
   });
 
@@ -45,7 +66,11 @@ async function main() {
     const match = existing.data.users.find((user) => user.email === email);
     if (!match) throw new Error(`gebruiker aanmaken mislukt: ${created.error.message}`);
     userId = match.id;
-    console.log("gebruiker bestond al, rol wordt bijgewerkt");
+    // Bestond hij al, dan is dit script ook de manier om het wachtwoord opnieuw
+    // te zetten, want er is nog geen herstelflow.
+    const updated = await admin.auth.admin.updateUserById(match.id, { password });
+    if (updated.error) throw new Error(`wachtwoord zetten mislukt: ${updated.error.message}`);
+    console.log("gebruiker bestond al: rol en wachtwoord bijgewerkt");
   }
 
   if (!userId) throw new Error("geen gebruiker-id");
@@ -57,7 +82,8 @@ async function main() {
   if (error) throw new Error(`profiel opslaan mislukt: ${error.message}`);
 
   console.log(`coach klaar: ${email} (${userId})`);
-  console.log("inloggen via /coach/login; de link komt lokaal in Mailpit op http://127.0.0.1:54324");
+  console.log(`wachtwoord: ${password}`);
+  console.log("inloggen via /coach/login. Dit wachtwoord staat hier één keer.");
   process.exit(0);
 }
 

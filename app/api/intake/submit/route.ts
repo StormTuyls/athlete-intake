@@ -5,6 +5,8 @@ import { badRequest, handleError } from "@/lib/http";
 import { syncDossier } from "@/lib/db/dossier";
 import { syncIntakeToNotion } from "@/lib/notion/sync";
 import { freezeReport } from "@/lib/report/freeze";
+import { addProposals } from "@/lib/db/dossier";
+import { consentContext, recordSharingChoice } from "@/lib/intake/consent";
 
 /**
  * Intake indienen.
@@ -16,12 +18,21 @@ import { freezeReport } from "@/lib/report/freeze";
  *
  * De databank houdt hier een tweede slot op: intakes_submit_requires_consent.
  */
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const session = await requireIntake();
 
     if (session.status !== "draft") {
       return badRequest("This intake has already been submitted.");
+    }
+
+    const body = (await request.json().catch(() => ({}))) as { share?: boolean };
+
+    // De keuze om een samenvatting met een behandelaar te delen hoort hier en
+    // niet bij het starten: dit is het moment waarop het dossier naar de coach
+    // gaat. Een expliciete boolean, geen ontbrekende waarde die als ja telt.
+    if (typeof body.share !== "boolean") {
+      return badRequest("Please choose whether your practitioner may receive a summary.");
     }
 
     const state = await syncDossier(session.intakeId, session.locale);
@@ -44,6 +55,24 @@ export async function POST() {
       .eq("status", "draft");
 
     if (error) throw new Error(`indienen mislukt: ${error.message}`);
+
+    // Eerst vastleggen, dan pas het rapport bevriezen: de deelkeuze bepaalt of
+    // de samenvatting klinisch of zakelijk mag zijn, en die staat in het
+    // snapshot. Andersom zou versie 1 de verkeerde soort tekst dragen.
+    await recordSharingChoice({
+      athleteId: session.athleteId,
+      intakeId: session.intakeId,
+      share: body.share,
+      context: consentContext(request),
+    });
+
+    await addProposals(session.intakeId, [
+      {
+        fieldKey: "consent.share_with_practitioners",
+        value: body.share,
+        proposedBy: "athlete",
+      },
+    ]);
 
     // Vastleggen wat de atleet heeft ingeleverd, voordat er iets naar buiten
     // gaat. Dit is versie 1: de stand van het dossier op het moment van

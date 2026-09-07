@@ -42,6 +42,8 @@ export const chat = {
   back: "Back",
   collecting: (section: string) => `Collecting: ${section.toLowerCase()}`,
   collectingIdle: "All questions answered",
+  /** Alles wat indienen blokkeert is klaar; optionele velden mogen open blijven. */
+  collectingReady: "Ready to send",
   today: "Today",
   fieldCaptured: "Field captured",
   placeholder: "Type your answer...",
@@ -112,6 +114,23 @@ export const consent = {
   email: "Email",
   continue: "Continue",
   busy: "Working",
+} as const;
+
+/**
+ * De deelkeuze, gevraagd bij het indienen.
+ *
+ * Hier staat wat er gedeeld wordt en wat er gebeurt als je nee zegt. Zonder dat
+ * tweede deel is het geen keuze maar een knop, en dan is de toestemming niet
+ * geldig als grond om een klinische samenvatting naar de werkomgeving van een
+ * behandelaar te sturen.
+ */
+export const sharing = {
+  title: "Before you send this to your coach",
+  body:
+    "May your physiotherapist or sports physician receive a summary of this intake in the secure workspace they use? Without this, your medical details stay with your coach only, and your practitioner sees just your contact details.",
+  share: "Share with my practitioner",
+  keep: "Keep it with my coach only",
+  note: "You can change this later by asking your coach.",
 } as const;
 
 /**

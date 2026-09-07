@@ -3,6 +3,8 @@ import { appDb } from "@/lib/supabase/service";
 import { newToken, setSessionCookie } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { currentAthlete } from "@/lib/intake/athlete";
+import { ACCOUNT_PURPOSES, hasAccountConsent } from "@/lib/intake/consent";
+import { addProposals } from "@/lib/db/dossier";
 
 /**
  * Start een intake voor de ingelogde atleet.
@@ -27,6 +29,18 @@ export async function POST(request: Request) {
     const athlete = await currentAthlete();
     if (!athlete) {
       return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+    }
+
+    // De toestemming om gezondheidsgegevens te verwerken is gegeven bij het
+    // aanmaken van het account. Bestaat die registratie niet, dan is er iets
+    // misgegaan bij het aanmelden en mag hier niets beginnen: de databank
+    // blokkeert indienen zonder consent, maar wachten tot dat moment betekent
+    // een dossier vol medische documenten waar geen grond voor is.
+    if (!(await hasAccountConsent(athlete.athleteId))) {
+      return NextResponse.json(
+        { error: "Your consent record is missing. Please sign in again." },
+        { status: 409 },
+      );
     }
 
     const body = (await request.json().catch(() => ({}))) as { locale?: string };
@@ -61,15 +75,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ intakeId: open.id, locale, resumed: true });
     }
 
+    // consent_granted_at wordt hier gezet en niet in een aparte stap: de
+    // toestemming bestaat al op accountniveau, dus een intake die er zonder
+    // begint zou een toestand zijn die niet voorkomt.
     const { data: intake, error: intakeError } = await db
       .from("intakes")
-      .insert({ athlete_id: athlete.athleteId, locale, access_token_hash: hash })
+      .insert({
+        athlete_id: athlete.athleteId,
+        locale,
+        access_token_hash: hash,
+        consent_granted_at: new Date().toISOString(),
+      })
       .select("id")
       .single();
 
     if (intakeError || !intake) {
       throw new Error(`intake aanmaken mislukt: ${intakeError?.message}`);
     }
+
+    // De consentvelden ook als dossiervelden, zodat het rapport en het
+    // coachscherm kunnen tonen waar deze atleet mee heeft ingestemd zonder in
+    // een tweede tabel te hoeven kijken.
+    await addProposals(
+      intake.id as string,
+      ACCOUNT_PURPOSES.map((key) => ({
+        fieldKey: `consent.${key}`,
+        value: true,
+        proposedBy: "athlete" as const,
+      })),
+    );
 
     await setSessionCookie(token);
 

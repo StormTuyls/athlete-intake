@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { badRequest, handleError } from "@/lib/http";
 import { ensureAthleteForUser } from "@/lib/intake/athlete";
+import { consentContext, recordAccountConsent } from "@/lib/intake/consent";
 
 /**
  * Na het aanmaken van een account: profiel en atleetrij klaarzetten.
@@ -27,7 +28,15 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as {
       fullName?: string;
       locale?: string;
+      consented?: boolean;
     };
+
+    // Het vinkje is de hele grond waarop hierna iets verwerkt mag worden. Zonder
+    // dat is er geen account, en de server neemt het woord van de client daarover
+    // niet aan: het moet expliciet meekomen.
+    if (body.consented !== true) {
+      return badRequest("Consent is required to create an account.");
+    }
 
     const locale = body.locale === "nl" ? "nl" : "en";
     const fullName = body.fullName?.trim() || null;
@@ -41,6 +50,12 @@ export async function POST(request: Request) {
       email: auth.user.email ?? null,
       fullName,
       locale,
+    });
+
+    // Vastleggen wat er is afgesproken, en de bewaartermijn definitief maken.
+    await recordAccountConsent({
+      athleteId: athlete.athleteId,
+      context: consentContext(request),
     });
 
     return NextResponse.json({ athleteId: athlete.athleteId, locale: athlete.locale });

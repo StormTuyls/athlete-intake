@@ -1,10 +1,10 @@
 "use client";
 
-import { chat } from "@/lib/intake/copy";
 import { useIntakeChat } from "@/components/intake/useIntakeChat";
 import { ChatHeader } from "@/components/intake/ChatHeader";
 import { Transcript } from "@/components/intake/Transcript";
 import { Composer } from "@/components/intake/Composer";
+import { SubmitConsent } from "@/components/intake/SubmitConsent";
 
 /**
  * Het intakegesprek.
@@ -18,7 +18,7 @@ export function ChatScreen({
   externalError,
   submitting = false,
 }: {
-  onSubmit: () => void;
+  onSubmit: (share: boolean) => void;
   /** Fout uit een actie buiten het gesprek, zoals het indienen. */
   externalError?: string | null;
   submitting?: boolean;
@@ -29,6 +29,7 @@ export function ChatScreen({
     <div className="mx-auto flex min-h-dvh max-w-[30rem] flex-col bg-canvas">
       <ChatHeader
         collecting={state.collecting?.label ?? null}
+        ready={state.completeness?.readyToSubmit ?? false}
         sectionsDone={state.progress.sectionsDone}
         sectionsTotal={state.progress.sectionsTotal}
         requiredFilled={state.progress.requiredFilled}
@@ -54,17 +55,11 @@ export function ChatScreen({
         </p>
       )}
 
+      {/* Klaar om in te dienen: dan de deelvraag, en die IS de indienknop. Een
+          losse "Finish"-knop ernaast zou een pad geven waarop de vraag
+          overgeslagen wordt, en dan is er geen keuze vastgelegd. */}
       {state.completeness?.readyToSubmit && (
-        <div className="px-4 pb-2">
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={state.busy || submitting}
-            className="w-full rounded-card bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
-          >
-            {chat.finish}
-          </button>
-        </div>
+        <SubmitConsent busy={state.busy || submitting} onSubmit={onSubmit} />
       )}
 
       <Composer

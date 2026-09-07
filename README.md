@@ -190,9 +190,16 @@ Het rapport is te downloaden als PDF (via de printweergave), JSON (het snapshot 
 (per veld een rij, met herkomst). Alle drie lezen een vastgelegde versie; `?version=1` geeft exact
 die versie terug, ook als het dossier daarna veranderd is.
 
-Het coachdossier zit achter een login: een magic link naar het werkadres, rol `coach` of `admin` uit
-`public.profiles`, en geen zelfregistratie (`npm run coach:create -- adres "Naam"`). Elke leesactie
-en elke export staat met actor in het audit-spoor.
+Coach en atleet loggen op dezelfde manier in: e-mail en wachtwoord. De coach wordt door de praktijk
+aangemaakt (`npm run coach:create -- adres "Naam" [wachtwoord]`), er is geen zelfregistratie voor
+behandelaars, en de rol komt uit `public.profiles`. Elke leesactie en elke export staat met actor in
+het audit-spoor.
+
+Toestemming zit op twee niveaus in `public.consents`. Bij het aanmaken van het account legt de atleet
+vast dat zijn gezondheidsgegevens verwerkt mogen worden en hoe lang ze bewaard blijven (`intake_id`
+is dan null). Per intake wordt bij het indienen gevraagd of een behandelaar een samenvatting mag
+zien; dat is de poort waar de klinische samenvatting en de Notion-push op staan. Zegt de atleet nee,
+dan bevriest het rapport een zakelijke samenvatting in plaats van een klinische.
 
 De atleet heeft nu ook een account: aanmelden met e-mail en wachtwoord op `/start`, daarna een
 thuisscherm op `/home` met de lopende intake, de voortgang per sectie en eerdere intakes. Een intake
