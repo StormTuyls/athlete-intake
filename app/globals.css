@@ -66,3 +66,47 @@ body {
   background: var(--color-surface);
   color: var(--color-ink);
 }
+
+/**
+ * Afdrukken.
+ *
+ * Twee dingen moeten hier gebeuren. Ten eerste alles wat geen document is van de
+ * pagina halen: knoppen, banners, navigatie. Ten tweede wit forceren, want een
+ * paginabrede achtergrondkleur kost inkt en maakt de tekst grijzer dan nodig.
+ *
+ * break-inside op veldrijen en secties: een veldwaarde die op pagina een staat en
+ * zijn herkomst op pagina twee is precies de koppeling die een rapport moet
+ * leggen.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Alles buiten het rapport hoort niet op papier. */
+  body > *:not(.report):not(:has(.report)) {
+    display: none !important;
+  }
+
+  .report {
+    max-width: none;
+    padding: 0;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Linkjes zonder hun URL: de coach krijgt papier, geen href. */
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+}

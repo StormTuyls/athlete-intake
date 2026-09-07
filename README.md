@@ -186,6 +186,10 @@ in `medical.intake_reports`. Zolang het dossier niet verandert levert een export
 dezelfde samenvattingstekst; verandert er iets, dan komt er een nieuwe genummerde versie bij en blijft
 de oude staan.
 
-Nog te doen: intakerapport als PDF, JSON- en CSV-export, coach-login (het reviewscherm staat nu dicht
-achter `REVIEW_UNAUTHENTICATED` en weigert in productie altijd), retentiejob, verwijderingspad en de
-meertalige UI. Zie [docs/plan.md](docs/plan.md).
+Het rapport is te downloaden als PDF (via de printweergave), JSON (het snapshot letterlijk) en CSV
+(per veld een rij, met herkomst). Alle drie lezen een vastgelegde versie; `?version=1` geeft exact
+die versie terug, ook als het dossier daarna veranderd is.
+
+Nog te doen: coach-login (het reviewscherm staat nu dicht achter `REVIEW_UNAUTHENTICATED` en weigert
+in productie altijd), retentiejob, verwijderingspad en de meertalige UI. Zie
+[docs/plan.md](docs/plan.md).

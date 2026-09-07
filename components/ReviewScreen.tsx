@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { label as enumLabel } from "@/lib/dossier/labels";
+import { ExportBar } from "@/components/review/ExportBar";
 
 /**
  * Het reviewscherm van de coach. Eén pagina, zoals afgesproken.
@@ -409,6 +410,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
           gehaald zijn.
         </p>
       </section>
+      <ExportBar intakeId={intakeId} />
     </main>
   );
 }
