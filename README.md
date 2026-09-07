@@ -194,5 +194,9 @@ Het coachdossier zit achter een login: een magic link naar het werkadres, rol `c
 `public.profiles`, en geen zelfregistratie (`npm run coach:create -- adres "Naam"`). Elke leesactie
 en elke export staat met actor in het audit-spoor.
 
+De atleet heeft nu ook een account: aanmelden met e-mail en wachtwoord op `/start`, daarna een
+thuisscherm op `/home` met de lopende intake, de voortgang per sectie en eerdere intakes. Een intake
+hangt aan dat account, dus het capability-cookie alleen is niet meer genoeg om er een te openen.
+
 Nog te doen: retentiejob, verwijderingspad, goedkeuren door de coach en de meertalige UI. Zie
 [docs/plan.md](docs/plan.md).

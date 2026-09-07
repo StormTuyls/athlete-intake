@@ -47,6 +47,15 @@
   --color-unverified: #475467;
   --color-unverified-soft: #f2f4f7;
 
+  /* Het donkere inlogscherm uit het ontwerp. Eigen tokens en geen dark-variant
+     van de rest: dit scherm is altijd donker, ongeacht de OS-voorkeur, want dat
+     is een ontwerpkeuze en geen systeeminstelling. */
+  --color-night: #0d1117;
+  --color-night-raised: #161b22;
+  --color-night-line: #262c36;
+  --color-night-ink: #e6edf3;
+  --color-night-muted: #8b949e;
+
   --radius-bubble: 1.25rem;
   --radius-card: 1rem;
   --radius-chip: 9999px;

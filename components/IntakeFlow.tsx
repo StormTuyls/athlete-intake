@@ -105,10 +105,9 @@ export function IntakeFlow() {
     setBusy(true);
     setError(null);
     try {
-      // De interface is Engels, dus de intake ook: de locale stuurt de taal van
-      // de assistent en welke labels de server teruggeeft. Staat hier "nl", dan
-      // antwoordt een Engelstalig scherm in het Nederlands.
-      await call("/api/intake", { locale: "en" });
+      // Geen POST /api/intake meer: de intake is al geopend of hervat op het
+      // thuisscherm, en die route roteert het token. Twee keer aanroepen zou het
+      // cookie van dit toestel ongeldig maken halverwege het invullen.
       const result = await call<{ completeness: Completeness }>("/api/intake/consent", {
         purposes,
         fullName,

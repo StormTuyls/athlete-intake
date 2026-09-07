@@ -52,8 +52,18 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Alleen waar een sessie iets betekent. Statische bestanden en de
-  // atleetintake hebben hem niet nodig: die loopt op een eigen capability-token
-  // en niet op Supabase Auth.
-  matcher: ["/coach/:path*", "/review/:path*", "/api/review/:path*"],
+  // Alleen waar een sessie iets betekent. De atleetintake staat er nu ook bij:
+  // sinds er accounts zijn, hangt ook /intake aan een Supabase-sessie en niet
+  // meer alleen aan het capability-token.
+  matcher: [
+    "/",
+    "/home/:path*",
+    "/start/:path*",
+    "/intake/:path*",
+    "/coach/:path*",
+    "/review/:path*",
+    "/api/intake/:path*",
+    "/api/athlete/:path*",
+    "/api/review/:path*",
+  ],
 };

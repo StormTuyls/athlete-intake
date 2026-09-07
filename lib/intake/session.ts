@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { appDb } from "@/lib/supabase/service";
+import { createServerSupabase } from "@/lib/supabase/server";
 
 /**
  * Sessie voor de publieke intake.
@@ -66,11 +67,27 @@ export async function currentIntake(): Promise<IntakeSession | null> {
 
   const { data, error } = await appDb()
     .from("intakes")
-    .select("id, athlete_id, status, locale, consent_granted_at")
+    .select("id, athlete_id, status, locale, consent_granted_at, athletes(profile_id)")
     .eq("access_token_hash", hashToken(token))
     .maybeSingle();
 
   if (error || !data) return null;
+
+  // Hoort deze intake bij een account, dan moet de ingelogde gebruiker dat
+  // account zijn. Zonder deze controle is het cookie op zichzelf genoeg, en dan
+  // opent een gekopieerd of gestolen cookie het dossier van iemand anders,
+  // ongeacht wie er ingelogd is.
+  //
+  // Intakes zonder profile_id blijven werken op alleen het cookie. Dat zijn de
+  // dossiers van voor de accounts; nieuwe intakes krijgen altijd een eigenaar.
+  const embedded = Array.isArray(data.athletes) ? data.athletes[0] : data.athletes;
+  const ownerId = (embedded as { profile_id: string | null } | null)?.profile_id ?? null;
+
+  if (ownerId !== null) {
+    const supabase = await createServerSupabase();
+    const { data: auth } = await supabase.auth.getUser();
+    if (auth.user?.id !== ownerId) return null;
+  }
 
   return {
     intakeId: data.id as string,
