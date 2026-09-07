@@ -4,6 +4,7 @@ import { requireIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { syncDossier } from "@/lib/db/dossier";
 import { syncIntakeToNotion } from "@/lib/notion/sync";
+import { freezeReport } from "@/lib/report/freeze";
 
 /**
  * Intake indienen.
@@ -44,6 +45,26 @@ export async function POST() {
 
     if (error) throw new Error(`indienen mislukt: ${error.message}`);
 
+    // Vastleggen wat de atleet heeft ingeleverd, voordat er iets naar buiten
+    // gaat. Dit is versie 1: de stand van het dossier op het moment van
+    // indienen, met de samenvatting erbij. Alles wat daarna exporteert leest
+    // deze versie in plaats van opnieuw te genereren.
+    //
+    // Mislukt het, dan is de intake nog steeds ingediend. Hetzelfde argument als
+    // bij Notion hieronder: een atleet buitensluiten omdat een samenvatting niet
+    // gelukt is, is de verkeerde afweging. De volgende export legt hem alsnog
+    // vast.
+    let report: { version: number } | { error: string } | null = null;
+    try {
+      const frozen = await freezeReport(session.intakeId, "submit");
+      report = { version: frozen.version };
+    } catch (reportError) {
+      console.error("[report]", reportError);
+      report = {
+        error: reportError instanceof Error ? reportError.message : "onbekende fout",
+      };
+    }
+
     // Notion is een weergave, geen bron van waarheid. Ligt het plat of is de
     // koppeling niet geconfigureerd, dan is de intake alsnog ingediend. Anders
     // zou een storing bij een derde partij een atleet buitensluiten.
@@ -63,6 +84,7 @@ export async function POST() {
     return NextResponse.json({
       status: "submitted",
       completeness: state.completeness,
+      report,
       notion,
     });
   } catch (error) {

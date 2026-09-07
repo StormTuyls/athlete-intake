@@ -152,6 +152,14 @@ Elke milestone is los te reviewen en levert iets dat draait.
 - Coach-reviewscherm: één pagina, secties uit `field_definitions`, per veld de waarde, de status, het
   niveau en de herkomst met een klikbaar citaat naar de brondocumentpagina. Inline corrigeren.
   Goedkeuren bevriest een snapshot in `intake_reports.frozen_snapshot`.
+
+  Bijgesteld tijdens de bouw: bevriezen gebeurt niet pas bij goedkeuren maar al
+  bij indienen, en daarnaast bij elke export waarvoor nog geen versie bestaat.
+  Reden: de klinische samenvatting werd bij elke Notion-sync en elke klik opnieuw
+  gegenereerd, dus twee coaches konden een andere tekst over hetzelfde dossier
+  lezen en van wat er naar Notion ging bestond geen vastlegging. Hergebruik loopt
+  via een content-hash over de dossierinhoud, met `generatedAt` en de
+  samenvatting er expliciet buiten. Zie lib/report/snapshot.ts.
 - Intakerapport als PDF uit het snapshot, met expliciete scheiding tussen feitelijke data en
   interpretatie, plus de lijst openstaande informatie.
 - JSON- en CSV-export uit hetzelfde snapshot.

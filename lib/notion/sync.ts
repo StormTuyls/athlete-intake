@@ -2,9 +2,7 @@ import { notion } from "@/lib/notion/client";
 import { TRAINABILITY } from "@/lib/notion/schema";
 import { appDb } from "@/lib/supabase/service";
 import { syncDossier } from "@/lib/db/dossier";
-import { listDocuments } from "@/lib/db/medical";
-import { clinicalSummary, commercialSummary } from "@/lib/claude/summarise";
-import { getInjuries } from "@/lib/db/review";
+import { ensureFrozenReport } from "@/lib/report/freeze";
 import { markdownToBlocks } from "@/lib/notion/blocks";
 import { label } from "@/lib/dossier/labels";
 import { logAudit } from "@/lib/audit";
@@ -274,21 +272,25 @@ export async function syncIntakeToNotion(intakeId: string): Promise<{
           : "Intake ontvangen",
   });
 
-  // Met toestemming de klinische samenvatting, anders de zakelijke. De zakelijke
-  // krijgt uitsluitend de gefilterde waarden mee, dus daar kan per constructie
-  // geen klinische inhoud in belanden.
-  const summary = sharingAllowed
-    ? await clinicalSummary({
-        definitions: state.definitions,
-        resolved: state.resolved,
-        injuries: await getInjuries(intakeId),
-      })
-    : await commercialSummary({
-        values,
-        documentCount: (await listDocuments(intakeId)).length,
-        openFields: state.completeness.total - state.completeness.filled,
-        conflicts: state.completeness.conflicts,
-      });
+  // De samenvatting komt uit een vastgelegde rapportversie, niet uit een verse
+  // modelcall. Dat was het gebrek dat dit oploste: elke sync schreef een nieuwe
+  // tekst naar Notion, dus wat er de vorige keer gestuurd was viel niet meer na
+  // te gaan en twee syncs van hetzelfde dossier konden verschillen.
+  //
+  // ensureFrozenReport hergebruikt de nieuwste versie zolang de dossierinhoud
+  // niet veranderd is. Of de tekst klinisch of zakelijk is, staat in het
+  // snapshot en volgt uit dezelfde toestemmingspoort: toestemming is een
+  // dossierveld, dus een intrekking verandert de inhoud, geeft een nieuwe versie
+  // en dus een nieuwe, zakelijke tekst.
+  const report = await ensureFrozenReport(intakeId, "export");
+  const summary = report.snapshot.summary;
+  if (!summary) throw new Error("rapportversie zonder samenvatting");
+
+  // Sluitstuk op de poort: zou de opgeslagen versie een klinische tekst dragen
+  // terwijl de toestemming inmiddels weg is, dan gaat er niets medisch heen.
+  if (summary.kind === "clinical" && !sharingAllowed) {
+    throw new MedicalLeakError(["consent.share_with_practitioners"]);
+  }
 
   const existing = await notion<QueryResult>(`/databases/${athletesDb}/query`, {
     method: "POST",
@@ -300,7 +302,7 @@ export async function syncIntakeToNotion(intakeId: string): Promise<{
 
   const children = buildAthleteBody({
     summary: summary.text,
-    clinical: sharingAllowed,
+    clinical: summary.kind === "clinical",
     dossierUrl,
   });
 

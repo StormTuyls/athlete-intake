@@ -396,6 +396,89 @@ export interface NewInjury {
   quoteVerified: boolean;
 }
 
+/**
+ * Een rapportversie wegschrijven.
+ *
+ * Het versienummer wordt in de insert zelf bepaald en niet eerst uitgelezen,
+ * anders kunnen twee gelijktijdige exports hetzelfde nummer kiezen. De unieke
+ * index (intake_id, version) vangt dat af; `do nothing` maakt van die botsing
+ * geen fout maar een leeg resultaat, en de aanroeper besluit dan wat te doen.
+ */
+export async function insertReport(input: {
+  intakeId: string;
+  snapshot: unknown;
+}): Promise<{ version: number; id: string } | null> {
+  const rows = await query<{ id: string; version: number }>(
+    `insert into medical.intake_reports (intake_id, version, frozen_snapshot)
+     select $1, coalesce(max(version), 0) + 1, $2::jsonb
+       from medical.intake_reports where intake_id = $1
+     on conflict (intake_id, version) do nothing
+     returning id, version`,
+    [input.intakeId, JSON.stringify(input.snapshot)],
+  );
+
+  const row = rows[0];
+  return row ? { id: row.id, version: row.version } : null;
+}
+
+export interface StoredReport {
+  id: string;
+  version: number;
+  generatedAt: string;
+  snapshot: unknown;
+}
+
+export async function readLatestReport(intakeId: string): Promise<StoredReport | null> {
+  const rows = await query<{
+    id: string;
+    version: number;
+    generated_at: Date;
+    frozen_snapshot: unknown;
+  }>(
+    `select id, version, generated_at, frozen_snapshot
+     from medical.intake_reports
+     where intake_id = $1
+     order by version desc
+     limit 1`,
+    [intakeId],
+  );
+
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    version: row.version,
+    generatedAt: row.generated_at.toISOString(),
+    snapshot: row.frozen_snapshot,
+  };
+}
+
+export async function readReport(
+  intakeId: string,
+  version: number,
+): Promise<StoredReport | null> {
+  const rows = await query<{
+    id: string;
+    version: number;
+    generated_at: Date;
+    frozen_snapshot: unknown;
+  }>(
+    `select id, version, generated_at, frozen_snapshot
+     from medical.intake_reports
+     where intake_id = $1 and version = $2`,
+    [intakeId, version],
+  );
+
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    version: row.version,
+    generatedAt: row.generated_at.toISOString(),
+    snapshot: row.frozen_snapshot,
+  };
+}
+
 export async function addInjuries(injuries: NewInjury[]): Promise<void> {
   if (injuries.length === 0) return;
 

@@ -180,5 +180,12 @@ Gemeten op de synthetische testset:
 | Blessuretijdlijn uit twee documenten | Vier vermeldingen van twee blessures teruggebracht tot twee entries, met de bronnen als bevestiging |
 | Klinische samenvatting | Vond zelf een tegenstrijdigheid (12-08 tegenover 11-08) en het recidiefverband, zonder een diagnose te stellen |
 
-Nog te doen: reviewweergave voor de coach, intakerapport als PDF, JSON- en CSV-export, retentiejob,
-verwijderingspad en de meertalige UI. Zie [docs/plan.md](docs/plan.md).
+Sinds die stand: het intakegesprek en het coachdossier staan, uploaden zit in het gesprek, de atleet
+kan bevestigen of corrigeren wat het model voorstelde, en elk rapport komt uit een vastgelegde versie
+in `medical.intake_reports`. Zolang het dossier niet verandert levert een export dezelfde versie en
+dezelfde samenvattingstekst; verandert er iets, dan komt er een nieuwe genummerde versie bij en blijft
+de oude staan.
+
+Nog te doen: intakerapport als PDF, JSON- en CSV-export, coach-login (het reviewscherm staat nu dicht
+achter `REVIEW_UNAUTHENTICATED` en weigert in productie altijd), retentiejob, verwijderingspad en de
+meertalige UI. Zie [docs/plan.md](docs/plan.md).
