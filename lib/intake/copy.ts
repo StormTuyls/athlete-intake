@@ -152,4 +152,7 @@ export const intake = {
   submittedNotion: "A follow-up task and an invoice line were created for your coach.",
 
   notComplete: "not complete yet",
+
+  duplicateDocument: (filename: string) =>
+    `You already sent ${filename}, so nothing was read again. What it contained is above.`,
 } as const;

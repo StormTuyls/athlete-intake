@@ -83,6 +83,47 @@ export function buildCard(
   };
 }
 
+/**
+ * De kaarten die uit één document kwamen.
+ *
+ * Per veld het laatste voorstel: het model kan hetzelfde veld twee keer
+ * voorstellen binnen één document, en dan is de laatste de bedoelde.
+ *
+ * Zowel de transcriptie als de uploadroute gebruikt dit. Twee bouwers zouden
+ * betekenen dat een kaart net na het uploaden iets anders kan zeggen dan
+ * dezelfde kaart na een reload.
+ */
+export function cardsForDocument(
+  documentId: string,
+  proposals: Proposal[],
+  definitions: Map<string, FieldDefinition>,
+  resolved: Map<string, ResolvedField>,
+  proposalById: Map<number, Proposal>,
+  locale: "nl" | "en",
+): { cards: CaptureCard[]; fieldsProposed: number; quotesVerified: number } {
+  const fromDocument = proposals.filter(
+    (proposal) =>
+      proposal.proposedBy === "model" && proposal.sourceDocumentId === documentId,
+  );
+
+  const latestPerField = new Map<string, Proposal>();
+  for (const proposal of fromDocument) latestPerField.set(proposal.fieldKey, proposal);
+
+  const cards: CaptureCard[] = [];
+  for (const proposal of latestPerField.values()) {
+    const definition = definitions.get(proposal.fieldKey);
+    if (!definition) continue;
+    const field = resolved.get(proposal.fieldKey);
+    cards.push(buildCard(definition, field, winnerIsModel(field, proposalById), locale));
+  }
+
+  return {
+    cards,
+    fieldsProposed: latestPerField.size,
+    quotesVerified: fromDocument.filter((proposal) => proposal.quoteVerified).length,
+  };
+}
+
 interface ChatMessageRow {
   id: number;
   role: "user" | "assistant";
@@ -265,29 +306,14 @@ export async function buildTranscript(
     // laatste is een antwoord, geen stilte.
     if (document.processingError || !document.processedAt) return;
 
-    const fromDocument = proposals.filter(
-      (proposal) =>
-        proposal.proposedBy === "model" && proposal.sourceDocumentId === document.id,
+    const extraction = cardsForDocument(
+      document.id,
+      proposals,
+      byKey,
+      state.resolved,
+      proposalById,
+      locale,
     );
-
-    // Per veld het laatste voorstel; het model kan hetzelfde veld twee keer
-    // voorstellen binnen één document.
-    const latestPerField = new Map<string, Proposal>();
-    for (const proposal of fromDocument) latestPerField.set(proposal.fieldKey, proposal);
-
-    const cards: CaptureCard[] = [];
-    for (const proposal of latestPerField.values()) {
-      const definition = byKey.get(proposal.fieldKey);
-      if (!definition) continue;
-      cards.push(
-        buildCard(
-          definition,
-          state.resolved.get(proposal.fieldKey),
-          needsConfirm(proposal.fieldKey),
-          locale,
-        ),
-      );
-    }
 
     entries.push({
       source: "extraction",
@@ -298,9 +324,9 @@ export async function buildTranscript(
         at: document.processedAt,
         documentId: document.id,
         filename: document.originalFilename,
-        cards,
-        fieldsProposed: latestPerField.size,
-        quotesVerified: fromDocument.filter((p) => p.quoteVerified).length,
+        cards: extraction.cards,
+        fieldsProposed: extraction.fieldsProposed,
+        quotesVerified: extraction.quotesVerified,
       },
     });
   });

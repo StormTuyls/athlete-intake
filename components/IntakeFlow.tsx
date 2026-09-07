@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/browser";
 import { ChatScreen } from "@/components/intake/ChatScreen";
 import {
   CONSENT_ITEMS,
@@ -14,14 +13,19 @@ import {
 /**
  * De intake zoals de atleet hem doorloopt.
  *
- * Vier stappen, in deze volgorde en niet anders: toestemming, uploaden,
- * gesprek, indienen. Toestemming eerst omdat er zonder toestemming niets
- * verwerkt mag worden, en uploaden voor het gesprek omdat de assistent daarna
- * alleen nog hoeft te vragen wat niet in de documenten stond. Dat is waar de
- * tijdswinst zit: wie zijn verslagen al aanleverde, krijgt die vragen niet meer.
+ * Drie stappen: toestemming, gesprek, ingediend. Toestemming eerst, want zonder
+ * toestemming mag er niets verwerkt worden.
+ *
+ * Uploaden was een eigen stap voor het gesprek. Dat is het niet meer: het zit nu
+ * in het gesprek zelf. De reden om het ervoor te zetten was dat de assistent
+ * daarna alleen nog hoeft te vragen wat niet in de documenten stond, en dat
+ * klopt nog steeds, maar het dwong een keuze op het verkeerde moment. Wie zijn
+ * verslagen pas bij de derde vraag terugvindt, moest opnieuw beginnen. In het
+ * gesprek kan een document er op elk moment bij, en de assistent slaat over wat
+ * eruit komt.
  */
 
-type Step = "consent" | "upload" | "chat" | "done";
+type Step = "consent" | "chat" | "done";
 
 interface Completeness {
   total: number;
@@ -30,15 +34,6 @@ interface Completeness {
   requiredFilled: number;
   conflicts: number;
   readyToSubmit: boolean;
-}
-
-interface DocumentRow {
-  filename: string;
-  kind: string;
-  fieldsProposed: number;
-  quotesVerified: number;
-  injuriesFound: number;
-  error?: string;
 }
 
 export function IntakeFlow() {
@@ -51,7 +46,6 @@ export function IntakeFlow() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
 
-  const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [completeness, setCompleteness] = useState<Completeness | null>(null);
   const [submitted, setSubmitted] = useState<{ notionCreated: boolean | null } | null>(
     null,
@@ -121,76 +115,12 @@ export function IntakeFlow() {
         email,
       });
       setCompleteness(result.completeness);
-      setStep("upload");
+      setStep("chat");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : errors.generic);
     } finally {
       setBusy(false);
     }
-  }
-
-  async function uploadFiles(files: FileList) {
-    setBusy(true);
-    setError(null);
-
-    for (const file of Array.from(files)) {
-      try {
-        // Signed URL opvragen, dan rechtstreeks naar de opslag. Het bestand gaat
-        // dus niet door een route handler.
-        const signed = await call<{ path: string; token: string; bucket: string }>(
-          "/api/intake/documents/upload-url",
-          {
-            filename: file.name,
-            mimeType: file.type || "text/plain",
-            byteSize: file.size,
-          },
-        );
-
-        const supabase = createClient();
-        const upload = await supabase.storage
-          .from(signed.bucket)
-          .uploadToSignedUrl(signed.path, signed.token, file);
-
-        if (upload.error) throw new Error(upload.error.message);
-
-        const result = await call<{
-          kind: string;
-          fieldsProposed: number;
-          quotesVerified: number;
-          injuriesFound: number;
-        }>("/api/intake/documents", {
-          path: signed.path,
-          filename: file.name,
-          mimeType: file.type || "text/plain",
-        });
-
-        setDocuments((rows) => [
-          ...rows,
-          { filename: file.name, ...result },
-        ]);
-      } catch (caught) {
-        setDocuments((rows) => [
-          ...rows,
-          {
-            filename: file.name,
-            kind: "-",
-            fieldsProposed: 0,
-            quotesVerified: 0,
-            injuriesFound: 0,
-            error: caught instanceof Error ? caught.message : intake.documentFailed,
-          },
-        ]);
-      }
-    }
-
-    try {
-      const state = await call<{ completeness: Completeness }>("/api/intake/state");
-      setCompleteness(state.completeness);
-    } catch {
-      // Niet fataal: de stand wordt bij de volgende stap opnieuw opgehaald.
-    }
-
-    setBusy(false);
   }
 
   async function submit() {
@@ -316,64 +246,6 @@ export function IntakeFlow() {
           >
             {busy ? consentCopy.busy : consentCopy.continue}
           </button>
-        </section>
-      )}
-
-      {step === "upload" && (
-        <section className="space-y-6">
-          <div>
-            <h2 className="text-sm font-medium">{intake.documents}</h2>
-            <p className="mt-1 text-xs opacity-60">{intake.documentsHint}</p>
-          </div>
-
-          <input
-            type="file"
-            multiple
-            disabled={busy}
-            onChange={(event) => {
-              if (event.target.files?.length) void uploadFiles(event.target.files);
-              event.target.value = "";
-            }}
-            className="block w-full text-sm"
-          />
-
-          {documents.length > 0 && (
-            <ul className="space-y-2 text-sm">
-              {documents.map((document, index) => (
-                <li
-                  key={`${document.filename}-${index}`}
-                  className="rounded-md border border-hairline p-3"
-                >
-                  <div className="font-medium">{document.filename}</div>
-                  {document.error ? (
-                    <div className="mt-1 text-xs text-danger">
-                      {document.error} ({intake.documentKept})
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-xs opacity-60">
-                      {document.kind} ·{" "}
-                      {intake.documentSummary(
-                        document.fieldsProposed,
-                        document.quotesVerified,
-                      )}
-                      {document.injuriesFound > 0 &&
-                        ` · ${intake.injuriesFound(document.injuriesFound)}`}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep("chat")}
-              disabled={busy}
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
-            >
-              {busy ? consentCopy.busy : intake.toQuestions}
-            </button>
-          </div>
         </section>
       )}
 

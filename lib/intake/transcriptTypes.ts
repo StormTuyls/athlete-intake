@@ -1,9 +1,9 @@
-import type {
-  Confidence,
-  DocumentKind,
-  FieldDataType,
-  FieldStatus,
-} from "@/lib/types";
+import type { Confidence, FieldDataType, FieldStatus } from "@/lib/types";
+
+// Doorgeven, zodat een client component het type kan gebruiken zonder
+// lib/types.ts te importeren en daarmee de serverkant binnen te trekken.
+export type { DocumentKind } from "@/lib/types";
+import type { DocumentKind } from "@/lib/types";
 
 /**
  * Wat het chatscherm van de server krijgt.

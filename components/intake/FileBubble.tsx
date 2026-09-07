@@ -22,13 +22,29 @@ const STATE_TEXT: Record<DocumentState, string> = {
   failed: "could not be read",
 };
 
+/**
+ * Wat voor document dit is, in woorden.
+ *
+ * `pdf_text` betekent in de databank "document met een tekstlaag", en dat is
+ * niet altijd een PDF: een los .txt-bestand valt in dezelfde categorie. Dat
+ * blind als "PDF" tonen liegt over het bestand dat de atleet net verstuurde,
+ * dus het mimetype beslist en het kind vult alleen aan.
+ */
 const KIND_TEXT: Record<string, string> = {
-  pdf_text: "PDF",
   pdf_scanned: "scanned PDF",
   image: "image",
   whatsapp_export: "WhatsApp export",
   vald_csv: "test data",
 };
+
+function kindLabel(kind: string | null, mimeType: string): string | null {
+  if (kind && KIND_TEXT[kind]) return KIND_TEXT[kind];
+  if (mimeType === "application/pdf") return "PDF";
+  if (mimeType === "text/csv") return "CSV";
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType === "text/plain") return "text";
+  return kind;
+}
 
 export function FileBubble({
   filename,
@@ -54,7 +70,7 @@ export function FileBubble({
 }) {
   const meta = [
     formatBytes(byteSize),
-    documentKind ? (KIND_TEXT[documentKind] ?? documentKind) : null,
+    kindLabel(documentKind, mimeType),
     state === "read" && fieldsProposed !== undefined && quotesVerified !== undefined
       ? `${quotesVerified} of ${fieldsProposed} quotes verified`
       : STATE_TEXT[state],

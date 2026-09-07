@@ -43,6 +43,12 @@ export function ChatScreen({
 
       <Transcript items={state.items} busy={state.busy} />
 
+      {state.notice && (
+        <p className="mx-4 mb-2 rounded-card bg-canvas px-3 py-2 text-xs text-ink-muted ring-1 ring-hairline ring-inset">
+          {state.notice}
+        </p>
+      )}
+
       {state.completeness?.readyToSubmit && (
         <div className="px-4 pb-2">
           <button
@@ -60,9 +66,7 @@ export function ChatScreen({
         value={state.draft}
         onChange={state.setDraft}
         onSubmit={state.send}
-        onFilesPicked={() => {
-          // Uploaden in het gesprek komt in de volgende stap.
-        }}
+        onFilesPicked={(files) => void state.uploadFiles(files)}
         disabled={state.busy || state.loading}
       />
     </div>

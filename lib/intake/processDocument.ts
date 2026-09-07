@@ -8,6 +8,8 @@ import {
   addInjuries,
   addProposals,
   athleteIdForIntake,
+  countProposalsForDocument,
+  findDocumentBySha,
   markProcessed,
   savePages,
   upsertDocument,
@@ -30,6 +32,8 @@ export interface ProcessResult {
   fieldsProposed: number;
   quotesVerified: number;
   injuriesFound: number;
+  /** Waar als dit bestand al eerder aangeleverd was; er is dan niets opnieuw gelezen. */
+  duplicate: boolean;
 }
 
 /**
@@ -55,6 +59,26 @@ export async function processDocument(input: {
   const bytes = new Uint8Array(await download.data.arrayBuffer());
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const byteSize = bytes.length;
+
+  // Zelfde inhoud, al eerder aangeleverd: teruggeven wat er de eerste keer
+  // uitkwam. Geen tweede modelcall, en geen 23505 op de unieke index.
+  //
+  // Alleen als het de eerste keer gelukt is. Een document met een
+  // processing_error opnieuw aanbieden hoort een nieuwe poging te zijn: als de
+  // fout tijdelijk was, moet dat op te lossen zijn door het nog eens te sturen.
+  const existing = await findDocumentBySha(input.intakeId, sha256);
+  if (existing && existing.processedAt && !existing.processingError) {
+    const counts = await countProposalsForDocument(existing.id);
+    return {
+      documentId: existing.id,
+      kind: existing.kind,
+      pageCount: existing.pageCount ?? 0,
+      fieldsProposed: counts.fields,
+      quotesVerified: counts.verified,
+      injuriesFound: counts.injuries,
+      duplicate: true,
+    };
+  }
 
   let pages: DocumentPage[] = [];
   let kind: DocumentKind;
@@ -121,9 +145,18 @@ export async function processDocument(input: {
   try {
     extraction = await extractDocument(extractionInput, definitions);
   } catch (error) {
+    // De echte fout gaat naar de log, niet in de databank.
+    //
+    // `processing_error` komt via de transcriptie op het scherm van de atleet
+    // terecht, en `error.message` is de melding van onze eigen infrastructuur.
+    // Bij een ontbrekende sleutel las een atleet letterlijk
+    // "ANTHROPIC_API_KEY ontbreekt". Dat is een interne naam, het zegt hem
+    // niets, en het hoort niet buiten de server te komen. Zie ook lib/http.ts,
+    // waar dezelfde regel geldt voor HTTP-antwoorden.
+    console.error("[intake] extractie mislukt", { documentId, error });
     await markProcessed(
       documentId,
-      error instanceof Error ? error.message : "This document could not be read.",
+      "This document could not be read. You can try again, or tell the assistant what is in it.",
     );
     throw error;
   }
@@ -194,5 +227,6 @@ export async function processDocument(input: {
     fieldsProposed: proposals.length,
     quotesVerified,
     injuriesFound: extraction.injuries.length,
+    duplicate: false,
   };
 }

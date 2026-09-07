@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { errors } from "@/lib/intake/copy";
+import { createClient } from "@/lib/supabase/browser";
+import { errors, intake } from "@/lib/intake/copy";
 import type {
   CaptureCard,
   Collecting,
   Completeness,
+  DocumentKind,
   Progress,
   TranscriptItem,
   TranscriptResponse,
@@ -28,6 +30,21 @@ interface ChatTurnResponse {
   done: boolean;
   completeness: Completeness;
   openGaps: number;
+}
+
+/** Wat POST /api/intake/documents teruggeeft. */
+interface UploadResult {
+  documentId: string;
+  kind: DocumentKind;
+  pageCount: number;
+  fieldsProposed: number;
+  quotesVerified: number;
+  injuriesFound: number;
+  duplicate: boolean;
+  cards: CaptureCard[];
+  collecting: Collecting | null;
+  progress: Progress;
+  completeness: Completeness;
 }
 
 const EMPTY_PROGRESS: Progress = {
@@ -55,6 +72,8 @@ export function useIntakeChat() {
   const [completeness, setCompleteness] = useState<Completeness | null>(null);
 
   const [draft, setDraft] = useState("");
+  /** Korte terugkoppeling op een actie die geen bericht oplevert. */
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -188,10 +207,17 @@ export function useIntakeChat() {
         setProgress(turn.progress);
         setCompleteness(turn.completeness);
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : errors.generic);
+        const message = caught instanceof Error ? caught.message : errors.generic;
+
         // De beurt is mislukt, dus het scherm mag niet raden wat er wel is
         // opgeslagen. De server weet het; opnieuw ophalen dus.
         await load();
+
+        // Pas hierna de melding zetten. `load` wist de foutmelding, want een
+        // geslaagde ophaalactie hoort een oude fout op te ruimen. Zette we hem
+        // ervoor, dan verdween precies de uitleg waarom de beurt niet lukte en
+        // keek de atleet naar een leeg gesprek zonder reden.
+        setError(message);
       } finally {
         setBusy(false);
         inFlight.current = false;
@@ -211,6 +237,131 @@ export function useIntakeChat() {
     void runTurn({ message });
   }, [draft, busy, runTurn]);
 
+  /**
+   * Bestanden toevoegen vanuit het gesprek.
+   *
+   * De bubbel komt er meteen bij, voordat er iets geupload is. Dat is geen
+   * optimisme over de uitkomst maar over de volgorde: het bestand gaat eerst
+   * naar de opslag en pas daarna door het model, dus zelfs een mislukte
+   * verwerking laat het origineel staan. De bubbel blijft dan ook staan, met de
+   * melding erbij, in plaats van te verdwijnen alsof er niets gebeurd is.
+   *
+   * Sequentieel per bestand. De modelcall is de bottleneck, en drie functies van
+   * vijf minuten naast elkaar maakt het geheel niet sneller maar wel fragieler.
+   */
+  const uploadFiles = useCallback(
+    async (files: FileList) => {
+      inFlight.current = true;
+      setError(null);
+      setNotice(null);
+
+      for (const file of Array.from(files)) {
+        const localId = `local-doc-${Date.now()}-${file.name}`;
+
+        const patch = (changes: Partial<Extract<TranscriptItem, { kind: "document" }>>) =>
+          setItems((current) =>
+            current.map((item) =>
+              item.id === localId && item.kind === "document"
+                ? { ...item, ...changes }
+                : item,
+            ),
+          );
+
+        setItems((current) => [
+          ...current,
+          {
+            kind: "document",
+            id: localId,
+            at: new Date().toISOString(),
+            documentId: null,
+            filename: file.name,
+            mimeType: file.type || "text/plain",
+            byteSize: file.size,
+            documentKind: null,
+            pageCount: null,
+            state: "uploading",
+            error: null,
+          },
+        ]);
+
+        try {
+          const signed = await call<{ path: string; token: string; bucket: string }>(
+            "/api/intake/documents/upload-url",
+            {
+              filename: file.name,
+              mimeType: file.type || "text/plain",
+              byteSize: file.size,
+            },
+          );
+
+          const supabase = createClient();
+          const upload = await supabase.storage
+            .from(signed.bucket)
+            .uploadToSignedUrl(signed.path, signed.token, file);
+          if (upload.error) throw new Error(upload.error.message);
+
+          // Bytes staan er. Vanaf hier kan alleen het lezen nog mislukken.
+          patch({ state: "processing" });
+
+          const result = await call<UploadResult>("/api/intake/documents", {
+            path: signed.path,
+            filename: file.name,
+            mimeType: file.type || "text/plain",
+          });
+
+          // Al eerder aangeleverd. Dan hoort er geen tweede bestandsbubbel en
+          // geen tweede extractiekaart bij: het document staat er al een keer.
+          // De optimistische bubbel gaat er weer af en de server bepaalt wat er
+          // staat. Wel iets zeggen, want anders lijkt het alsof de upload niets
+          // deed en probeert iemand het nog een keer.
+          if (result.duplicate) {
+            setItems((current) => current.filter((item) => item.id !== localId));
+            await load();
+            setNotice(intake.duplicateDocument(file.name));
+            continue;
+          }
+
+          patch({
+            state: "read",
+            documentId: result.documentId,
+            documentKind: result.kind,
+            pageCount: result.pageCount,
+          });
+
+          setItems((current) => [
+            ...current,
+            {
+              kind: "extraction",
+              id: `local-ext-${result.documentId}-${Date.now()}`,
+              at: new Date().toISOString(),
+              documentId: result.documentId,
+              filename: file.name,
+              cards: result.cards,
+              fieldsProposed: result.fieldsProposed,
+              quotesVerified: result.quotesVerified,
+            },
+          ]);
+
+          setCollecting(result.collecting);
+          setProgress(result.progress);
+          setCompleteness(result.completeness);
+
+          inFlight.current = false;
+          await runTurn({ nudge: "document_uploaded" });
+          inFlight.current = true;
+        } catch (caught) {
+          patch({
+            state: "failed",
+            error: caught instanceof Error ? caught.message : errors.generic,
+          });
+        }
+      }
+
+      inFlight.current = false;
+    },
+    [runTurn, load],
+  );
+
   return {
     items,
     collecting,
@@ -222,6 +373,8 @@ export function useIntakeChat() {
     loading,
     error,
     send,
+    uploadFiles,
+    notice,
     reload: load,
   };
 }

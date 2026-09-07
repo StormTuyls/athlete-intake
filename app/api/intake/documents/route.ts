@@ -3,6 +3,12 @@ import { listDocuments } from "@/lib/db/medical";
 import { requireIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { processDocument } from "@/lib/intake/processDocument";
+import { getProposals, syncDossier } from "@/lib/db/dossier";
+import {
+  cardsForDocument,
+  collectingFrom,
+  computeProgress,
+} from "@/lib/intake/transcript";
 import { logAudit } from "@/lib/audit";
 
 /** Verwerking van een gescande PDF met veel pagina's duurt langer dan een pagina. */
@@ -47,7 +53,34 @@ export async function POST(request: Request) {
       mimeType: body.mimeType,
     });
 
-    return NextResponse.json(result);
+    // Het gesprek toont het resultaat meteen als kaarten. Die hier meegeven
+    // scheelt een tweede ronde, en belangrijker: ze komen uit dezelfde bouwer
+    // als de transcriptie, dus wat de atleet nu ziet is wat hij na een reload
+    // opnieuw ziet.
+    const state = await syncDossier(session.intakeId, session.locale);
+    const proposals = await getProposals(session.intakeId);
+
+    const extraction = cardsForDocument(
+      result.documentId,
+      proposals,
+      new Map(state.definitions.map((d) => [d.key, d])),
+      state.resolved,
+      new Map(proposals.map((p) => [p.id, p])),
+      session.locale,
+    );
+
+    return NextResponse.json({
+      ...result,
+      cards: extraction.cards,
+      completeness: state.completeness,
+      collecting: collectingFrom(state.gaps),
+      progress: computeProgress(
+        state.definitions,
+        state.gaps,
+        state.completeness.requiredFilled,
+        state.completeness.requiredTotal,
+      ),
+    });
   } catch (error) {
     return handleError(error);
   }
