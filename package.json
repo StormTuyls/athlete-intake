@@ -18,7 +18,8 @@
     "test": "tsx evals/unit/pages.test.ts && tsx evals/unit/jsonb-null.test.ts && tsx evals/unit/merge-correction.test.ts && tsx evals/unit/human-tier.test.ts && tsx evals/unit/carry-forward.test.ts && tsx evals/unit/report-snapshot.test.ts && tsx evals/unit/csv-export.test.ts && tsx evals/unit/notion-guard.test.ts && tsx evals/chat.test.ts && tsx evals/conflict.test.ts",
     "notion:migrate": "tsx scripts/notion-migrate.ts",
     "coach:create": "tsx scripts/create-coach.ts",
-    "seed:demo": "tsx scripts/seed-demo.ts"
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "test:purge": "tsx evals/purge.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
