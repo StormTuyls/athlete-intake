@@ -1,5 +1,6 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import { appDb } from "@/lib/supabase/service";
+import { preConsentUntil } from "@/lib/intake/retention";
 
 /**
  * Wie de atleet is, los van welke intake hij open heeft staan.
@@ -113,7 +114,10 @@ export async function ensureAthleteForUser(input: {
       email: input.email,
       locale: input.locale,
       retention_mode: "until_date",
-      retention_until: new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10),
+      // Voorlopige termijn, zie PRE_CONSENT_DAYS. recordAccountConsent
+      // overschrijft hem in dezelfde aanvraag; blijft hij staan, dan is de
+      // aanmelding halverwege gestrand en ruimt de retentiejob hem op.
+      retention_until: preConsentUntil(),
     })
     .select("id")
     .single();

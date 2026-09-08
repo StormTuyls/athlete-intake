@@ -1,4 +1,5 @@
 import { appDb } from "@/lib/supabase/service";
+import { retentionConfig, retentionUntil } from "@/lib/intake/retention";
 
 /**
  * De consentregistratie, op twee niveaus.
@@ -18,10 +19,6 @@ export const CONSENT_VERSION = "2026-09-07";
 
 export const ACCOUNT_PURPOSES = ["medical_processing", "retention_acknowledged"] as const;
 export const INTAKE_PURPOSES = ["share_with_practitioners"] as const;
-
-const DEFAULT_BASIS =
-  "Zorgdossier van een begeleide atleet. Bewaard met expliciete toestemming; " +
-  "de atleet kan op elk moment verwijdering vragen.";
 
 export interface ConsentContext {
   ip: string | null;
@@ -72,23 +69,17 @@ export async function recordAccountConsent(input: {
     }
   }
 
-  const indefinite = (process.env.RETENTION_MODE ?? "indefinite") === "indefinite";
-
-  let retentionUntil: string | null = null;
-  if (!indefinite) {
-    const until = new Date();
-    until.setMonth(until.getMonth() + Number(process.env.RETENTION_MONTHS ?? 60));
-    retentionUntil = until.toISOString().slice(0, 10);
-  }
+  // Eén bron voor de termijn, zie lib/intake/retention.ts: de tekst die de
+  // atleet las en de datum die hier wordt opgeslagen moeten hetzelfde zeggen.
+  const config = retentionConfig();
+  const indefinite = config.mode === "indefinite";
 
   const { error: athleteError } = await db
     .from("athletes")
     .update({
-      retention_mode: indefinite ? "indefinite" : "until_date",
-      retention_until: retentionUntil,
-      retention_basis: indefinite
-        ? (process.env.RETENTION_BASIS ?? DEFAULT_BASIS)
-        : null,
+      retention_mode: config.mode,
+      retention_until: retentionUntil(),
+      retention_basis: indefinite ? config.basis : null,
     })
     .eq("id", input.athleteId);
 
