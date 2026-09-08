@@ -11,7 +11,15 @@ import { appDb } from "@/lib/supabase/service";
  * medische data nog eens dupliceert vergroot het probleem dat het moet oplossen.
  */
 
-export type AuditAction = "read" | "export" | "purge";
+/**
+ * Alleen wat public.audit_log.action toestaat, zie de check-constraint in
+ * 20260902090100_public_tables.sql. 'insert' hoort erbij omdat een correctie van
+ * de coach via de directe pg-verbinding gaat: die insert wordt wel door de
+ * row-trigger op medical.field_proposals gezien, maar zonder auth.uid(), dus
+ * landt hij als actor_kind 'system'. Zonder deze expliciete regel staat er in
+ * het spoor niet wie het veld veranderde.
+ */
+export type AuditAction = "read" | "export" | "purge" | "insert" | "update";
 export type ActorKind = "coach" | "athlete" | "admin" | "system";
 
 export async function logAudit(input: {

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { label as enumLabel } from "@/lib/dossier/labels";
 import { ExportBar } from "@/components/review/ExportBar";
+import { FieldEditor } from "@/components/review/FieldEditor";
 
 /**
  * Het reviewscherm van de coach. Eén pagina, zoals afgesproken.
@@ -72,6 +73,7 @@ interface Field {
   dataType: string;
   required: boolean;
   isMedical: boolean;
+  enumOptions: string[] | null;
   value: unknown;
   status: string;
   confidence: string;
@@ -136,6 +138,21 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
   const [summary, setSummary] = useState<string | null>(null);
   const [summarising, setSummarising] = useState(false);
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [editing, setEditing] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+
+  // Het hele dossier opnieuw ophalen na een correctie, in plaats van de ene rij
+  // bijwerken die de coach net wijzigde. Dat is opzet: een correctie kan een
+  // tegenstrijdigheid oplossen, en dan verandert ook de balk bovenaan, het
+  // conflictblok en de teller. Lokaal bijwerken betekent die afleidingen hier
+  // nog een keer uitrekenen, naast getReviewData, en dan lopen ze uit elkaar.
+  const load = useCallback(async () => {
+    const response = await fetch(`/api/review/${intakeId}`);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error ?? "kon dossier niet laden");
+    return payload as ReviewData;
+  }, [intakeId]);
 
   // Het resultaat landt in een callback, met een vlag tegen een antwoord dat
   // binnenkomt nadat het scherm weg is of nadat een nieuwere aanvraag al geland
@@ -144,12 +161,9 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
   useEffect(() => {
     let ignore = false;
 
-    fetch(`/api/review/${intakeId}`)
-      .then(async (response) => {
-        const payload = await response.json();
-        if (ignore) return;
-        if (!response.ok) throw new Error(payload.error ?? "kon dossier niet laden");
-        setData(payload);
+    load()
+      .then((payload) => {
+        if (!ignore) setData(payload);
       })
       .catch((caught: unknown) => {
         if (ignore) return;
@@ -159,7 +173,33 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
     return () => {
       ignore = true;
     };
-  }, [intakeId]);
+  }, [load]);
+
+  /**
+   * Corrigeren en bevestigen lopen langs hetzelfde endpoint. Het verschil is of
+   * er een waarde meegaat: zonder waarde bepaalt de server welke waarde bevestigd
+   * wordt, uit het winnende voorstel. Zou de client die waarde meesturen, dan
+   * bepaalt de client wat er afgetekend wordt.
+   */
+  async function saveField(fieldKey: string, value?: string) {
+    setSaving(true);
+    setFieldError(null);
+    try {
+      const response = await fetch(`/api/review/${intakeId}/fields`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(value === undefined ? { fieldKey } : { fieldKey, value }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "opslaan mislukt");
+      setData(await load());
+      setEditing(null);
+    } catch (caught) {
+      setFieldError(caught instanceof Error ? caught.message : "opslaan mislukt");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function generateSummary() {
     setSummarising(true);
@@ -204,6 +244,11 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
   const conflicting = data.sections
     .flatMap((section) => section.fields)
     .filter((field) => field.status === "conflicting");
+
+  // Een goedgekeurd dossier is bevroren, dus dan verdwijnen de knoppen. De route
+  // weigert het ook, maar een knop aanbieden die daarna een foutmelding geeft is
+  // een slechtere uitleg dan geen knop.
+  const locked = data.status === "approved";
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
@@ -350,7 +395,47 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                         {isOpen ? "verberg" : "herkomst"}
                       </button>
                     )}
+                    {!locked && !missing && field.proposedBy !== "coach" && (
+                      <button
+                        onClick={() => saveField(field.key)}
+                        disabled={saving}
+                        // Aftekenen zonder de waarde opnieuw in te tikken. Dit is
+                        // de meest gebruikte handeling in dit scherm, dus die
+                        // hoort niet achter een formulier te zitten.
+                        className="text-[10px] underline opacity-50 disabled:opacity-25"
+                      >
+                        bevestigen
+                      </button>
+                    )}
+                    {!locked && (
+                      <button
+                        onClick={() => {
+                          setFieldError(null);
+                          setEditing(editing === field.key ? null : field.key);
+                        }}
+                        className="text-[10px] underline opacity-50"
+                      >
+                        {editing === field.key
+                          ? "sluiten"
+                          : missing
+                            ? "invullen"
+                            : "corrigeren"}
+                      </button>
+                    )}
                   </div>
+
+                  {editing === field.key && (
+                    <FieldEditor
+                      field={field}
+                      busy={saving}
+                      error={fieldError}
+                      onSave={(value) => saveField(field.key, value)}
+                      onCancel={() => {
+                        setEditing(null);
+                        setFieldError(null);
+                      }}
+                    />
+                  )}
 
                   {isOpen && (
                     <ul className="mt-2 ml-52 space-y-1.5 text-xs opacity-75">
@@ -403,6 +488,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
           gehaald zijn.
         </p>
       </section>
+
       <ExportBar intakeId={intakeId} />
     </main>
   );
