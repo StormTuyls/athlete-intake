@@ -3,6 +3,7 @@ import { appDb } from "@/lib/supabase/service";
 import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { addProposals, getProposals, syncDossier } from "@/lib/db/dossier";
+import { carriedValues } from "@/lib/intake/carryForward";
 import { runChatTurn, type ChatMessage } from "@/lib/claude/chatTurn";
 import {
   buildCard,
@@ -98,11 +99,24 @@ export async function POST(request: Request) {
 
     const state = await syncDossier(session.intakeId, session.locale);
 
+    // Wat deze atleet bij een eerdere intake al gaf. Alleen om te laten
+    // bevestigen; er staat niets van in het dossier tot hij dat doet.
+    const carried = await carriedValues({
+      athleteId: session.athleteId,
+      intakeId: session.intakeId,
+      locale: session.locale,
+    });
+
     const turn = await runChatTurn({
       history: (history ?? []) as ChatMessage[],
       gaps: state.gaps.filter((gap) => !isConsentField(gap.fieldKey)),
       definitions: state.definitions,
       locale: session.locale,
+      // Alleen wat in DIT dossier nog open staat: een veld dat de atleet deze
+      // keer al beantwoord heeft hoeft niet nog eens bevestigd te worden.
+      carried: carried.filter((item) =>
+        state.gaps.some((gap) => gap.fieldKey === item.fieldKey),
+      ),
       nudge: body.nudge ? NUDGES[body.nudge] : undefined,
     });
 

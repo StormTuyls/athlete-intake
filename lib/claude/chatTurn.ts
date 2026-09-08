@@ -1,6 +1,7 @@
 import { anthropic, MODEL } from "@/lib/claude/client";
 import type { Gap } from "@/lib/dossier/completeness";
 import type { FieldDefinition } from "@/lib/types";
+import type { CarriedValue } from "@/lib/intake/carryForward";
 
 /**
  * Eén beurt van de intake-assistent.
@@ -81,6 +82,7 @@ function systemPrompt(
   gaps: Gap[],
   definitions: FieldDefinition[],
   locale: "nl" | "en",
+  carried: CarriedValue[],
 ): string {
   const byKey = new Map(definitions.map((d) => [d.key, d]));
 
@@ -125,6 +127,34 @@ function systemPrompt(
     })
     .join("\n");
 
+  // Wat de atleet vorige keer al vertelde, om in EEN beurt te laten bevestigen
+  // in plaats van acht losse vragen te stellen. Bewust geen voorstellen in het
+  // dossier: zie lib/intake/carryForward.ts voor waarom.
+  const known = carried
+    .map((item) => {
+      const shown = Array.isArray(item.value)
+        ? item.value.join(", ")
+        : String(item.value);
+      const when = item.fromDate ? ` (opgegeven ${item.fromDate})` : "";
+      return `- ${item.fieldKey}: ${item.label} = ${shown}${when}`;
+    })
+    .join("\n");
+
+  const carryRule = carried.length
+    ? `
+8. Onder "Bekend uit een eerdere intake" staan gegevens die deze atleet eerder al gaf. Heeft hij in DIT gesprek nog niets geantwoord, open dan met een bericht dat die gegevens opsomt en in een vraag laat bevestigen of ze nog kloppen. Dat is nog steeds een vraag, dus regel 1 blijft gelden.
+9. Neem die gegevens niet vanzelf over. Pas als de atleet bevestigt, geef je de betreffende velden terug met exact de waarden die hierboven staan. Corrigeert hij er een, dan geef je die ene gecorrigeerde waarde terug en de rest zoals bevestigd. Zegt hij niets over een veld, dan geef je dat veld niet terug.
+`
+    : "";
+
+  const carrySection = carried.length
+    ? `
+
+Bekend uit een eerdere intake:
+
+${known}`
+    : "";
+
   return `Je begeleidt de intake van een atleet bij een praktijk voor eliteatletenbegeleiding. Je spreekt ${language}. Je bent kort, concreet en vriendelijk zonder overdaad.
 
 Werkwijze:
@@ -136,14 +166,14 @@ Werkwijze:
 5. Bij een tegenstrijdigheid: leg kort voor wat er in de documenten staat en vraag welke waarde klopt.
 6. Geen medisch advies, geen interpretatie van klachten, geen trainingsadvies. Je verzamelt.
 7. Is "Nu vragen" leeg, zet done op true en sluit in een zin af.
-
+${carryRule}
 Nu vragen:
 
 ${gapList || "(niets meer open)"}
 
 Mag je oppikken uit een antwoord:
 
-${capturable || "(niets meer open)"}`;
+${capturable || "(niets meer open)"}${carrySection}`;
 }
 
 export async function runChatTurn(input: {
@@ -151,6 +181,8 @@ export async function runChatTurn(input: {
   gaps: Gap[];
   definitions: FieldDefinition[];
   locale: "nl" | "en";
+  /** Wat deze atleet in een eerdere intake al gaf, om te laten bevestigen. */
+  carried?: CarriedValue[];
   /**
    * Aanleiding voor een beurt zonder nieuw antwoord van de atleet. Wordt als
    * user-bericht meegestuurd maar NIET opgeslagen: de atleet heeft dit niet
@@ -190,7 +222,12 @@ export async function runChatTurn(input: {
     system: [
       {
         type: "text",
-        text: systemPrompt(input.gaps, input.definitions, input.locale),
+        text: systemPrompt(
+          input.gaps,
+          input.definitions,
+          input.locale,
+          input.carried ?? [],
+        ),
         cache_control: { type: "ephemeral" },
       },
     ],

@@ -78,3 +78,24 @@ values
   ('uploads.programme_provided', 'uploads', 3, 'Trainingsschema aangeleverd', 'Training programme provided', 'boolean', false, false, null, 'Kun je je huidige schema uploaden?', 'Can you upload your current programme?'),
   ('uploads.video_provided', 'uploads', 4, 'Videomateriaal aangeleverd', 'Video material provided', 'boolean', false, false, null, 'Heb je video van je techniek of van een wedstrijd?', 'Do you have video of your technique or a competition?')
 on conflict (key) do nothing;
+
+-- Welke velden een terugkerende atleet niet opnieuw hoeft te vertellen, alleen
+-- ter bevestiging. Dezelfde lijst als in
+-- supabase/migrations/20260908140000_carry_forward.sql, want een `db reset`
+-- voert eerst de migraties uit en daarna deze seed: zonder deze regels staat de
+-- vlag na een reset overal weer op false. Ze horen gelijk te blijven.
+update public.field_definitions
+   set carry_forward = true
+ where key in (
+   'identity.full_name',
+   'identity.date_of_birth',
+   'identity.email',
+   'identity.phone',
+   'identity.sport',
+   'identity.discipline',
+   'identity.club',
+   'identity.federation',
+   'identity.coach_name',
+   'biometrics.height_cm',
+   'biometrics.dominant_side'
+ );
