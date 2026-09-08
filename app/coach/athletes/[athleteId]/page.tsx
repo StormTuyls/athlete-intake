@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { checkCoach, isIntakeId } from "@/lib/review/access";
 import { getAthleteProfile } from "@/lib/db/athletes";
+import { PurgeAthlete } from "@/components/coach/PurgeAthlete";
 
 export const metadata = {
   title: "Athlete",
@@ -157,6 +158,13 @@ export default async function AthletePage({
           />
         </dl>
       </section>
+
+      <PurgeAthlete
+        athleteId={athlete.id}
+        athleteName={athlete.name}
+        intakeCount={athlete.intakes.length}
+        hasAccount={athlete.hasAccount}
+      />
     </main>
   );
 }

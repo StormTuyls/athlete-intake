@@ -91,13 +91,18 @@ export async function requireCoach(): Promise<Coach> {
 }
 
 /**
- * Een intake-id is een uuid. Alles wat dat niet is gaat niet naar de databank:
- * een misvormd pad hoort een 404 te geven, geen pg-fout die als 500 naar buiten
+ * Ids zijn uuids. Alles wat dat niet is gaat niet naar de databank: een
+ * misvormd pad hoort een 404 te geven, geen pg-fout die als 500 naar buiten
  * komt.
  */
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export function isIntakeId(value: string): boolean {
+export function isUuid(value: string): boolean {
   return UUID.test(value);
+}
+
+/** Zelfde controle, maar met een naam die zegt waar hij voor bedoeld is. */
+export function isIntakeId(value: string): boolean {
+  return isUuid(value);
 }
