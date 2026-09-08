@@ -9,6 +9,7 @@ import { newToken } from "../../lib/intake/session";
 import { addProposals, syncDossier } from "../../lib/db/dossier";
 import { upsertDocument } from "../../lib/db/medical";
 import { carriedValues } from "../../lib/intake/carryForward";
+import { purgeAthleteRows } from "../../lib/purge/db";
 
 /**
  * Wat een terugkerende atleet wel en niet opnieuw te zien krijgt.
@@ -163,16 +164,17 @@ assert.equal(
   "het label komt in de taal van de intake mee, want het gaat het gesprek in",
 );
 
-// Opruimen. De cascade struikelt vandaag over de append-only-trigger op
-// medical.field_proposals; dat is precies wat stap B1 van het plan repareert.
-// Tot dan blijft de fout hier zichtbaar in plaats van weggeslikt, zoals de
-// bestaande teardowns doen.
-const { error: cleanup } = await db.from("athletes").delete().eq("id", athleteId);
-if (cleanup) {
-  console.warn(
-    `let op: opruimen mislukt (${cleanup.message}). Testatleet ${athleteId} blijft staan; zie B1 in docs/plan.md.`,
-  );
-}
+// Opruimen via het verwijderpad, want een gewone delete op public.athletes
+// bestaat niet meer: de statement-trigger op medical.field_proposals weigert
+// hem, en de grant is ingetrokken. Dat is precies de bedoeling, en het maakt
+// deze teardown ook een kleine test van dat pad.
+const purged = await purgeAthleteRows({ athleteId });
+assert.equal(purged.counts.athletes, 1, "de testatleet moet echt verwijderd zijn");
+assert.equal(
+  purged.counts.intakes,
+  3,
+  "alle drie de intakes van de testatleet horen mee te gaan",
+);
 
 console.log("carry-forward: de vorige intake, zonder gewicht en zonder tegenspraak");
 process.exit(0);

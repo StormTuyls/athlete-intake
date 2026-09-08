@@ -9,6 +9,7 @@ import { appDb, storage, DOCUMENTS_BUCKET } from "../lib/supabase/service";
 import { newToken } from "../lib/intake/session";
 import { processDocument } from "../lib/intake/processDocument";
 import { syncDossier } from "../lib/db/dossier";
+import { purgeAthleteRows } from "../lib/purge/db";
 import { getInjuryEntries } from "../lib/db/review";
 
 /**
@@ -209,8 +210,13 @@ async function main() {
       .select("athlete_id")
       .eq("id", intakeId)
       .single();
-    await storage().from(DOCUMENTS_BUCKET).remove([path]);
-    if (intake) await appDb().from("athletes").delete().eq("id", intake.athlete_id);
+    const removed = await storage().from(DOCUMENTS_BUCKET).remove([path]);
+    if (removed.error) {
+      throw new Error(`storage opruimen mislukt: ${removed.error.message}`);
+    }
+    // Via het verwijderpad: een gewone delete op public.athletes wordt geweigerd
+    // door de append-only-trigger op de voorstellen.
+    if (intake) await purgeAthleteRows({ athleteId: intake.athlete_id as string });
   }
 
   console.log(`\n${"─".repeat(72)}`);

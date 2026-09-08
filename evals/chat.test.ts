@@ -6,6 +6,7 @@ loadEnv();
 import { appDb } from "../lib/supabase/service";
 import { newToken } from "../lib/intake/session";
 import { syncDossier } from "../lib/db/dossier";
+import { purgeAthleteRows } from "../lib/purge/db";
 import { runChatTurn } from "../lib/claude/chatTurn";
 
 /**
@@ -153,7 +154,11 @@ async function main() {
 
     console.log("carry-forward: voorleggen pikt niets op, bevestigen wel");
   } finally {
-    await db.from("athletes").delete().eq("id", athlete!.id);
+    // Via het verwijderpad: een gewone delete op public.athletes wordt geweigerd
+    // door de append-only-trigger op de voorstellen. Dat die fout hier
+    // jarenlang weggeslikt werd is de reden dat niemand wist dat het
+    // verwijderpad niet werkte, dus hij wordt nu niet meer genegeerd.
+    await purgeAthleteRows({ athleteId: athlete!.id });
   }
 }
 

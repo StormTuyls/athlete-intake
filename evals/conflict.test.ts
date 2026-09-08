@@ -9,6 +9,7 @@ import { appDb, storage, DOCUMENTS_BUCKET } from "../lib/supabase/service";
 import { newToken } from "../lib/intake/session";
 import { processDocument } from "../lib/intake/processDocument";
 import { syncDossier } from "../lib/db/dossier";
+import { purgeAthleteRows } from "../lib/purge/db";
 
 /**
  * De belangrijkste negatieve test.
@@ -107,8 +108,11 @@ async function main() {
   );
   console.log(`\ncompleteness.readyToSubmit = ${state.completeness.readyToSubmit} (correct: conflict blokkeert)`);
 
-  await storage().from(DOCUMENTS_BUCKET).remove(paths);
-  await db.from("athletes").delete().eq("id", athlete!.id);
+  const removed = await storage().from(DOCUMENTS_BUCKET).remove(paths);
+  if (removed.error) throw new Error(`storage opruimen mislukt: ${removed.error.message}`);
+  // Via het verwijderpad, en de fout niet negeren: dat deze delete jarenlang
+  // stil faalde is waarom niemand wist dat er geen verwijderpad was.
+  await purgeAthleteRows({ athleteId: athlete!.id as string });
 
   console.log("\nconflicttest: geslaagd");
 }
