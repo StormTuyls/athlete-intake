@@ -76,9 +76,13 @@ export async function getInjuries(intakeId: string): Promise<TimelineEntry[]> {
 
 export interface IntakeListRow {
   id: string;
+  /** Nodig om te groeperen: twee atleten zonder naam zijn niet dezelfde atleet. */
+  athleteId: string;
   athleteName: string | null;
   status: string;
   submittedAt: string | null;
+  /** Voor een draft is er nog geen indiendatum; dan is dit de laatste activiteit. */
+  startedAt: string | null;
   requiredFilled: number;
   requiredTotal: number;
   conflicts: number;
@@ -97,8 +101,10 @@ export interface IntakeListRow {
 export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
   const rows = await query<{
     id: string;
+    athlete_id: string;
     status: string;
     submitted_at: Date | null;
+    started_at: Date | null;
     required_filled: string;
     required_total: string;
     conflicts: string;
@@ -106,8 +112,10 @@ export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
   }>(
     `select
        i.id,
+       i.athlete_id,
        i.status::text as status,
        i.submitted_at,
+       i.started_at,
        count(*) filter (
          where d.required and f.status is not null
            and f.status not in ('missing', 'conflicting')
@@ -126,7 +134,7 @@ export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
      cross join public.field_definitions d
      left join medical.dossier_fields f
        on f.intake_id = i.id and f.field_key = d.key
-     group by i.id, i.status, i.submitted_at
+     group by i.id, i.athlete_id, i.status, i.submitted_at, i.started_at
      order by i.submitted_at desc nulls last, i.started_at desc`,
   );
 
@@ -152,9 +160,11 @@ export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
 
   return rows.map((row) => ({
     id: row.id,
+    athleteId: row.athlete_id,
     athleteName: nameById.get(row.id) ?? row.dossier_name ?? null,
     status: row.status,
     submittedAt: row.submitted_at?.toISOString() ?? null,
+    startedAt: row.started_at?.toISOString() ?? null,
     requiredFilled: Number(row.required_filled),
     requiredTotal: Number(row.required_total),
     conflicts: Number(row.conflicts),

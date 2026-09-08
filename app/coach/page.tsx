@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { checkCoach } from "@/lib/review/access";
 import { listIntakesForCoach } from "@/lib/db/review";
 import { PRACTICE_NAME } from "@/lib/report/branding";
+import { IntakeList } from "@/components/coach/IntakeList";
 
 export const metadata = {
   title: "Intakes",
@@ -22,6 +22,10 @@ export const dynamic = "force-dynamic";
  * volledigheid en of er iets tegenstrijdig is. Geen klachten, geen diagnoses.
  * Een overzichtspagina die medische inhoud toont is een pagina die je niet open
  * kunt laten staan terwijl er iemand naast je zit.
+ *
+ * Het groeperen, zoeken en filteren zit in components/coach/IntakeList.tsx, want
+ * dat vraagt om toestand in de browser. Deze pagina blijft de server-kant:
+ * autorisatie en het ophalen.
  */
 export default async function CoachPage() {
   const access = await checkCoach();
@@ -50,38 +54,8 @@ export default async function CoachPage() {
         </form>
       </header>
 
-      {intakes.length === 0 ? (
-        <p className="text-sm text-ink-faint">No intakes yet.</p>
-      ) : (
-        <ul className="divide-y divide-hairline">
-          {intakes.map((intake) => (
-            <li key={intake.id}>
-              <Link
-                href={`/review/${intake.id}`}
-                className="flex items-baseline justify-between gap-4 py-3 transition-colors hover:bg-canvas"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">
-                    {intake.athleteName ?? "Name unknown"}
-                  </span>
-                  <span className="block text-xs text-ink-muted">
-                    {intake.status}
-                    {intake.submittedAt ? ` · ${intake.submittedAt.slice(0, 10)}` : ""}
-                  </span>
-                </span>
-                <span className="shrink-0 text-xs text-ink-muted">
-                  {intake.requiredFilled}/{intake.requiredTotal} required
-                  {intake.conflicts > 0 && (
-                    <span className="ml-2 text-warn">
-                      {intake.conflicts} to check
-                    </span>
-                  )}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <IntakeList intakes={intakes} />
+
     </main>
   );
 }
