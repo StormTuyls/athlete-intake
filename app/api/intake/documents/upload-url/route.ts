@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { storage, DOCUMENTS_BUCKET } from "@/lib/supabase/service";
-import { requireIntake } from "@/lib/intake/session";
+import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { ACCEPTED_MIME_TYPES, MAX_UPLOAD_BYTES } from "@/lib/intake/uploads";
 
@@ -28,7 +28,7 @@ const MAX_BYTES = MAX_UPLOAD_BYTES;
 
 export async function POST(request: Request) {
   try {
-    const session = await requireIntake();
+    const session = await requireEditableIntake();
 
     if (!session.consentGrantedAt) {
       return badRequest("Please give consent before we process your data.");

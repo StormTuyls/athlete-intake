@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { listDocuments } from "@/lib/db/medical";
-import { requireIntake } from "@/lib/intake/session";
+import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { processDocument } from "@/lib/intake/processDocument";
 import { getProposals, syncDossier } from "@/lib/db/dossier";
@@ -24,7 +24,7 @@ export const maxDuration = 300;
  */
 export async function POST(request: Request) {
   try {
-    const session = await requireIntake();
+    const session = await requireEditableIntake();
 
     if (!session.consentGrantedAt) {
       return badRequest("Please give consent before we process your data.");
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const session = await requireIntake();
+    const session = await requireEditableIntake();
 
     const documents = await listDocuments(session.intakeId);
 

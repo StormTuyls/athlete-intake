@@ -407,14 +407,25 @@ export interface NewInjury {
 export async function insertReport(input: {
   intakeId: string;
   snapshot: unknown;
+  /**
+   * Wie deze versie liet vastleggen, als dat een mens was.
+   *
+   * Null bij een export of een indiening: dan legt het systeem vast omdat er
+   * iets nodig was, niet omdat iemand een besluit nam. Bij goedkeuren is het de
+   * coach, en dat moet erin staan: de row-trigger op deze tabel logt de insert
+   * wel, maar via de directe pg-verbinding is auth.uid() null, dus die regel
+   * zegt 'system'. Zonder deze kolom staat nergens wie de versie maakte waarop
+   * een goedkeuring rust.
+   */
+  generatedBy?: string | null;
 }): Promise<{ version: number; id: string } | null> {
   const rows = await query<{ id: string; version: number }>(
-    `insert into medical.intake_reports (intake_id, version, frozen_snapshot)
-     select $1, coalesce(max(version), 0) + 1, $2::jsonb
+    `insert into medical.intake_reports (intake_id, version, frozen_snapshot, generated_by)
+     select $1, coalesce(max(version), 0) + 1, $2::jsonb, $3
        from medical.intake_reports where intake_id = $1
      on conflict (intake_id, version) do nothing
      returning id, version`,
-    [input.intakeId, JSON.stringify(input.snapshot)],
+    [input.intakeId, JSON.stringify(input.snapshot), input.generatedBy ?? null],
   );
 
   const row = rows[0];

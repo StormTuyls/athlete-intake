@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { appDb } from "@/lib/supabase/service";
-import { requireIntake } from "@/lib/intake/session";
+import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { addProposals, getProposals, syncDossier } from "@/lib/db/dossier";
 import { runChatTurn, type ChatMessage } from "@/lib/claude/chatTurn";
@@ -61,7 +61,7 @@ const NUDGES = {
  */
 export async function POST(request: Request) {
   try {
-    const session = await requireIntake();
+    const session = await requireEditableIntake();
 
     if (!session.consentGrantedAt) {
       return badRequest("Please give consent before we process your data.");

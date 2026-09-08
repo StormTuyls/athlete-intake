@@ -1,7 +1,7 @@
 import { query } from "@/lib/db/sql";
 import { appDb } from "@/lib/supabase/service";
 import { getFieldDefinitions, syncDossier } from "@/lib/db/dossier";
-import { listDocuments, type DocumentSummary } from "@/lib/db/medical";
+import { listDocuments, readLatestReport, type DocumentSummary } from "@/lib/db/medical";
 import { logAudit } from "@/lib/audit";
 import { resolveInjuryTimeline, type TimelineEntry } from "@/lib/dossier/timeline";
 import type { Proposal, ResolvedField } from "@/lib/types";
@@ -200,6 +200,11 @@ export interface ReviewData {
   athleteName: string | null;
   status: string;
   submittedAt: string | null;
+  approvedAt: string | null;
+  /** De naam van de coach die aftekende, niet zijn id: dit gaat naar het scherm. */
+  approvedBy: string | null;
+  /** Nieuwste vastgelegde rapportversie, of null als er nog geen is. */
+  reportVersion: number | null;
   sections: Array<{
     section: string;
     fields: Array<{
@@ -246,18 +251,34 @@ export async function getReviewData(
 ): Promise<ReviewData | null> {
   const { data: intake, error } = await appDb()
     .from("intakes")
-    .select("id, status, submitted_at, locale, athlete_id, athletes(full_name)")
+    .select(
+      "id, status, submitted_at, approved_at, approved_by, locale, athlete_id, athletes(full_name)",
+    )
     .eq("id", intakeId)
     .maybeSingle();
 
   if (error || !intake) return null;
 
-  const [state, injuries, documents, proposals] = await Promise.all([
+  const [state, injuries, documents, proposals, report] = await Promise.all([
     syncDossier(intakeId, intake.locale as "nl" | "en"),
     getInjuries(intakeId),
     listDocuments(intakeId),
     getProposalsByField(intakeId),
+    readLatestReport(intakeId),
   ]);
+
+  // Apart opgehaald en niet als embed: de foreign key naar profiles heeft geen
+  // benoemde relatie in de gegenereerde types, en een embed die op de naam van
+  // een constraint leunt breekt zodra iemand die constraint hernoemt.
+  let approverName: string | null = null;
+  if (intake.approved_by) {
+    const { data: approver } = await appDb()
+      .from("profiles")
+      .select("full_name")
+      .eq("id", intake.approved_by)
+      .maybeSingle();
+    approverName = approver?.full_name ?? null;
+  }
 
   await logAudit({
     action: "read",
@@ -298,6 +319,9 @@ export async function getReviewData(
     athleteName: athleteNameFrom(intake.athletes),
     status: intake.status as string,
     submittedAt: intake.submitted_at as string | null,
+    approvedAt: intake.approved_at as string | null,
+    approvedBy: approverName,
+    reportVersion: report?.version ?? null,
     sections: [...bySection.entries()].map(([section, fields]) => ({ section, fields })),
     injuries,
     documents,

@@ -106,10 +106,12 @@ async function buildSummary(
 export async function freezeReport(
   intakeId: string,
   reason: FreezeReason,
+  /** De coach bij een goedkeuring. Leeg als het systeem vastlegt. */
+  generatedBy?: string | null,
 ): Promise<FrozenReport> {
   const snapshot = await collectReportData(intakeId, reason);
   snapshot.summary = await buildSummary(intakeId, snapshot);
-  return store(intakeId, snapshot);
+  return store(intakeId, snapshot, generatedBy);
 }
 
 /**
@@ -125,8 +127,9 @@ export async function freezeReport(
 async function store(
   intakeId: string,
   snapshot: ReportSnapshot,
+  generatedBy?: string | null,
 ): Promise<FrozenReport> {
-  const inserted = await insertReport({ intakeId, snapshot });
+  const inserted = await insertReport({ intakeId, snapshot, generatedBy });
 
   if (!inserted) {
     // Iemand anders won de race op het versienummer. Als zijn versie dezelfde
@@ -139,7 +142,7 @@ async function store(
       }
     }
     // Andere inhoud: één keer opnieuw, want het nummer is nu wel vrij.
-    const retry = await insertReport({ intakeId, snapshot });
+    const retry = await insertReport({ intakeId, snapshot, generatedBy });
     if (!retry) throw new Error("rapportversie kon niet worden vastgelegd");
     return { version: retry.version, snapshot: markFrozen(snapshot), created: true };
   }

@@ -92,6 +92,9 @@ interface ReviewData {
   athleteName: string | null;
   status: string;
   submittedAt: string | null;
+  approvedAt: string | null;
+  approvedBy: string | null;
+  reportVersion: number | null;
   sections: Array<{ section: string; fields: Field[] }>;
   injuries: Array<{
     id: string;
@@ -141,6 +144,8 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const [approving, setApproving] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
 
   // Het hele dossier opnieuw ophalen na een correctie, in plaats van de ene rij
   // bijwerken die de coach net wijzigde. Dat is opzet: een correctie kan een
@@ -216,6 +221,26 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
     }
   }
 
+  /**
+   * Goedkeuren. De uitkomst wordt niet lokaal ingevuld maar opnieuw opgehaald:
+   * na een goedkeuring verandert ook de status, de rapportversie en of de
+   * correctieknoppen er nog horen te staan.
+   */
+  async function approve() {
+    setApproving(true);
+    setApproveError(null);
+    try {
+      const response = await fetch(`/api/review/${intakeId}/approve`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "goedkeuren mislukt");
+      setData(await load());
+    } catch (caught) {
+      setApproveError(caught instanceof Error ? caught.message : "goedkeuren mislukt");
+    } finally {
+      setApproving(false);
+    }
+  }
+
   function toggle(key: string) {
     setOpen((current) => {
       const next = new Set(current);
@@ -262,6 +287,13 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
           {data.documents.length} document{data.documents.length === 1 ? "" : "en"}
           {data.submittedAt && ` · ingediend ${data.submittedAt.slice(0, 10)}`}
         </p>
+        {locked && (
+          <p className="mt-2 inline-block rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-700 dark:text-emerald-400">
+            Goedgekeurd op {data.approvedAt?.slice(0, 10)}
+            {data.approvedBy && ` door ${data.approvedBy}`}
+            {data.reportVersion !== null && ` · rapportversie ${data.reportVersion}`}
+          </p>
+        )}
       </header>
 
       {conflicting.length > 0 && (
@@ -488,6 +520,33 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
           gehaald zijn.
         </p>
       </section>
+
+      {!locked && (
+        <section className="mt-8 rounded-lg border border-black/10 p-4 dark:border-white/15">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-medium">Goedkeuren</h2>
+              <p className="mt-1 text-xs opacity-70">
+                {conflicting.length > 0
+                  ? "Los eerst de tegenstrijdigheden hierboven op."
+                  : data.submittedAt
+                    ? "Legt een rapportversie vast met jouw naam eronder. Daarna staat het dossier vast en kan de atleet er niets meer aan wijzigen."
+                    : "Kan pas als de atleet de intake heeft ingediend."}
+              </p>
+            </div>
+            <button
+              onClick={approve}
+              disabled={approving || conflicting.length > 0 || !data.submittedAt}
+              className="shrink-0 rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40 dark:bg-white dark:text-black"
+            >
+              {approving ? "Bezig" : "Goedkeuren"}
+            </button>
+          </div>
+          {approveError && (
+            <p className="mt-2 text-xs text-red-700 dark:text-red-400">{approveError}</p>
+          )}
+        </section>
+      )}
 
       <ExportBar intakeId={intakeId} />
     </main>

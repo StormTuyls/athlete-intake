@@ -111,3 +111,28 @@ export async function requireIntake(): Promise<IntakeSession> {
   if (!session) throw new IntakeAuthError();
   return session;
 }
+
+export class IntakeLockedError extends Error {
+  constructor() {
+    super("intake is goedgekeurd en gesloten");
+    this.name = "IntakeLockedError";
+  }
+}
+
+/**
+ * Voor route handlers die iets aan de intake VERANDEREN.
+ *
+ * Na goedkeuring staat het dossier vast. De coach heeft een rapportversie
+ * afgetekend met zijn naam eronder, en die verwijst naar deze inhoud; komt er
+ * daarna nog een antwoord of een document bij, dan klopt "goedgekeurd op 8
+ * september" niet meer met wat er staat.
+ *
+ * Bewust niet in requireIntake zelf: lezen moet blijven werken. De atleet mag
+ * zijn eigen rapport en zijn transcript ook na goedkeuring nog opvragen, en dat
+ * is precies wanneer hij dat wil.
+ */
+export async function requireEditableIntake(): Promise<IntakeSession> {
+  const session = await requireIntake();
+  if (session.status === "approved") throw new IntakeLockedError();
+  return session;
+}

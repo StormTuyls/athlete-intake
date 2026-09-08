@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireIntake } from "@/lib/intake/session";
+import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { addProposals, getProposals, syncDossier } from "@/lib/db/dossier";
 import { validateValue, comparisonKey } from "@/lib/dossier/validate";
@@ -61,7 +61,7 @@ function inputHint(definition: FieldDefinition): string {
 
 export async function POST(request: Request) {
   try {
-    const session = await requireIntake();
+    const session = await requireEditableIntake();
 
     if (!session.consentGrantedAt) {
       return badRequest("Please give consent before we process your data.");

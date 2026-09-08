@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { IntakeAuthError } from "@/lib/intake/session";
+import { IntakeAuthError, IntakeLockedError } from "@/lib/intake/session";
 import { CoachAuthError } from "@/lib/review/access";
 
 /**
@@ -18,6 +18,18 @@ export function handleError(error: unknown): NextResponse {
 
   if (error instanceof IntakeAuthError) {
     return NextResponse.json({ error: "Your session has expired. Start the intake again." }, { status: 401 });
+  }
+
+  // Geen fout van de gebruiker en geen serverfout: de toestand is veranderd.
+  // 409 zodat de client kan verversen in plaats van opnieuw te proberen.
+  if (error instanceof IntakeLockedError) {
+    return NextResponse.json(
+      {
+        error:
+          "Your coach has reviewed and closed this intake, so it can no longer be changed.",
+      },
+      { status: 409 },
+    );
   }
 
   console.error("[intake]", error);
