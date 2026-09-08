@@ -63,7 +63,7 @@ export function FieldEditor({
         event.preventDefault();
         if (!busy) onSave(value);
       }}
-      className="mt-2 ml-52 max-w-md space-y-2"
+      className="mt-2 max-w-md space-y-2 sm:ml-52"
     >
       <label className="block">
         <span className="sr-only">{field.label}</span>

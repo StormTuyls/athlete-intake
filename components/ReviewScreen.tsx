@@ -414,19 +414,28 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
               const missing = field.status === "missing";
               return (
                 <li key={field.key} className="py-2 text-sm">
-                  <div className="flex items-baseline gap-3">
-                    <span className="w-52 shrink-0 text-xs opacity-60">
+                  {/* Op een telefoon staan label, waarde en knoppen onder
+                      elkaar. In één regel is er bij 375 breed geen ruimte: het
+                      label at de helft op, het badge brak over drie regels en
+                      "corrigeren" viel buiten het scherm. Vanaf sm is er wel
+                      plaats en blijft het de compacte tabel die snel te scannen
+                      is. */}
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3">
+                    <span className="text-xs opacity-60 sm:w-52 sm:shrink-0">
                       {field.label}
                       {field.required && <span className="text-red-600"> *</span>}
                     </span>
-                    <span className={missing ? "flex-1 opacity-40" : "flex-1"}>
+                    <span className={missing ? "opacity-40 sm:flex-1" : "sm:flex-1"}>
                       {show(field.value, field.dataType)}
                     </span>
+                    <span className="flex flex-wrap items-baseline gap-3">
                     {!missing &&
                       (() => {
                         const { text, style } = badge(field);
                         return (
-                          <span className={`rounded px-1.5 py-0.5 text-[10px] ${style}`}>
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] whitespace-nowrap ${style}`}
+                          >
                             {text}
                           </span>
                         );
@@ -466,6 +475,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                             : "corrigeren"}
                       </button>
                     )}
+                    </span>
                   </div>
 
                   {editing === field.key && (
@@ -482,7 +492,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                   )}
 
                   {isOpen && (
-                    <ul className="mt-2 ml-52 space-y-1.5 text-xs opacity-75">
+                    <ul className="mt-2 space-y-1.5 text-xs opacity-75 sm:ml-52">
                       {field.proposals.map((proposal) => (
                         <li key={proposal.id}>
                           <strong>{show(proposal.value, field.dataType)}</strong>

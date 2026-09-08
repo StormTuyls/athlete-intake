@@ -27,8 +27,8 @@ export const dynamic = "force-dynamic";
 
 function Row({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="flex gap-3 py-1.5 text-sm">
-      <dt className="w-40 shrink-0 text-xs text-ink-muted">{label}</dt>
+    <div className="flex flex-col gap-0.5 py-1.5 text-sm sm:flex-row sm:gap-3">
+      <dt className="text-xs text-ink-muted sm:w-40 sm:shrink-0">{label}</dt>
       <dd className={value ? "min-w-0" : "min-w-0 text-ink-faint"}>{value ?? "-"}</dd>
     </div>
   );
