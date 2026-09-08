@@ -123,7 +123,9 @@ export default async function AthletePage({
                     >
                       {statusLabel(intake.status)}
                     </span>
-                    <span className="ml-2 text-xs text-ink-muted">
+                    {/* nowrap, anders breekt een datum op een smal scherm
+                        midden in de maand af: "2026-" / "08-08". */}
+                    <span className="ml-2 text-xs whitespace-nowrap text-ink-muted">
                       {(intake.submittedAt ?? intake.startedAt)?.slice(0, 10)}
                     </span>
                   </span>
