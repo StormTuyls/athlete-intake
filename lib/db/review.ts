@@ -216,6 +216,8 @@ export async function getProposalsByField(
 
 export interface ReviewData {
   intakeId: string;
+  /** Voor de weg terug naar het atleetprofiel. */
+  athleteId: string;
   athleteName: string | null;
   status: string;
   submittedAt: string | null;
@@ -353,6 +355,7 @@ export async function getReviewData(
 
   return {
     intakeId,
+    athleteId: intake.athlete_id as string,
     // Een many-to-one embed komt als object terug, een one-to-many als array.
     // Beide vormen afhandelen is goedkoper dan erop vertrouwen.
     athleteName: athleteNameFrom(intake.athletes) ?? dossierName(state.resolved),

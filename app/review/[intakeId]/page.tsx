@@ -32,7 +32,6 @@ export default async function ReviewPage({
   // zien in plaats van een inlogformulier waar hij niets aan heeft.
   if (access.kind === "anonymous") redirect(`/coach/login?next=/review/${intakeId}`);
   if (access.kind !== "coach") notFound();
-  const coach = access.coach;
 
   return <ReviewScreen intakeId={intakeId} />;
 }

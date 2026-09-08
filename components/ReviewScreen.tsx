@@ -89,6 +89,7 @@ interface Field {
 
 interface ReviewData {
   intakeId: string;
+  athleteId: string;
   athleteName: string | null;
   status: string;
   submittedAt: string | null;
@@ -277,7 +278,18 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <header className="mb-8">
+      {/* Een dossier is altijd het dossier VAN iemand, dus de weg terug gaat
+          naar die persoon en niet naar de lijst. Niet de naam als linktekst: die
+          staat een regel lager als kop, en twee keer dezelfde naam onder elkaar
+          leest als een fout. */}
+      <a
+        href={`/coach/athletes/${data.athleteId}`}
+        className="text-xs underline opacity-60"
+      >
+        Terug naar het profiel
+      </a>
+
+      <header className="mt-3 mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">
           {data.athleteName ?? "Naam onbekend"}
         </h1>

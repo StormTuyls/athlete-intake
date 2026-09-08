@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { ensureFrozenReport, getReport } from "@/lib/report/freeze";
 import { checkCoach, isIntakeId } from "@/lib/review/access";
 import { ReportDocument } from "@/components/review/ReportDocument";
@@ -78,6 +79,14 @@ export default async function PrintPage({
   return (
     <>
       <AutoPrint />
+      {/* Een weg terug. `no-print` houdt hem van het papier: op een afdruk is
+          een link naar het dossier ruis, en de printregels in globals.css
+          verbergen deze klasse. */}
+      <div className="no-print mx-auto max-w-[46rem] px-8 pt-6">
+        <Link href={`/review/${intakeId}`} className="text-xs text-ink-muted underline">
+          Back to the file
+        </Link>
+      </div>
       <ReportDocument
         snapshot={report.snapshot}
         version={report.version}

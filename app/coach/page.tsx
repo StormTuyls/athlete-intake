@@ -1,11 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { checkCoach } from "@/lib/review/access";
-import { listIntakesForCoach } from "@/lib/db/review";
+import { listAthletesForCoach } from "@/lib/db/athletes";
 import { PRACTICE_NAME } from "@/lib/report/branding";
-import { IntakeList } from "@/components/coach/IntakeList";
+import { AthleteList } from "@/components/coach/AthleteList";
 
 export const metadata = {
-  title: "Intakes",
+  title: "Athletes",
   robots: { index: false, follow: false },
 };
 
@@ -23,9 +23,9 @@ export const dynamic = "force-dynamic";
  * Een overzichtspagina die medische inhoud toont is een pagina die je niet open
  * kunt laten staan terwijl er iemand naast je zit.
  *
- * Het groeperen, zoeken en filteren zit in components/coach/IntakeList.tsx, want
- * dat vraagt om toestand in de browser. Deze pagina blijft de server-kant:
- * autorisatie en het ophalen.
+ * Zoeken en filteren zit in components/coach/AthleteList.tsx, want dat vraagt om
+ * toestand in de browser. Deze pagina blijft de server-kant: autorisatie en het
+ * ophalen.
  */
 export default async function CoachPage() {
   const access = await checkCoach();
@@ -33,13 +33,13 @@ export default async function CoachPage() {
   if (access.kind !== "coach") notFound();
   const coach = access.coach;
 
-  const intakes = await listIntakesForCoach();
+  const athletes = await listAthletesForCoach();
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <header className="mb-8 flex items-baseline justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Intakes</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Athletes</h1>
           <p className="mt-1 text-sm text-ink-muted">
             {PRACTICE_NAME} · signed in as {coach.fullName ?? coach.email}
           </p>
@@ -54,7 +54,7 @@ export default async function CoachPage() {
         </form>
       </header>
 
-      <IntakeList intakes={intakes} />
+      <AthleteList athletes={athletes} />
 
     </main>
   );
