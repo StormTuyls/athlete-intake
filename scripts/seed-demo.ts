@@ -3,13 +3,14 @@ import { loadEnv } from "./env";
 loadEnv();
 
 import { createHash, randomUUID } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
 import { appDb, storage, DOCUMENTS_BUCKET } from "../lib/supabase/service";
 import { newToken } from "../lib/intake/session";
 import { addProposals, syncDossier } from "../lib/db/dossier";
 import { addInjuries, savePages, upsertDocument } from "../lib/db/medical";
 import { verifyQuote } from "../lib/verify/quote";
-import { purgeAthleteRows } from "../lib/purge/db";
-import { purgeStorage } from "../lib/purge/storage";
+import { enqueuePurge } from "../lib/purge/jobs";
+import { runPurgeJob } from "../lib/purge/purge";
 import { freezeReport } from "../lib/report/freeze";
 
 /**
@@ -33,6 +34,24 @@ import { freezeReport } from "../lib/report/freeze";
 
 const RESET = process.argv.includes("--reset");
 const BASIS = "demo: verzonnen atleet voor ontwikkelwerk";
+
+/**
+ * Eén wachtwoord voor alle demo-accounts, en het staat hier in de broncode.
+ *
+ * Dat mag, want deze accounts bestaan alleen op een lokale stack: het script
+ * weigert te draaien tegen een niet-lokale Supabase-URL. Een gegenereerd
+ * wachtwoord zou niemand kunnen gebruiken zonder het ergens op te schrijven, en
+ * dan staat het alsnog ergens.
+ */
+const DEMO_PASSWORD = "DemoAtleet123!";
+
+function admin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+}
 
 /**
  * Deze rem is het hele veiligheidsmechanisme. `--reset` verwijdert ELKE atleet,
@@ -233,19 +252,25 @@ async function reset(): Promise<void> {
 
   let rows = 0;
   let files = 0;
+  let accounts = 0;
 
+  // Via de volledige orkestratie en niet alleen de databankfunctie: anders
+  // blijven de inlogaccounts staan en botst een volgende seed op een e-mailadres
+  // dat al bestaat. Bijkomend: het script oefent zo elke keer het hele
+  // verwijderpad, inclusief Storage en het account.
   for (const { id } of athletes) {
-    const purged = await purgeAthleteRows({ athleteId: id as string });
-    const cleaned = await purgeStorage({
-      intakeIds: purged.manifest.intake_ids,
-      knownPaths: purged.manifest.storage_paths,
-    });
-    rows += Object.values(purged.counts).reduce((sum, n) => sum + n, 0);
-    files += cleaned.removed;
+    const job = await enqueuePurge({ athleteId: id as string, reason: "coach_request" });
+    const finished = await runPurgeJob(job.id);
+    rows += Object.values(finished.result.db ?? {}).reduce(
+      (sum, n) => sum + Number(n),
+      0,
+    );
+    files += finished.result.storage?.removed ?? 0;
+    if (finished.result.auth?.userDeleted) accounts += 1;
   }
 
   console.log(
-    `opgeruimd: ${athletes.length} atleten, ${rows} rijen, ${files} bestanden`,
+    `opgeruimd: ${athletes.length} atleten, ${rows} rijen, ${files} bestanden, ${accounts} accounts`,
   );
 }
 
@@ -469,9 +494,30 @@ async function main(): Promise<void> {
   }
 
   for (const athlete of ATHLETES) {
+    // Een demo zonder inlog is geen demo: dan kan niemand het atleetscherm
+    // openen en is /home onbereikbaar. Zelfde vorm als ensureAthleteForUser na
+    // een echte aanmelding: een gebruiker, een profiel met rol athlete, en een
+    // atleetrij die daaraan hangt.
+    const { data: user, error: userError } = await admin().auth.admin.createUser({
+      email: athlete.email,
+      password: DEMO_PASSWORD,
+      email_confirm: true,
+    });
+    if (userError) throw new Error(`account maken mislukt: ${userError.message}`);
+    const userId = user.user!.id;
+
+    const { error: profileError } = await appDb().from("profiles").upsert({
+      id: userId,
+      role: "athlete",
+      full_name: athlete.fullName,
+      locale: "nl",
+    });
+    if (profileError) throw new Error(`profiel maken mislukt: ${profileError.message}`);
+
     const { data: row, error } = await appDb()
       .from("athletes")
       .insert({
+        profile_id: userId,
         full_name: athlete.fullName,
         email: athlete.email,
         phone: athlete.phone,
@@ -529,6 +575,8 @@ async function main(): Promise<void> {
   }
 
   console.log(`\n${ATHLETES.length} atleten klaar. Coachscherm: /coach`);
+  console.log(`Inloggen als atleet op /start met wachtwoord ${DEMO_PASSWORD}:`);
+  for (const athlete of ATHLETES) console.log(`  ${athlete.email}`);
 }
 
 main()
