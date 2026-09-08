@@ -18,14 +18,16 @@ import type {
  *    eindverantwoordelijk, en de atleet is over zichzelf een primaire bron waar
  *    het model dat over hem niet is.
  * 2. Binnen dezelfde rang wint het meest recente voorstel als kandidaat.
- * 3. Spreken voorstellen binnen die rang elkaar tegen na normalisatie, dan is
- *    het veld `conflicting` en gaan de rivalen mee naar het reviewscherm. Het
+ * 3. Spreken voorstellen binnen de model-tier elkaar tegen na normalisatie, dan
+ *    is het veld `conflicting` en gaan de rivalen mee naar het reviewscherm. Het
  *    systeem kiest niet stil tussen twee geboortedatums.
  * 4. Verschil in notatie of spelling is geen conflict. Verschil in betekenis wel.
  * 5. Alleen velden die echt tegenstrijdig kunnen zijn leveren een conflict op,
  *    zie lib/dossier/conflictable.ts. Bij vrije tekst wint de meest informatieve
  *    waarde en is er geen conflict: twee beschrijvingen van dezelfde klacht
  *    vullen elkaar aan, ze spreken elkaar niet tegen.
+ * 6. Heeft een mens zich over het veld uitgesproken, dan is er geen conflict
+ *    meer. Zie de uitleg bij `humanTier` hieronder.
  *
  * `status` beschrijft hoe de waarde in het dossier kwam, `proposedBy` wie hem
  * aandroeg. Een antwoord van de atleet is dus `extracted` met
@@ -76,8 +78,22 @@ export function resolveField(
   const winnerValue = validation.valid ? validation.normalised : winner.value;
   const winnerKey = comparisonKey(definition.dataType, winnerValue);
 
+  // Een conflict is een tegenspraak tussen bronnen, geen opeenvolging van
+  // beslissingen. Binnen een mens-tier ontstaat het tweede voorstel doordat
+  // iemand het eerste corrigeert, dus zou de oude waarde als rivaal meetellen,
+  // dan levert het oplossen van een conflict een nieuw conflict op: de coach
+  // tikt de juiste geboortedatum in en het veld springt van `conflicting` naar
+  // `conflicting`. Precies de knop die hij net gebruikte om het op te lossen.
+  //
+  // Onderscheid maken op actor is niet mogelijk: `proposed_by` is een soort
+  // ('coach'), geen persoon, dus twee coaches zijn in de data niet van elkaar
+  // te onderscheiden. Daarom geldt de regel voor de hele tier.
+  //
+  // Wat dat kost: spreken twee coaches elkaar tegen, dan zie je dat niet meer
+  // als conflict. Wel nog als historie, want het reviewscherm toont alle
+  // voorstellen per veld met herkomst (lib/db/review.ts, getProposalsByField).
   const conflicts: ConflictCandidate[] = [];
-  if (conflictable) {
+  if (conflictable && !humanTier) {
     for (const rival of tier) {
       if (rival.id === winner.id) continue;
       const rivalValidation = validateValue(definition, rival.value);
