@@ -102,6 +102,7 @@ export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
     required_filled: string;
     required_total: string;
     conflicts: string;
+    dossier_name: string | null;
   }>(
     `select
        i.id,
@@ -112,7 +113,15 @@ export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
            and f.status not in ('missing', 'conflicting')
        ) as required_filled,
        count(*) filter (where d.required) as required_total,
-       count(*) filter (where f.status = 'conflicting') as conflicts
+       count(*) filter (where f.status = 'conflicting') as conflicts,
+       -- De naam zoals de intake hem vond, als terugval op public.athletes.
+       -- Niet bij 'conflicting': staan er twee namen in een dossier, dan is
+       -- er stil een kiezen wat de coach juist moet zien.
+       max(f.value #>> '{}') filter (
+         where d.key = 'identity.full_name'
+           and f.status is not null
+           and f.status not in ('missing', 'conflicting')
+       ) as dossier_name
      from public.intakes i
      cross join public.field_definitions d
      left join medical.dossier_fields f
@@ -143,7 +152,7 @@ export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
 
   return rows.map((row) => ({
     id: row.id,
-    athleteName: nameById.get(row.id) ?? null,
+    athleteName: nameById.get(row.id) ?? row.dossier_name ?? null,
     status: row.status,
     submittedAt: row.submitted_at?.toISOString() ?? null,
     requiredFilled: Number(row.required_filled),
@@ -236,6 +245,26 @@ export interface ReviewData {
 
 type Embedded = { full_name: string | null } | Array<{ full_name: string | null }> | null;
 
+/**
+ * De naam die de coach hoort te zien.
+ *
+ * public.athletes.full_name wordt alleen bij het aanmaken van een account
+ * gevuld, uit wat de atleet daar zelf invulde. Een intake die uit documenten
+ * komt heeft dat vaak niet, en dan stond er "Naam onbekend" boven een dossier
+ * dat twee secties lager "Jonas Peeters" zegt, met citaat. Dat is geen ontbrekende
+ * gegeven maar een niet-gelegde verbinding.
+ *
+ * Terugval en geen terugschrijven naar public.athletes: dossier_fields is een
+ * afgeleide en athletes is de administratie. Terugschrijven maakt er een tweede
+ * waarheid van die kan gaan schuiven, laat een modelgok een accountnaam
+ * overschrijven, en zet bij elke herberekening een audit-regel.
+ */
+function dossierName(resolved: Map<string, ResolvedField>): string | null {
+  const field = resolved.get("identity.full_name");
+  if (!field || field.status === "conflicting" || field.status === "missing") return null;
+  return typeof field.value === "string" && field.value.trim() !== "" ? field.value : null;
+}
+
 function athleteNameFrom(embedded: unknown): string | null {
   const value = embedded as Embedded;
   if (!value) return null;
@@ -316,7 +345,7 @@ export async function getReviewData(
     intakeId,
     // Een many-to-one embed komt als object terug, een one-to-many als array.
     // Beide vormen afhandelen is goedkoper dan erop vertrouwen.
-    athleteName: athleteNameFrom(intake.athletes),
+    athleteName: athleteNameFrom(intake.athletes) ?? dossierName(state.resolved),
     status: intake.status as string,
     submittedAt: intake.submitted_at as string | null,
     approvedAt: intake.approved_at as string | null,

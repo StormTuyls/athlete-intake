@@ -62,6 +62,28 @@ export function ReportDocument({
   const reference = snapshot.intake.id.slice(0, 8);
   const dated = snapshot.intake.submittedAt ?? snapshot.intake.startedAt;
 
+  /**
+   * Administratieve gegevens die de intake wel vond, maar public.athletes niet
+   * heeft. Zonder deze terugval stond er "Name unknown" op een rapport dat
+   * verderop de naam met citaat toont.
+   *
+   * Met opzet hier en niet in lib/report/collect.ts: `athlete` zit in de
+   * gehashte inhoud van het snapshot, dus daar terugvallen verandert de hash van
+   * elk bestaand dossier en mint bij de eerstvolgende export een nieuwe versie
+   * plus een modelcall. Het snapshot bevat deze velden al, dus de renderer kan
+   * ze gewoon opzoeken en niets bevroren gaat schuiven.
+   *
+   * Niet bij 'conflicting': twee namen in een dossier is precies waar het
+   * systeem niet stil mag kiezen.
+   */
+  const fromDossier = (key: string): string | null => {
+    const field = snapshot.fields.find((f) => f.key === key);
+    if (!field || field.status === "conflicting" || field.status === "missing") return null;
+    return typeof field.value === "string" && field.value.trim() !== ""
+      ? field.value
+      : null;
+  };
+
   const flagged = snapshot.openItems.filter(
     (item) => item.required || item.reason === "conflicting",
   );
@@ -83,15 +105,15 @@ export function ReportDocument({
       <dl className="mt-4 grid grid-cols-3 gap-4 border-b border-hairline pb-4 text-sm">
         <div>
           <dt className="text-label uppercase text-ink-faint">Athlete</dt>
-          <dd>{snapshot.athlete.fullName ?? "Name unknown"}</dd>
+          <dd>{snapshot.athlete.fullName ?? fromDossier("identity.full_name") ?? "Name unknown"}</dd>
         </div>
         <div>
           <dt className="text-label uppercase text-ink-faint">Club</dt>
-          <dd>{snapshot.athlete.club ?? "-"}</dd>
+          <dd>{snapshot.athlete.club ?? fromDossier("identity.club") ?? "-"}</dd>
         </div>
         <div>
           <dt className="text-label uppercase text-ink-faint">Federation</dt>
-          <dd>{snapshot.athlete.federation ?? "-"}</dd>
+          <dd>{snapshot.athlete.federation ?? fromDossier("identity.federation") ?? "-"}</dd>
         </div>
       </dl>
 
