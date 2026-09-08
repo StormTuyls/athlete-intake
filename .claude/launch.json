@@ -3,8 +3,11 @@
   "configurations": [
     {
       "name": "athlete-intake",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        ". \"${NVM_DIR:-$HOME/.nvm}/nvm.sh\" >/dev/null 2>&1 && nvm use >/dev/null 2>&1; exec npm run dev"
+      ],
       "port": 3000
     }
   ]
