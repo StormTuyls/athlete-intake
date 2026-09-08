@@ -106,6 +106,8 @@ interface ReviewData {
     endDate: string | null;
     sourceQuote: string | null;
     quoteVerified: boolean;
+    fromEarlierIntake: boolean;
+    recordedAt: string | null;
   }>;
   documents: Array<{
     id: string;
@@ -382,10 +384,18 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                 key={injury.id}
                 className="rounded-md border border-black/10 p-3 dark:border-white/15"
               >
-                <div>
+                <div className="flex flex-wrap items-baseline gap-x-2">
                   <span className="font-medium">{injury.bodyRegion}</span>
-                  {injury.side !== "unknown" && <span className="opacity-70"> {injury.side}</span>}
-                  {injury.diagnosis && <span className="opacity-70"> · {injury.diagnosis}</span>}
+                  {injury.side !== "unknown" && <span className="opacity-70">{injury.side}</span>}
+                  {injury.diagnosis && <span className="opacity-70">· {injury.diagnosis}</span>}
+                  {/* Historie apart benoemen, anders leest een blessure uit een
+                      eerdere intake als iets wat in deze documenten stond. */}
+                  {injury.fromEarlierIntake && (
+                    <span className="rounded bg-black/5 px-1.5 py-0.5 text-[10px] whitespace-nowrap opacity-70 dark:bg-white/10">
+                      uit een eerdere intake
+                      {injury.recordedAt && ` · ${injury.recordedAt}`}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-0.5 text-xs opacity-60">
                   {injury.onsetDate ?? "datum onbekend"}

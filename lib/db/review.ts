@@ -16,6 +16,8 @@ import type { Proposal, ResolvedField } from "@/lib/types";
 
 export interface InjuryRow {
   id: string;
+  intakeId: string | null;
+  recordedAt: string | null;
   bodyRegion: string;
   side: string;
   diagnosis: string | null;
@@ -31,34 +33,64 @@ export interface InjuryRow {
  * De ruwe vermeldingen. Elk document dat een blessure noemt staat hier apart,
  * met zijn eigen herkomst.
  */
+/**
+ * De blessurevermeldingen die bij deze intake horen te staan.
+ *
+ * Over de ATLEET en niet over de intake: een blessure uit een eerdere intake is
+ * nog steeds voorgeschiedenis, en meestal precies wat de coach zoekt. Zonder
+ * dit begon elke nieuwe intake met een lege tijdlijn terwijl het dossier de
+ * historie had.
+ *
+ * Wel chronologisch begrensd, en dat is niet optioneel: zou dit alles van de
+ * atleet teruggeven, dan verschijnt een blessure van september in het rapport
+ * van maart. Een bevroren rapport hoort te tonen wat er toen bekend was, dus
+ * alleen vermeldingen uit intakes die niet later begonnen dan deze.
+ *
+ * Losse vermeldingen zonder intake (een import op atleetniveau) gaan altijd
+ * mee: die hebben geen datum om op af te wijzen.
+ */
 export async function getInjuryEntries(intakeId: string): Promise<InjuryRow[]> {
   const rows = await query<{
     id: string;
+    intake_id: string | null;
+    recorded_at: Date | null;
     body_region: string;
     side: string;
     diagnosis: string | null;
-    onset_date: Date | null;
-    end_date: Date | null;
+    // Kalenderdatums komen als tekst binnen, zie de typeparser in lib/db/sql.ts.
+    onset_date: string | null;
+    end_date: string | null;
     source_document_id: string | null;
     source_page: number | null;
     source_quote: string | null;
     quote_verified: boolean;
   }>(
-    `select id, body_region, side, diagnosis, onset_date, end_date,
-            source_document_id, source_page, source_quote, quote_verified
-     from medical.injury_events
-     where intake_id = $1
-     order by onset_date nulls last, id`,
+    `with scope as (
+       select athlete_id, started_at
+         from public.intakes
+        where id = $1
+     )
+     select e.id, e.intake_id, source.started_at as recorded_at,
+            e.body_region, e.side, e.diagnosis, e.onset_date, e.end_date,
+            e.source_document_id, e.source_page, e.source_quote, e.quote_verified
+       from medical.injury_events e
+       cross join scope
+       left join public.intakes source on source.id = e.intake_id
+      where e.athlete_id = scope.athlete_id
+        and (e.intake_id is null or source.started_at <= scope.started_at)
+      order by e.onset_date nulls last, e.id`,
     [intakeId],
   );
 
   return rows.map((row) => ({
     id: row.id,
+    intakeId: row.intake_id,
+    recordedAt: row.recorded_at ? row.recorded_at.toISOString().slice(0, 10) : null,
     bodyRegion: row.body_region,
     side: row.side,
     diagnosis: row.diagnosis,
-    onsetDate: row.onset_date ? row.onset_date.toISOString().slice(0, 10) : null,
-    endDate: row.end_date ? row.end_date.toISOString().slice(0, 10) : null,
+    onsetDate: row.onset_date,
+    endDate: row.end_date,
     sourceDocumentId: row.source_document_id,
     sourcePage: row.source_page,
     sourceQuote: row.source_quote,
@@ -71,7 +103,7 @@ export async function getInjuryEntries(intakeId: string): Promise<InjuryRow[]> {
  * samengevoegd. Zie lib/dossier/timeline.ts voor de regel.
  */
 export async function getInjuries(intakeId: string): Promise<TimelineEntry[]> {
-  return resolveInjuryTimeline(await getInjuryEntries(intakeId));
+  return resolveInjuryTimeline(await getInjuryEntries(intakeId), intakeId);
 }
 
 export interface IntakeListRow {
@@ -83,6 +115,20 @@ export interface IntakeListRow {
   submittedAt: string | null;
   /** Voor een draft is er nog geen indiendatum; dan is dit de laatste activiteit. */
   startedAt: string | null;
+  /**
+   * Waar deze intake over gaat, in een paar woorden.
+   *
+   * Een lijst van "waiting for review · 2026-03-08" is niet te lezen zodra een
+   * atleet er twee heeft: de status is voor elke rij hetzelfde en de datum zegt
+   * niets over de inhoud. De klacht wel.
+   *
+   * Dit is medische inhoud, en dat is een bewuste afweging: het staat alleen op
+   * schermen achter een coachlogin, en de pagina zegt niet langer dat er geen
+   * medische gegevens op staan. Zonder dit label moet een coach elk dossier
+   * openen om te zien welk dossier hij zoekt, en dan wordt de medische inhoud
+   * alsnog geopend, alleen vaker.
+   */
+  label: string | null;
   requiredFilled: number;
   requiredTotal: number;
   conflicts: number;
@@ -98,6 +144,31 @@ export interface IntakeListRow {
  * Alleen tellingen, geen waarden. Een overzicht mag geen medische inhoud tonen:
  * dit is de pagina die openstaat terwijl er iemand meekijkt.
  */
+/**
+ * Het label van een intake: de blessure, of anders de pijnlocatie.
+ *
+ * Zijde alleen als hij bekend is, en de diagnose alleen als hij kort genoeg is
+ * om een titel te zijn. Een lijstregel die over twee regels valt is geen titel
+ * meer.
+ */
+function intakeLabel(row: {
+  injury_region: string | null;
+  injury_side: string | null;
+  injury_diagnosis: string | null;
+  pain_location: string | null;
+}): string | null {
+  if (row.injury_region) {
+    const side =
+      row.injury_side && row.injury_side !== "unknown" ? ` ${row.injury_side}` : "";
+    const diagnosis =
+      row.injury_diagnosis && row.injury_diagnosis.length <= 60
+        ? ` · ${row.injury_diagnosis}`
+        : "";
+    return `${row.injury_region}${side}${diagnosis}`;
+  }
+  return row.pain_location?.trim() || null;
+}
+
 export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
   const rows = await query<{
     id: string;
@@ -109,6 +180,10 @@ export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
     required_total: string;
     conflicts: string;
     dossier_name: string | null;
+    injury_region: string | null;
+    injury_side: string | null;
+    injury_diagnosis: string | null;
+    pain_location: string | null;
   }>(
     `select
        i.id,
@@ -129,8 +204,28 @@ export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
          where d.key = 'identity.full_name'
            and f.status is not null
            and f.status not in ('missing', 'conflicting')
-       ) as dossier_name
+       ) as dossier_name,
+       -- Waar deze intake over gaat. De blessure van deze intake als er een is,
+       -- anders de pijnlocatie uit het dossier. max() over een waarde die per
+       -- intake constant is: de lateral levert één rij, de cross join hierboven
+       -- herhaalt hem per veld.
+       max(inj.body_region) as injury_region,
+       max(inj.side::text) as injury_side,
+       max(inj.diagnosis) as injury_diagnosis,
+       max(f.value #>> '{}') filter (
+         where d.key = 'status.pain_location'
+           and f.status is not null
+           and f.status not in ('missing', 'conflicting')
+       ) as pain_location
      from public.intakes i
+     left join lateral (
+       select e.body_region, e.side, e.diagnosis
+         from medical.injury_events e
+        where e.intake_id = i.id
+        -- Met diagnose eerst: dat is het meest zeggende label.
+        order by (e.diagnosis is not null) desc, e.onset_date nulls last, e.id
+        limit 1
+     ) inj on true
      cross join public.field_definitions d
      left join medical.dossier_fields f
        on f.intake_id = i.id and f.field_key = d.key
@@ -165,6 +260,7 @@ export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
     status: row.status,
     submittedAt: row.submitted_at?.toISOString() ?? null,
     startedAt: row.started_at?.toISOString() ?? null,
+    label: intakeLabel(row),
     requiredFilled: Number(row.required_filled),
     requiredTotal: Number(row.required_total),
     conflicts: Number(row.conflicts),

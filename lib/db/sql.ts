@@ -1,4 +1,4 @@
-import { Pool, type QueryResultRow } from "pg";
+import { Pool, types, type QueryResultRow } from "pg";
 
 /**
  * Directe Postgres-verbinding voor het `medical`-schema.
@@ -13,6 +13,23 @@ import { Pool, type QueryResultRow } from "pg";
  * De verbinding gebruikt de rol intake_server, die alleen medical mag plus een
  * paar leesrechten in public. Geen superuser.
  */
+
+/**
+ * Een `date` blijft een tekst, en dat is geen smaakkwestie.
+ *
+ * node-pg maakt van een date-kolom standaard een JS Date op middernacht LOKALE
+ * tijd. `toISOString()` rekent die daarna naar UTC, dus in de zomer in Belgie
+ * ging elke datum er een dag vanaf: een blessure met onset 2026-02-10 kwam als
+ * 2026-02-09 op het scherm en in het rapport. Gemeten, niet bedacht.
+ *
+ * Een kalenderdatum heeft geen tijdzone. Een geboortedatum, een onset en een
+ * bewaartermijn zijn wat er staat, en die horen niet door een tijdzone heen te
+ * gaan. Vandaar hier, aan de rand: elke date-kolom komt als "YYYY-MM-DD" binnen
+ * en niemand hoeft er nog aan te denken.
+ *
+ * Timestamps (timestamptz) blijven wel een Date: dat zijn echte momenten.
+ */
+types.setTypeParser(types.builtins.DATE, (value) => value);
 
 let pool: Pool | null = null;
 

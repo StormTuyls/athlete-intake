@@ -74,6 +74,8 @@ export interface SnapshotInjury {
   page: number | null;
   quote: string | null;
   quoteVerified: boolean;
+  /** Uit een eerdere intake van deze atleet, dus voorgeschiedenis. */
+  fromEarlierIntake: boolean;
 }
 
 export interface SnapshotDocument {

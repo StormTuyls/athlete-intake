@@ -42,6 +42,21 @@ function statusLabel(status: string): string {
   return "in progress";
 }
 
+/**
+ * De status als label, niet als titel.
+ *
+ * Wachtend werk moet eruit springen; afgetekend werk hoort rustig te zijn. Vier
+ * identieke grijze pillen zouden hetzelfde probleem geven als vier identieke
+ * titels.
+ */
+function statusStyle(status: string): string {
+  if (status === "submitted" || status === "in_review") {
+    return "bg-warn-soft text-warn";
+  }
+  if (status === "approved") return "bg-ok/10 text-ok";
+  return "bg-canvas text-ink-muted";
+}
+
 export default async function AthletePage({
   params,
 }: {
@@ -97,8 +112,9 @@ export default async function AthletePage({
           <Row label="Coach" value={athlete.coachName} />
         </dl>
         <p className="mt-2 text-xs text-ink-faint">
-          Administrative data only. Body measurements, complaints and injury
-          history stay inside the intake file.
+          Administrative data. Body measurements, medication and the full injury
+          history stay inside the intake file; each intake below is labelled with
+          the complaint it is about.
         </p>
       </section>
 
@@ -112,22 +128,26 @@ export default async function AthletePage({
               <li key={intake.id}>
                 <Link
                   href={`/review/${intake.id}`}
-                  className="flex items-baseline justify-between gap-4 py-2.5 transition-colors hover:bg-canvas"
+                  className="flex flex-col gap-1 py-2.5 transition-colors hover:bg-canvas sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
                 >
-                  <span className="min-w-0 text-sm">
-                    <span
-                      className={
-                        intake.status === "submitted" || intake.status === "in_review"
-                          ? "font-medium"
-                          : undefined
-                      }
-                    >
-                      {statusLabel(intake.status)}
+                  <span className="min-w-0">
+                    {/* De klacht als titel. De status zegt niets over welk
+                        dossier dit is, en bij twee intakes staat er twee keer
+                        hetzelfde; de klacht onderscheidt ze wel. */}
+                    <span className="block text-sm font-medium">
+                      {intake.label ?? "Intake"}
                     </span>
-                    {/* nowrap, anders breekt een datum op een smal scherm
-                        midden in de maand af: "2026-" / "08-08". */}
-                    <span className="ml-2 text-xs whitespace-nowrap text-ink-muted">
-                      {(intake.submittedAt ?? intake.startedAt)?.slice(0, 10)}
+                    <span className="mt-0.5 flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] whitespace-nowrap ${statusStyle(intake.status)}`}
+                      >
+                        {statusLabel(intake.status)}
+                      </span>
+                      {/* nowrap, anders breekt een datum op een smal scherm
+                          midden in de maand af: "2026-" / "08-08". */}
+                      <span className="text-xs whitespace-nowrap text-ink-muted">
+                        {(intake.submittedAt ?? intake.startedAt)?.slice(0, 10)}
+                      </span>
                     </span>
                   </span>
                   <span className="shrink-0 text-xs text-ink-muted">

@@ -12,10 +12,21 @@
  * blessures ziet waar er twee zijn, vertrouwt de tijdlijn niet meer.
  *
  * Dus: ruw bewaren, tijdlijn berekenen. Zelfde principe als bij de velden.
+ *
+ * De tijdlijn loopt over de ATLEET en niet over één intake. Een blessure uit een
+ * intake van maart is bij de intake van september nog steeds relevant, en negen
+ * van de tien keer is dat juist de informatie die de coach zoekt: dit is de
+ * derde keer diezelfde hamstring. Zie getInjuryEntries in lib/db/review.ts voor
+ * de begrenzing, want een blessure uit een LATERE intake hoort niet in een
+ * eerder rapport te verschijnen.
  */
 
 export interface InjuryEntry {
   id: string;
+  /** Uit welke intake deze vermelding komt. Null bij een losse import. */
+  intakeId: string | null;
+  /** Wanneer die intake liep, zodat "uit een eerdere intake" een datum heeft. */
+  recordedAt: string | null;
   bodyRegion: string;
   side: string;
   diagnosis: string | null;
@@ -30,6 +41,13 @@ export interface InjuryEntry {
 export interface TimelineEntry extends InjuryEntry {
   /** Hoeveel bronnen deze blessure noemen. Één is normaal, meer is bevestiging. */
   sourceCount: number;
+  /**
+   * Waar als geen enkele vermelding uit de intake komt die je nu bekijkt.
+   *
+   * Dat onderscheid moet zichtbaar zijn: anders leest een coach een blessure uit
+   * maart als iets wat in de documenten van september stond.
+   */
+  fromEarlierIntake: boolean;
   /** De overige vermeldingen, zodat de coach ze kan nakijken. */
   alsoFoundIn: Array<{
     diagnosis: string | null;
@@ -86,7 +104,11 @@ function pickPrimary(group: InjuryEntry[]): InjuryEntry {
   });
 }
 
-export function resolveInjuryTimeline(entries: InjuryEntry[]): TimelineEntry[] {
+export function resolveInjuryTimeline(
+  entries: InjuryEntry[],
+  /** De intake die bekeken wordt, om historie van nieuw te onderscheiden. */
+  currentIntakeId?: string,
+): TimelineEntry[] {
   const groups: InjuryEntry[][] = [];
 
   for (const entry of entries) {
@@ -121,6 +143,18 @@ export function resolveInjuryTimeline(entries: InjuryEntry[]): TimelineEntry[] {
         sourceCount: new Set(
           group.map((entry) => entry.sourceDocumentId).filter(Boolean),
         ).size,
+        // Noemt een van de vermeldingen deze intake, dan is de blessure hier
+        // aan de orde. Zo niet, dan komt hij uit de historie.
+        fromEarlierIntake:
+          currentIntakeId !== undefined &&
+          !group.some((entry) => entry.intakeId === currentIntakeId),
+        // De vroegste vermelding bepaalt wanneer dit voor het eerst opgeschreven
+        // is; de primaire vermelding is de meest informatieve, niet de oudste.
+        recordedAt:
+          group
+            .map((entry) => entry.recordedAt)
+            .filter((date): date is string => date !== null)
+            .sort()[0] ?? null,
         alsoFoundIn: others.map((entry) => ({
           diagnosis: entry.diagnosis,
           sourceDocumentId: entry.sourceDocumentId,

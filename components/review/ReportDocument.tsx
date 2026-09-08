@@ -233,6 +233,11 @@ export function ReportDocument({
                 <strong>{injury.bodyRegion}</strong>
                 {injury.side !== "unknown" && ` (${injury.side})`}
                 {injury.diagnosis && ` — ${injury.diagnosis}`}
+                {/* Voorgeschiedenis hoort niet te lezen als een vondst uit deze
+                    intake. Op een klinisch document is dat verschil het punt. */}
+                {injury.fromEarlierIntake && (
+                  <span className="text-ink-muted"> · from an earlier intake</span>
+                )}
                 <span className="text-ink-faint">
                   {injury.onsetDate ? ` from ${injury.onsetDate}` : ""}
                   {injury.endDate ? ` to ${injury.endDate}` : ""}

@@ -1,7 +1,7 @@
 import { appDb } from "@/lib/supabase/service";
 import { getProposals, syncDossier } from "@/lib/db/dossier";
 import { listDocuments } from "@/lib/db/medical";
-import { getInjuryEntries } from "@/lib/db/review";
+import { getInjuries } from "@/lib/db/review";
 import { formatValue } from "@/lib/intake/format";
 import {
   contentHashOf,
@@ -42,7 +42,7 @@ export async function collectReportData(
       syncDossier(intakeId, locale),
       getProposals(intakeId),
       listDocuments(intakeId),
-      getInjuryEntries(intakeId),
+      getInjuries(intakeId),
       appDb()
         .from("athletes")
         .select("full_name, email, phone, club, federation")
@@ -135,6 +135,11 @@ export async function collectReportData(
 
     fields,
 
+    // De samengevoegde tijdlijn en niet de ruwe vermeldingen. Ruw stonden
+    // dezelfde hamstring uit twee documenten als twee blessures in het rapport,
+    // en met de historie van eerdere intakes erbij zou dat vier of zes regels
+    // worden voor één klacht. Het reviewscherm toonde de samengevoegde versie
+    // al; nu zegt het rapport hetzelfde.
     injuries: injuryRows.map((injury) => ({
       bodyRegion: injury.bodyRegion,
       side: injury.side,
@@ -147,6 +152,7 @@ export async function collectReportData(
       page: injury.sourcePage,
       quote: injury.sourceQuote,
       quoteVerified: injury.quoteVerified,
+      fromEarlierIntake: injury.fromEarlierIntake,
     })),
 
     documents: documents.map((document) => ({
