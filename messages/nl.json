@@ -9,6 +9,13 @@
   },
   "chat": {
     "title": "Intake-assistent",
+    "intro": {
+      "title": "Waarvoor dit gesprek dient",
+      "body": "Ik stel je vragen over je sport, je voorgeschiedenis en je klachten, en maak daar een gestructureerd dossier van voor je coach.",
+      "point1": "Je hoeft niets voor te bereiden. Weet je iets niet, dan sla je het over en kom je er later op terug.",
+      "point2": "Je kan verslagen, scans, screenshots of een WhatsApp-export toevoegen. Ik lees er pas iets uit als jij dat vraagt.",
+      "point3": "Niets komt in je dossier zonder dat jij het bevestigt, en je coach kijkt alles na voordat het meetelt."
+    },
     "back": "Terug",
     "collecting": "Bezig met: {section}",
     "collectingIdle": "Alle vragen beantwoord",
@@ -27,7 +34,10 @@
     "confirmField": "{label} bevestigen",
     "editField": "{label} aanpassen",
     "finish": "Intake afronden",
-    "progressLabel": "{sectionsDone} van {sectionsTotal} onderdelen klaar, {required} van {requiredTotal} verplichte velden ingevuld"
+    "progressLabel": "{sectionsDone} van {sectionsTotal} onderdelen klaar, {required} van {requiredTotal} verplichte velden ingevuld",
+    "panelTitle": "Je dossier",
+    "panelEmpty": "Zodra je iets vertelt of een document laat lezen, verschijnt het hier.",
+    "panelConflicts": "{count, plural, one {1 tegenstrijdigheid} other {# tegenstrijdigheden}}"
   },
   "errors": {
     "generic": "Er ging iets mis",
@@ -59,7 +69,11 @@
     "submittedBody": "Je coach kijkt je dossier na en neemt contact op. De documenten die je stuurde blijven bewaard naast de gegevens die eruit gehaald zijn.",
     "submittedNotion": "Er is een opvolgactie en een factuurregel voor je coach aangemaakt.",
     "notComplete": "nog niet volledig",
-    "duplicateDocument": "Je stuurde {filename} al eerder, dus er is niets opnieuw gelezen. Wat erin stond staat hierboven."
+    "duplicateDocument": "Je stuurde {filename} al eerder, dus er is niets opnieuw gelezen. Wat erin stond staat hierboven.",
+    "readDocument": "Dit document lezen",
+    "readingDocument": "Bezig met lezen",
+    "unreadHint": "Nog niet gelezen. Er komt niets in je dossier tot je hierop tikt.",
+    "alreadyReadDocument": "Je stuurde {filename} al eerder en ik heb het toen al gelezen. Wat erin stond staat hierboven."
   },
   "sections": {
     "athlete": {
@@ -80,6 +94,12 @@
       "current_status": "Huidige status en doelen",
       "uploads": "Aangeleverd materiaal"
     }
+  },
+  "intakeTitle": {
+    "left": "links",
+    "right": "rechts",
+    "bilateral": "beide zijden",
+    "fallback": "Intake"
   },
   "format": {
     "months": [
@@ -143,7 +163,8 @@
     "processing": "lezen",
     "read": "gelezen",
     "failed": "kon niet gelezen worden",
-    "quotesVerified": "{verified} van {total} citaten geverifieerd"
+    "quotesVerified": "{verified} van {total} citaten geverifieerd",
+    "unread": "nog niet gelezen"
   },
   "extraction": {
     "nothingFound": "Ik heb {filename} gelezen, maar er stonden geen gegevens in die ik kan toevoegen. Je kunt het me ook zelf vertellen.",

@@ -116,6 +116,60 @@ export async function findDocumentBySha(
   };
 }
 
+/**
+ * Wat er nodig is om een geregistreerd document alsnog te lezen.
+ *
+ * Los van DocumentSummary omdat daar met opzet geen storage_path in zit: die
+ * vorm gaat naar het scherm van de atleet, en een opslagpad hoort daar niet.
+ */
+export interface DocumentForReading {
+  id: string;
+  storagePath: string;
+  mimeType: string;
+  kind: DocumentKind;
+  processedAt: string | null;
+  processingError: string | null;
+}
+
+/**
+ * Eén document van deze intake, om te lezen.
+ *
+ * De intake staat in de where-clausule en niet in een controle achteraf: dan is
+ * "document van iemand anders" en "bestaat niet" hetzelfde antwoord, en kan er
+ * geen pad ontstaan waarop de controle wel gedaan maar niet afgedwongen wordt.
+ */
+export async function documentForReading(
+  intakeId: string,
+  documentId: string,
+): Promise<DocumentForReading | null> {
+  const rows = await query<{
+    id: string;
+    storage_path: string;
+    mime_type: string;
+    kind: DocumentKind;
+    processed_at: Date | null;
+    processing_error: string | null;
+  }>(
+    `select id, storage_path, mime_type, kind, processed_at, processing_error
+     from medical.documents
+     where id = $1 and intake_id = $2
+     limit 1`,
+    [documentId, intakeId],
+  );
+
+  const row = rows[0];
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    storagePath: row.storage_path,
+    mimeType: row.mime_type,
+    kind: row.kind,
+    processedAt: row.processed_at?.toISOString() ?? null,
+    processingError: row.processing_error,
+  };
+}
+
 export async function savePages(
   documentId: string,
   pages: DocumentPage[],

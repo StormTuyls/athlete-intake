@@ -1,4 +1,5 @@
 import type { Confidence, FieldDataType, FieldStatus, ProposedBy } from "@/lib/types";
+import type { IntakeTitle } from "@/lib/intake/title";
 
 // Doorgeven, zodat een client component het type kan gebruiken zonder
 // lib/types.ts te importeren en daarmee de serverkant binnen te trekken.
@@ -60,7 +61,20 @@ export interface Progress {
   requiredTotal: number;
 }
 
-export type DocumentState = "uploading" | "processing" | "read" | "failed";
+/**
+ * De toestanden van een bestand in het gesprek.
+ *
+ * 'unread' is de belangrijke: het bestand staat in de opslag, de paginatekst is
+ * eruit, en er is nog geen modelcall geweest. Dat is een eindtoestand en geen
+ * tussenstap; er gebeurt niets meer tenzij de atleet erom vraagt. 'processing'
+ * betekent dat hij dat gedaan heeft en dat het model bezig is.
+ */
+export type DocumentState =
+  | "uploading"
+  | "unread"
+  | "processing"
+  | "read"
+  | "failed";
 
 export type TranscriptItem =
   | { kind: "assistant"; id: string; at: string; text: string }
@@ -104,6 +118,11 @@ export interface Completeness {
 export interface TranscriptResponse {
   /** Nodig om naar het rapport van deze intake te kunnen linken. */
   intakeId: string;
+  /**
+   * Waar dit gesprek over gaat, zodra er een blessure of een pijnlocatie is.
+   * Onopgemaakt, want de woorden eromheen hangen aan de taal van de kijker.
+   */
+  title: IntakeTitle;
   transcript: TranscriptItem[];
   collecting: Collecting | null;
   progress: Progress;

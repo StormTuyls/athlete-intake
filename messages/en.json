@@ -9,6 +9,13 @@
   },
   "chat": {
     "title": "Intake assistant",
+    "intro": {
+      "title": "What this conversation is for",
+      "body": "I will ask you about your sport, your history and your complaints, and turn that into a structured record for your coach.",
+      "point1": "Nothing to prepare. If you do not know something, skip it and come back to it later.",
+      "point2": "You can add reports, scans, screenshots or a WhatsApp export. I only read them once you ask me to.",
+      "point3": "Nothing enters your record without your confirmation, and your coach reviews all of it before it counts."
+    },
     "back": "Back",
     "collecting": "Collecting: {section}",
     "collectingIdle": "All questions answered",
@@ -27,7 +34,10 @@
     "confirmField": "Confirm {label}",
     "editField": "Edit {label}",
     "finish": "Finish intake",
-    "progressLabel": "{sectionsDone} of {sectionsTotal} sections done, {required} of {requiredTotal} required fields complete"
+    "progressLabel": "{sectionsDone} of {sectionsTotal} sections done, {required} of {requiredTotal} required fields complete",
+    "panelTitle": "Your record",
+    "panelEmpty": "As soon as you tell me something or have a document read, it appears here.",
+    "panelConflicts": "{count, plural, one {1 contradiction} other {# contradictions}}"
   },
   "errors": {
     "generic": "Something went wrong",
@@ -59,7 +69,11 @@
     "submittedBody": "Your coach will review your file and get in touch. The documents you sent stay stored alongside the data taken from them.",
     "submittedNotion": "A follow-up task and an invoice line were created for your coach.",
     "notComplete": "not complete yet",
-    "duplicateDocument": "You already sent {filename}, so nothing was read again. What it contained is above."
+    "duplicateDocument": "You already sent {filename}, so nothing was read again. What it contained is above.",
+    "readDocument": "Read this document",
+    "readingDocument": "Reading",
+    "unreadHint": "Not read yet. Nothing enters your record until you tap this.",
+    "alreadyReadDocument": "You sent {filename} before and I already read it then. What was in it is above."
   },
   "sections": {
     "athlete": {
@@ -80,6 +94,12 @@
       "current_status": "Current status and goals",
       "uploads": "Material provided"
     }
+  },
+  "intakeTitle": {
+    "left": "left",
+    "right": "right",
+    "bilateral": "both sides",
+    "fallback": "Intake"
   },
   "format": {
     "months": [
@@ -143,7 +163,8 @@
     "processing": "reading",
     "read": "read",
     "failed": "could not be read",
-    "quotesVerified": "{verified} of {total} quotes verified"
+    "quotesVerified": "{verified} of {total} quotes verified",
+    "unread": "not read yet"
   },
   "extraction": {
     "nothingFound": "I read {filename}, but I could not find any details to add. You can tell me instead.",

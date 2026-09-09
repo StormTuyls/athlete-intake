@@ -1,6 +1,7 @@
 import { appDb } from "@/lib/supabase/service";
 import { listDocuments } from "@/lib/db/medical";
 import { getProposals, syncDossier } from "@/lib/db/dossier";
+import { intakeTitle } from "@/lib/db/intakeTitle";
 import { formatValue } from "@/lib/intake/format";
 import { sectionLabel } from "@/lib/intake/sections";
 import { documentError } from "@/lib/intake/format";
@@ -273,10 +274,11 @@ export async function buildTranscript(
 ): Promise<TranscriptResponse> {
   const state = await syncDossier(intakeId, locale);
 
-  const [messages, documents, proposals] = await Promise.all([
+  const [messages, documents, proposals, title] = await Promise.all([
     readMessages(intakeId),
     listDocuments(intakeId),
     getProposals(intakeId),
+    intakeTitle(intakeId),
   ]);
 
   const byKey = new Map(state.definitions.map((d) => [d.key, d]));
@@ -336,18 +338,21 @@ export async function buildTranscript(
         byteSize: document.byteSize,
         documentKind: document.kind,
         pageCount: document.pageCount,
+        // Geen processed_at en geen fout betekent "wel binnen, nog niet
+        // gelezen", en niet "bezig". Er draait niets: het wachten is op de
+        // atleet. Zie lib/intake/processDocument.ts.
         state: document.processingError
           ? "failed"
           : document.processedAt
             ? "read"
-            : "processing",
+            : "unread",
         error: documentError(document.processingError, locale),
       },
     });
 
-    // Een document dat nog draait of gefaald is heeft geen resultaat om te
-    // tonen. Een document dat gelezen is wel, ook als er niets in stond: dat
-    // laatste is een antwoord, geen stilte.
+    // Een ongelezen of gefaald document heeft geen resultaat om te tonen. Een
+    // document dat gelezen is wel, ook als er niets in stond: dat laatste is
+    // een antwoord, geen stilte.
     if (document.processingError || !document.processedAt) return;
 
     const extraction = cardsForDocument(
@@ -379,6 +384,7 @@ export async function buildTranscript(
 
   return {
     intakeId,
+    title,
     transcript: items,
     collecting: collectingFrom(state.gaps, locale),
     progress: computeProgress(

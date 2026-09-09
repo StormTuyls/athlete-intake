@@ -28,6 +28,11 @@
 
   /* Ondergrond van de berichtenlijst, kaarten daarop, en de haarlijn. */
   --color-canvas: #f4f5f7;
+  /* Alleen zichtbaar vanaf lg: het vlak waar de app als kaart op ligt. Een tint
+     donkerder dan canvas, want anders valt de kaartrand weg tegen de pagina en
+     is het verschil tussen "kaart" en "kolom met wit ernaast" alleen de
+     schaduw. */
+  --color-backdrop: #e7e9ed;
   --color-surface: #ffffff;
   --color-hairline: #e8eaee;
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
+import { takeFiles } from "@/lib/intake/handoff";
 import { useTranslations } from "next-intl";
 import type {
   CaptureCard,
@@ -12,6 +13,7 @@ import type {
   TranscriptItem,
   TranscriptResponse,
 } from "@/lib/intake/transcriptTypes";
+import type { IntakeTitle } from "@/lib/intake/title";
 
 /**
  * Alles wat het chatscherm doet, los van hoe het eruitziet.
@@ -31,6 +33,7 @@ interface FieldActionResponse {
 
 interface ChatTurnResponse {
   reply: string;
+  title: IntakeTitle;
   captured: CaptureCard[];
   collecting: Collecting | null;
   progress: Progress;
@@ -39,8 +42,20 @@ interface ChatTurnResponse {
   openGaps: number;
 }
 
-/** Wat POST /api/intake/documents teruggeeft. */
-interface UploadResult {
+/**
+ * Wat POST /api/intake/documents teruggeeft: het bestand is binnen, meer niet.
+ * Geen kaarten en geen voortgang, want er is nog niets uit gelezen.
+ */
+interface RegisterResult {
+  documentId: string;
+  kind: DocumentKind;
+  pageCount: number;
+  duplicate: boolean;
+  alreadyRead: boolean;
+}
+
+/** Wat POST /api/intake/documents/[id]/read teruggeeft. */
+interface ReadResult {
   documentId: string;
   kind: DocumentKind;
   pageCount: number;
@@ -49,6 +64,7 @@ interface UploadResult {
   injuriesFound: number;
   duplicate: boolean;
   cards: CaptureCard[];
+  title: IntakeTitle;
   collecting: Collecting | null;
   progress: Progress;
   completeness: Completeness;
@@ -93,6 +109,7 @@ export function useIntakeChat() {
   const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
   const [completeness, setCompleteness] = useState<Completeness | null>(null);
   const [intakeId, setIntakeId] = useState<string | null>(null);
+  const [title, setTitle] = useState<IntakeTitle>({ kind: "none" });
 
   const [draft, setDraft] = useState("");
   /** Korte terugkoppeling op een actie die geen bericht oplevert. */
@@ -116,9 +133,15 @@ export function useIntakeChat() {
     async () => {},
   );
 
+  /** Zelfde reden als runTurnRef: het mount-effect mag hier niet van afhangen. */
+  const uploadFilesRef = useRef<(files: FileList | File[]) => Promise<void>>(
+    async () => {},
+  );
+
   /** Zet de opgehaalde stand op het scherm. Los van het ophalen zelf. */
   const apply = useCallback((data: TranscriptResponse) => {
     setIntakeId(data.intakeId);
+    setTitle(data.title);
     setItems(data.transcript);
     setCollecting(data.collecting);
     setProgress(data.progress);
@@ -152,12 +175,24 @@ export function useIntakeChat() {
     let ignore = false;
 
     call<TranscriptResponse>("/api/intake/transcript")
-      .then((data) => {
+      .then(async (data) => {
         if (ignore) return;
         apply(data);
+
+        // Op het thuisscherm gekozen bestanden. Eenmalig ophalen, ook onder
+        // StrictMode, want takeFiles leegt de lijst.
+        const handed = takeFiles();
+
         if (data.transcript.length === 0 && !opened.current) {
           opened.current = true;
-          void runTurnRef.current({});
+          await runTurnRef.current({});
+        }
+
+        // Na de openingsbeurt en niet ernaast: twee gelijktijdige schrijvers op
+        // dezelfde transcriptie leveren een gesprek op waarin de begroeting
+        // onder de bestandsbubbel staat.
+        if (handed.length > 0 && !ignore) {
+          await uploadFilesRef.current(handed);
         }
       })
       .catch((caught: unknown) => {
@@ -227,6 +262,7 @@ export function useIntakeChat() {
           },
         ]);
 
+        setTitle(turn.title);
         setCollecting(turn.collecting);
         setProgress(turn.progress);
         setCompleteness(turn.completeness);
@@ -320,17 +356,23 @@ export function useIntakeChat() {
   /**
    * Bestanden toevoegen vanuit het gesprek.
    *
+   * Toevoegen en niet laten lezen. Aan het eind hiervan staat er een bestand in
+   * de opslag met zijn paginatekst eruit, en verder niets: geen modelcall, geen
+   * voorstel, geen wijziging in het dossier. Dat gebeurt pas als de atleet op
+   * de knop in de bubbel drukt, zie readFile.
+   *
    * De bubbel komt er meteen bij, voordat er iets geupload is. Dat is geen
    * optimisme over de uitkomst maar over de volgorde: het bestand gaat eerst
-   * naar de opslag en pas daarna door het model, dus zelfs een mislukte
-   * verwerking laat het origineel staan. De bubbel blijft dan ook staan, met de
-   * melding erbij, in plaats van te verdwijnen alsof er niets gebeurd is.
+   * naar de opslag, dus zelfs een mislukte registratie laat het origineel
+   * staan. De bubbel blijft dan ook staan, met de melding erbij, in plaats van
+   * te verdwijnen alsof er niets gebeurd is.
    *
-   * Sequentieel per bestand. De modelcall is de bottleneck, en drie functies van
-   * vijf minuten naast elkaar maakt het geheel niet sneller maar wel fragieler.
+   * Sequentieel per bestand. Zonder modelcall is dit een stuk sneller dan
+   * vroeger, maar drie parallelle uploads maken het geheel niet sneller en wel
+   * fragieler.
    */
   const uploadFiles = useCallback(
-    async (files: FileList) => {
+    async (files: FileList | File[]) => {
       inFlight.current = true;
       setError(null);
       setNotice(null);
@@ -380,55 +422,40 @@ export function useIntakeChat() {
             .uploadToSignedUrl(signed.path, signed.token, file);
           if (upload.error) throw new Error(upload.error.message);
 
-          // Bytes staan er. Vanaf hier kan alleen het lezen nog mislukken.
+          // Bytes staan er. De server haalt er nu de paginatekst uit; dat is
+          // het enige dat nog kan mislukken.
           patch({ state: "processing" });
 
-          const result = await call<UploadResult>("/api/intake/documents", {
+          const result = await call<RegisterResult>("/api/intake/documents", {
             path: signed.path,
             filename: file.name,
             mimeType: file.type || "text/plain",
           });
 
-          // Al eerder aangeleverd. Dan hoort er geen tweede bestandsbubbel en
-          // geen tweede extractiekaart bij: het document staat er al een keer.
-          // De optimistische bubbel gaat er weer af en de server bepaalt wat er
+          // Al eerder aangeleverd. Dan hoort er geen tweede bestandsbubbel bij:
+          // het document staat er al een keer, gelezen of niet. De
+          // optimistische bubbel gaat er weer af en de server bepaalt wat er
           // staat. Wel iets zeggen, want anders lijkt het alsof de upload niets
           // deed en probeert iemand het nog een keer.
           if (result.duplicate) {
             setItems((current) => current.filter((item) => item.id !== localId));
             await load();
-            setNotice(t("duplicateDocument", { filename: file.name }));
+            setNotice(
+              result.alreadyRead
+                ? t("alreadyReadDocument", { filename: file.name })
+                : t("duplicateDocument", { filename: file.name }),
+            );
             continue;
           }
 
+          // En hier stopt het. Het bestand ligt klaar; of er iets uit komt
+          // beslist de atleet.
           patch({
-            state: "read",
+            state: "unread",
             documentId: result.documentId,
             documentKind: result.kind,
             pageCount: result.pageCount,
           });
-
-          setItems((current) => [
-            ...current,
-            {
-              kind: "extraction",
-              id: `local-ext-${result.documentId}-${Date.now()}`,
-              at: new Date().toISOString(),
-              documentId: result.documentId,
-              filename: file.name,
-              cards: result.cards,
-              fieldsProposed: result.fieldsProposed,
-              quotesVerified: result.quotesVerified,
-            },
-          ]);
-
-          setCollecting(result.collecting);
-          setProgress(result.progress);
-          setCompleteness(result.completeness);
-
-          inFlight.current = false;
-          await runTurn({ nudge: "document_uploaded" });
-          inFlight.current = true;
         } catch (caught) {
           patch({
             state: "failed",
@@ -439,12 +466,107 @@ export function useIntakeChat() {
 
       inFlight.current = false;
     },
-    [runTurn, load, t, tError],
+    [load, t, tError],
+  );
+
+  useEffect(() => {
+    uploadFilesRef.current = uploadFiles;
+  }, [uploadFiles]);
+
+  /**
+   * Een binnengehaald document alsnog laten lezen.
+   *
+   * Dit is de handeling waar het dossier van kan veranderen, en daarom is het
+   * een aparte functie met een eigen knop erachter. Alles ervoor (uploaden,
+   * paginatekst) is omkeerbaar in de zin dat het niets beweert; vanaf hier
+   * staan er voorstellen in het dossier.
+   *
+   * Faalt het, dan gaat de bubbel op 'failed' met de melding erbij. Het bestand
+   * blijft staan, dus opnieuw proberen is een kwestie van nog eens drukken:
+   * lib/intake/processDocument.ts behandelt een document met een fout als
+   * ongelezen.
+   */
+  const readFile = useCallback(
+    async (documentId: string) => {
+      inFlight.current = true;
+      setError(null);
+      setNotice(null);
+
+      const patch = (changes: Partial<Extract<TranscriptItem, { kind: "document" }>>) =>
+        setItems((current) =>
+          current.map((item) =>
+            item.kind === "document" && item.documentId === documentId
+              ? { ...item, ...changes }
+              : item,
+          ),
+        );
+
+      patch({ state: "processing" });
+
+      try {
+        const result = await call<ReadResult>(
+          `/api/intake/documents/${documentId}/read`,
+          {},
+        );
+
+        patch({
+          state: "read",
+          documentKind: result.kind,
+          pageCount: result.pageCount,
+        });
+
+        // Een document dat al gelezen bleek te zijn levert geen tweede
+        // extractiekaart op; de eerste staat er al. De tellingen in de bubbel
+        // kloppen wel, die komen uit de databank.
+        if (!result.duplicate) {
+          setItems((current) => {
+            // De naam staat in de bubbel die er al is, en niet in het antwoord
+            // van de server: die kent het bestand, niet hoe het hier heet.
+            const bubble = current.find(
+              (item): item is Extract<TranscriptItem, { kind: "document" }> =>
+                item.kind === "document" && item.documentId === documentId,
+            );
+
+            return [
+              ...current,
+              {
+                kind: "extraction",
+                id: `local-ext-${result.documentId}-${Date.now()}`,
+                at: new Date().toISOString(),
+                documentId: result.documentId,
+                filename: bubble?.filename ?? "",
+                cards: result.cards,
+                fieldsProposed: result.fieldsProposed,
+                quotesVerified: result.quotesVerified,
+              },
+            ];
+          });
+        }
+
+        setTitle(result.title);
+        setCollecting(result.collecting);
+        setProgress(result.progress);
+        setCompleteness(result.completeness);
+
+        inFlight.current = false;
+        await runTurn({ nudge: "document_read" });
+        inFlight.current = true;
+      } catch (caught) {
+        patch({
+          state: "failed",
+          error: caught instanceof Error && caught.message ? caught.message : tError("generic"),
+        });
+      } finally {
+        inFlight.current = false;
+      }
+    },
+    [runTurn, tError],
   );
 
   return {
     items,
     intakeId,
+    title,
     collecting,
     progress,
     completeness,
@@ -455,6 +577,7 @@ export function useIntakeChat() {
     error,
     send,
     uploadFiles,
+    readFile,
     confirmField,
     editField,
     notice,

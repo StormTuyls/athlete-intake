@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useLocale } from "next-intl";
 import { toLocale } from "@/lib/i18n/locale";
 import { dayKey, dividerLabel } from "@/lib/intake/format";
@@ -22,13 +22,23 @@ import type { TranscriptItem } from "@/lib/intake/transcriptTypes";
 export function Transcript({
   items,
   busy,
+  intro,
   onConfirm,
   onEdit,
+  onRead,
 }: {
   items: TranscriptItem[];
   busy: boolean;
+  /**
+   * Staat boven het eerste bericht en scrollt gewoon mee weg. Meegegeven en
+   * niet hier geimporteerd: de lijst rendert wat er in de transcriptie zit, en
+   * de uitleg zit daar juist niet in.
+   */
+  intro?: ReactNode;
   onConfirm?: (fieldKey: string) => Promise<void>;
   onEdit?: (fieldKey: string, value: string) => Promise<void>;
+  /** Een binnengehaald document alsnog laten lezen. */
+  onRead?: (documentId: string) => void;
 }) {
   const locale = toLocale(useLocale());
   const bottom = useRef<HTMLDivElement>(null);
@@ -70,6 +80,8 @@ export function Transcript({
       aria-live="polite"
       className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
     >
+      {intro}
+
       {rows.map(({ item, showDivider }) => {
         return (
           <div key={item.id} className="flex flex-col gap-3">
@@ -107,6 +119,13 @@ export function Transcript({
                 quotesVerified={
                   item.documentId
                     ? extractionByDocument.get(item.documentId)?.quotesVerified
+                    : undefined
+                }
+                onRead={
+                  // Geen id betekent dat de upload nog loopt en de server het
+                  // bestand nog niet kent. Dan is er niets om te lezen.
+                  item.documentId && onRead
+                    ? () => onRead(item.documentId as string)
                     : undefined
                 }
               />

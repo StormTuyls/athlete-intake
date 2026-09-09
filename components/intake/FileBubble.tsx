@@ -15,11 +15,16 @@ import type { DocumentState } from "@/lib/intake/transcriptTypes";
  * zekerheid suggereren die de betrouwbaarheidsregels moeten voorkomen. Wat er
  * staat is wat waar is: hoe groot, welk soort, en hoeveel citaten geverifieerd
  * zijn.
+ *
+ * Een bestand dat nog niet gelezen is draagt de knop waarmee dat gebeurt. Die
+ * staat hier en niet ergens centraal onderaan het gesprek, omdat de keuze per
+ * document is: drie scans neerleggen en er twee laten lezen hoort te kunnen.
  */
 
 /** De toestand van een upload, als berichtsleutel. */
 const STATE_KEY: Record<DocumentState, string> = {
   uploading: "uploading",
+  unread: "unread",
   processing: "processing",
   read: "read",
   failed: "failed",
@@ -63,6 +68,7 @@ export function FileBubble({
   error,
   quotesVerified,
   fieldsProposed,
+  onRead,
   className,
 }: {
   filename: string;
@@ -74,6 +80,11 @@ export function FileBubble({
   /** Alleen bekend zodra het document gelezen is. */
   quotesVerified?: number;
   fieldsProposed?: number;
+  /**
+   * Dit document laten lezen. Weggelaten zolang de server het nog niet kent,
+   * want dan is er geen id om te lezen.
+   */
+  onRead?: () => void;
   className?: string;
 }) {
   const t = useTranslations("intake");
@@ -113,6 +124,22 @@ export function FileBubble({
           <p className="mt-1 text-xs text-danger">
             {error} ({t("documentKept")})
           </p>
+        )}
+
+        {/* De knop is de hele reden dat 'unread' een eigen toestand is. Met de
+            zin erboven, want "Dit document lezen" alleen zegt niet dat er tot
+            dat moment niets met het bestand gebeurt. */}
+        {state === "unread" && onRead && (
+          <div className="mt-2">
+            <p className="text-xs text-ink-faint">{t("unreadHint")}</p>
+            <button
+              type="button"
+              onClick={onRead}
+              className="mt-1.5 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-700"
+            >
+              {t("readDocument")}
+            </button>
+          </div>
         )}
       </div>
     </div>

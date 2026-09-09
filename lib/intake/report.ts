@@ -50,24 +50,32 @@ export interface AthleteReport {
   attention: ReportValue[];
 }
 
-/** Null als deze intake niet van deze atleet is. Geen reden, geen verschil met "bestaat niet". */
-export async function loadAthleteReport(input: {
-  intakeId: string;
-  athleteId: string;
-}): Promise<AthleteReport | null> {
-  const { data: intake } = await appDb()
-    .from("intakes")
-    .select("id, athlete_id, status, started_at, submitted_at, locale")
-    .eq("id", input.intakeId)
-    .maybeSingle();
+/**
+ * Het dossier per sectie, met per veld wat eruit gekomen is.
+ *
+ * Los van loadAthleteReport omdat er twee dingen op leunen: het rapport dat de
+ * atleet opent, en het paneel naast het gesprek op een breed scherm. Beide
+ * horen hetzelfde te tonen; twee opbouwers zouden vroeg of laat een veld
+ * anders tellen dan de ander, en dan staat er in het paneel iets anders dan in
+ * het rapport van dezelfde intake.
+ */
+export interface DossierView {
+  sections: ReportSection[];
+  /** Wat nog nagekeken moet worden: leeg terwijl het verplicht is, of tegenstrijdig. */
+  attention: ReportValue[];
+  requiredFilled: number;
+  requiredTotal: number;
+  documents: Array<{ filename: string; failed: boolean }>;
+}
 
-  if (!intake || intake.athlete_id !== input.athleteId) return null;
-
-  const locale = (intake.locale as "nl" | "en") ?? "en";
+export async function dossierView(
+  intakeId: string,
+  locale: "nl" | "en",
+): Promise<DossierView> {
   const [state, proposals, documents] = await Promise.all([
-    syncDossier(input.intakeId, locale),
-    getProposals(input.intakeId),
-    listDocuments(input.intakeId),
+    syncDossier(intakeId, locale),
+    getProposals(intakeId),
+    listDocuments(intakeId),
   ]);
 
   const proposalById = new Map(proposals.map((p) => [p.id, p]));
@@ -123,17 +131,38 @@ export async function loadAthleteReport(input: {
   }
 
   return {
-    intakeId: input.intakeId,
-    status: intake.status as string,
-    startedAt: (intake.started_at as string | null) ?? null,
-    submittedAt: (intake.submitted_at as string | null) ?? null,
     sections: [...sections.values()],
+    attention,
+    requiredFilled: state.completeness.requiredFilled,
+    requiredTotal: state.completeness.requiredTotal,
     documents: documents.map((document) => ({
       filename: document.originalFilename,
       failed: Boolean(document.processingError),
     })),
-    requiredFilled: state.completeness.requiredFilled,
-    requiredTotal: state.completeness.requiredTotal,
-    attention,
+  };
+}
+
+/** Null als deze intake niet van deze atleet is. Geen reden, geen verschil met "bestaat niet". */
+export async function loadAthleteReport(input: {
+  intakeId: string;
+  athleteId: string;
+}): Promise<AthleteReport | null> {
+  const { data: intake } = await appDb()
+    .from("intakes")
+    .select("id, athlete_id, status, started_at, submitted_at, locale")
+    .eq("id", input.intakeId)
+    .maybeSingle();
+
+  if (!intake || intake.athlete_id !== input.athleteId) return null;
+
+  const locale = (intake.locale as "nl" | "en") ?? "en";
+  const view = await dossierView(input.intakeId, locale);
+
+  return {
+    intakeId: input.intakeId,
+    status: intake.status as string,
+    startedAt: (intake.started_at as string | null) ?? null,
+    submittedAt: (intake.submitted_at as string | null) ?? null,
+    ...view,
   };
 }

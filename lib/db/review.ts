@@ -5,6 +5,11 @@ import { listDocuments, readLatestReport, type DocumentSummary } from "@/lib/db/
 import { logAudit } from "@/lib/audit";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { resolveInjuryTimeline, type TimelineEntry } from "@/lib/dossier/timeline";
+import {
+  formatIntakeTitleOrNull,
+  titleFromRow,
+  type BodySide,
+} from "@/lib/intake/title";
 import type { Proposal, ResolvedField } from "@/lib/types";
 
 /**
@@ -148,26 +153,36 @@ export interface IntakeListRow {
 /**
  * Het label van een intake: de blessure, of anders de pijnlocatie.
  *
- * Zijde alleen als hij bekend is, en de diagnose alleen als hij kort genoeg is
- * om een titel te zijn. Een lijstregel die over twee regels valt is geen titel
- * meer.
+ * De afleiding zelf staat in lib/intake/title.ts en wordt gedeeld met het
+ * thuisscherm van de atleet. Hier stond een eigen versie, met een andere
+ * volgorde en met het ruwe enumwoord voor de zijde ("right", ook in een
+ * Nederlandse interface). Dan noemen de coach en de atleet hetzelfde dossier
+ * anders, en dat merk je pas in een gesprek waarin ze langs elkaar heen praten.
+ *
+ * De woorden zijn hier Engels omdat het coachscherm dat is; het thuisscherm
+ * geeft dezelfde functie zijn eigen vertalingen mee.
  */
+const COACH_SIDE_LABELS: Record<Exclude<BodySide, "unknown">, string> = {
+  left: "left",
+  right: "right",
+  bilateral: "both sides",
+};
+
 function intakeLabel(row: {
   injury_region: string | null;
   injury_side: string | null;
   injury_diagnosis: string | null;
   pain_location: string | null;
 }): string | null {
-  if (row.injury_region) {
-    const side =
-      row.injury_side && row.injury_side !== "unknown" ? ` ${row.injury_side}` : "";
-    const diagnosis =
-      row.injury_diagnosis && row.injury_diagnosis.length <= 60
-        ? ` · ${row.injury_diagnosis}`
-        : "";
-    return `${row.injury_region}${side}${diagnosis}`;
-  }
-  return row.pain_location?.trim() || null;
+  return formatIntakeTitleOrNull(
+    titleFromRow({
+      bodyRegion: row.injury_region,
+      side: (row.injury_side as BodySide | null) ?? null,
+      diagnosis: row.injury_diagnosis,
+      painLocation: row.pain_location,
+    }),
+    COACH_SIDE_LABELS,
+  );
 }
 
 export async function listIntakesForCoach(): Promise<IntakeListRow[]> {
