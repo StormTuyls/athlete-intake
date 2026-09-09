@@ -247,5 +247,23 @@ De atleet heeft nu ook een account: aanmelden met e-mail en wachtwoord op `/star
 thuisscherm op `/home` met de lopende intake, de voortgang per sectie en eerdere intakes. Een intake
 hangt aan dat account, dus het capability-cookie alleen is niet meer genoeg om er een te openen.
 
-Nog te doen: retentiejob, verwijderingspad, goedkeuren door de coach en de meertalige UI. Zie
-[docs/plan.md](docs/plan.md).
+De retentiejob, het verwijderingspad, het goedkeuren door de coach en de tweetalige UI staan er
+inmiddels ook. De scope van fase 1 is daarmee gebouwd, met drie punten die nog open staan en die geen
+code zijn:
+
+- **De testset bestaat alleen uit synthetische documenten.** Het harnas staat er
+  ([evals/README.md](evals/README.md)), maar `evals/fixtures/real/` is leeg. De cijfers in de tabel
+  hierboven komen van drie zelfgemaakte fixtures. Kwaliteitsborging op echte documenten vraagt
+  klantmateriaal en kan dus pas bij de praktijk zelf.
+- **Het uploadpad is nooit tegen productie gedraaid.** Wel doorlopen op productie: registreren,
+  consent, het gesprek, hervatten, het coachscherm en verwijderen. Niet: een document uploaden, de
+  extractie, de citaatverificatie, goedkeuren en het rapport. Zie punt 5 in
+  [docs/oplevering.md](docs/oplevering.md).
+- **`consents.withdrawn_at` wordt door niets geschreven.** Een intrekking eindigt in de praktijk als
+  een purge, en er is geen apart intrekkingsregister. De atleet heeft ook geen eigen verwijderknop:
+  het verzoek loopt via de praktijk. Beide zijn een bewuste keuze, geen omissie, maar wie iets anders
+  verwacht komt bedrogen uit.
+
+Wat er verder open staat is operationeel en niet technisch (de plannen bij Supabase en Vercel, de
+service-role-sleutel, previews die naar de productiedatabank wijzen). Dat staat op volgorde in
+[docs/oplevering.md](docs/oplevering.md). Voor de scope en de milestones: [docs/plan.md](docs/plan.md).
