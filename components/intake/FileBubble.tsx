@@ -1,5 +1,7 @@
+"use client";
+
 import { cn } from "@/lib/cn";
-import { intake } from "@/lib/intake/copy";
+import { useTranslations } from "next-intl";
 import { formatBytes } from "@/lib/intake/uploads";
 import { FileIcon } from "@/components/intake/icons";
 import type { DocumentState } from "@/lib/intake/transcriptTypes";
@@ -68,6 +70,7 @@ export function FileBubble({
   fieldsProposed?: number;
   className?: string;
 }) {
+  const t = useTranslations("intake");
   const meta = [
     formatBytes(byteSize),
     kindLabel(documentKind, mimeType),
@@ -101,7 +104,7 @@ export function FileBubble({
         <p className="mt-0.5 text-xs text-ink-muted">{meta.join(" · ")}</p>
         {error && (
           <p className="mt-1 text-xs text-danger">
-            {error} ({intake.documentKept})
+            {error} ({t("documentKept")})
           </p>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
-import { chat } from "@/lib/intake/copy";
+import { useTranslations } from "next-intl";
 import { ACCEPT_ATTRIBUTE } from "@/lib/intake/uploads";
 import { ArrowUpIcon, PlusIcon } from "@/components/intake/icons";
 
@@ -32,6 +32,7 @@ export function Composer({
   disabled?: boolean;
   className?: string;
 }) {
+  const t = useTranslations("chat");
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [rowsHeight, setRowsHeight] = useState<number>();
@@ -78,7 +79,7 @@ export function Composer({
           type="button"
           onClick={() => fileInput.current?.click()}
           disabled={disabled}
-          aria-label={chat.addFile}
+          aria-label={t("addFile")}
           className="flex size-10 shrink-0 items-center justify-center rounded-chip ring-1 ring-hairline ring-inset text-ink-muted transition-colors hover:bg-canvas disabled:opacity-40"
         >
           <PlusIcon className="size-5" />
@@ -95,7 +96,7 @@ export function Composer({
               if (canSend) onSubmit();
             }
           }}
-          placeholder={chat.placeholder}
+          placeholder={t("placeholder")}
           disabled={disabled}
           enterKeyHint="send"
           style={{ height: rowsHeight }}
@@ -105,7 +106,7 @@ export function Composer({
         <button
           type="submit"
           disabled={!canSend}
-          aria-label={chat.send}
+          aria-label={t("send")}
           className="flex size-10 shrink-0 items-center justify-center rounded-chip bg-brand-600 text-white transition-colors hover:bg-brand-700 disabled:bg-ink-faint disabled:opacity-40"
         >
           <ArrowUpIcon className="size-5" />

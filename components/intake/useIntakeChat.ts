@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
-import { errors, intake } from "@/lib/intake/copy";
+import { useTranslations } from "next-intl";
 import type {
   CaptureCard,
   Collecting,
@@ -75,11 +75,19 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error ?? errors.generic);
+  // Geen standaardmelding hier: dit is een hulpfunctie op moduleniveau en die
+  // kan geen hook gebruiken. De aanroepplekken vullen de terugvaltekst in, en
+  // die zitten in het component waar de taal wel bekend is.
+  if (!response.ok) throw new Error(payload.error ?? "");
   return payload as T;
 }
 
 export function useIntakeChat() {
+  // Een hook en geen component, dus de teksten komen hier binnen via
+  // useTranslations en niet als argument: dat houdt de aanroepplek in
+  // ChatScreen leeg en er is maar één plek waar deze meldingen vandaan komen.
+  const t = useTranslations("intake");
+  const tError = useTranslations("errors");
   const [items, setItems] = useState<TranscriptItem[]>([]);
   const [collecting, setCollecting] = useState<Collecting | null>(null);
   const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
@@ -123,10 +131,10 @@ export function useIntakeChat() {
     try {
       apply(await call<TranscriptResponse>("/api/intake/transcript"));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : errors.generic);
+      setError(caught instanceof Error && caught.message ? caught.message : tError("generic"));
       setLoading(false);
     }
-  }, [apply]);
+  }, [apply, tError]);
 
   /**
    * Ophalen bij mount, en alleen daarna beslissen of de assistent moet openen.
@@ -154,14 +162,14 @@ export function useIntakeChat() {
       })
       .catch((caught: unknown) => {
         if (ignore) return;
-        setError(caught instanceof Error ? caught.message : errors.generic);
+        setError(caught instanceof Error && caught.message ? caught.message : tError("generic"));
         setLoading(false);
       });
 
     return () => {
       ignore = true;
     };
-  }, [apply]);
+  }, [apply, tError]);
 
   /**
    * Terugkomen op het tabblad haalt de transcriptie opnieuw op.
@@ -223,7 +231,7 @@ export function useIntakeChat() {
         setProgress(turn.progress);
         setCompleteness(turn.completeness);
       } catch (caught) {
-        const message = caught instanceof Error ? caught.message : errors.generic;
+        const message = caught instanceof Error && caught.message ? caught.message : tError("generic");
 
         // De beurt is mislukt, dus het scherm mag niet raden wat er wel is
         // opgeslagen. De server weet het; opnieuw ophalen dus.
@@ -239,7 +247,7 @@ export function useIntakeChat() {
         inFlight.current = false;
       }
     },
-    [load],
+    [load, tError],
   );
 
   useEffect(() => {
@@ -389,7 +397,7 @@ export function useIntakeChat() {
           if (result.duplicate) {
             setItems((current) => current.filter((item) => item.id !== localId));
             await load();
-            setNotice(intake.duplicateDocument(file.name));
+            setNotice(t("duplicateDocument", { filename: file.name }));
             continue;
           }
 
@@ -424,14 +432,14 @@ export function useIntakeChat() {
         } catch (caught) {
           patch({
             state: "failed",
-            error: caught instanceof Error ? caught.message : errors.generic,
+            error: caught instanceof Error && caught.message ? caught.message : tError("generic"),
           });
         }
       }
 
       inFlight.current = false;
     },
-    [runTurn, load],
+    [runTurn, load, t, tError],
   );
 
   return {

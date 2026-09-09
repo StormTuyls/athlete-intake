@@ -6,5 +6,59 @@
   },
   "toggle": {
     "label": "Choose language"
+  },
+  "chat": {
+    "title": "Intake assistant",
+    "back": "Back",
+    "collecting": "Collecting: {section}",
+    "collectingIdle": "All questions answered",
+    "collectingReady": "Ready to send",
+    "openReport": "See what has been collected so far",
+    "today": "Today",
+    "fieldCaptured": "Field captured",
+    "placeholder": "Type your answer...",
+    "send": "Send",
+    "addFile": "Add a document",
+    "thinking": "The assistant is typing",
+    "confirm": "Confirm",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirmField": "Confirm {label}",
+    "editField": "Edit {label}",
+    "finish": "Finish intake",
+    "progressLabel": "{sectionsDone} of {sectionsTotal} sections done, {required} of {requiredTotal} required fields complete"
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "fileKept": "The file is kept, nothing was lost"
+  },
+  "sharing": {
+    "title": "Before you send this to your coach",
+    "body": "May your physiotherapist or sports physician receive a summary of this intake in the secure workspace they use? Without this, your medical details stay with your coach only, and your practitioner sees just your contact details.",
+    "share": "Share with my practitioner",
+    "keep": "Keep it with my coach only",
+    "note": "You can change this later by asking your coach."
+  },
+  "intake": {
+    "title": "Intake",
+    "intro": "Send us what you already have. The assistant reads it and only asks about what is still missing.",
+    "fieldsKnown": "{filled} of {total} fields known",
+    "requiredCount": "{filled}/{total} required",
+    "conflicts": "{count, plural, one {1 contradiction between your documents. The assistant will ask you which value is right.} other {# contradictions between your documents. The assistant will ask you which values are right.}}",
+    "documents": "Documents",
+    "documentsHint": "Medical reports, scans, your training plan, test results, screenshots or a WhatsApp export. PDF, JPEG, PNG, text or CSV.",
+    "documentFailed": "processing failed",
+    "documentKept": "the file is kept",
+    "documentSummary": "{fields, plural, one {1 field found} other {# fields found}}, {verified} with a verified quote",
+    "injuriesFound": "{count, plural, one {1 injury} other {# injuries}}",
+    "toQuestions": "Continue to the questions",
+    "answerPlaceholder": "Your answer",
+    "sendAnswer": "Send",
+    "submitted": "Submitted",
+    "submittedBody": "Your coach will review your file and get in touch. The documents you sent stay stored alongside the data taken from them.",
+    "submittedNotion": "A follow-up task and an invoice line were created for your coach.",
+    "notComplete": "not complete yet",
+    "duplicateDocument": "You already sent {filename}, so nothing was read again. What it contained is above."
   }
 }

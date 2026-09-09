@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ChatScreen } from "@/components/intake/ChatScreen";
-import { errors, intake } from "@/lib/intake/copy";
+import { useTranslations } from "next-intl";
 
 /**
  * De intake zoals de atleet hem doorloopt.
@@ -31,6 +31,8 @@ interface Completeness {
 }
 
 export function IntakeFlow() {
+  const t = useTranslations("intake");
+  const tError = useTranslations("errors");
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -71,16 +73,16 @@ export function IntakeFlow() {
         body: JSON.stringify({ share }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? intake.notComplete);
+      if (!response.ok) throw new Error(payload.error ?? t("notComplete"));
 
       setNotionCreated(payload.notion?.created ?? null);
       setDone(true);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : errors.generic);
+      setError(caught instanceof Error && caught.message ? caught.message : tError("generic"));
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [t, tError]);
 
   // Niets tonen zolang niet vaststaat of dit een lopend of een ingediend
   // dossier is. Het gesprek laten opflitsen boven een ingediende intake leest
@@ -90,10 +92,10 @@ export function IntakeFlow() {
   if (done) {
     return (
       <main className="mx-auto max-w-[30rem] px-6 py-16">
-        <h1 className="text-xl font-semibold tracking-tight">{intake.submitted}</h1>
-        <p className="mt-3 text-sm text-ink-muted">{intake.submittedBody}</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t("submitted")}</h1>
+        <p className="mt-3 text-sm text-ink-muted">{t("submittedBody")}</p>
         {notionCreated && (
-          <p className="mt-3 text-xs text-ink-faint">{intake.submittedNotion}</p>
+          <p className="mt-3 text-xs text-ink-faint">{t("submittedNotion")}</p>
         )}
         <a
           href="/home"

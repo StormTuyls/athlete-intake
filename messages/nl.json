@@ -6,5 +6,59 @@
   },
   "toggle": {
     "label": "Taal kiezen"
+  },
+  "chat": {
+    "title": "Intake-assistent",
+    "back": "Terug",
+    "collecting": "Bezig met: {section}",
+    "collectingIdle": "Alle vragen beantwoord",
+    "collectingReady": "Klaar om te versturen",
+    "openReport": "Bekijk wat er tot nu toe verzameld is",
+    "today": "Vandaag",
+    "fieldCaptured": "Gegeven opgeslagen",
+    "placeholder": "Typ je antwoord...",
+    "send": "Versturen",
+    "addFile": "Document toevoegen",
+    "thinking": "De assistent typt",
+    "confirm": "Klopt",
+    "edit": "Aanpassen",
+    "save": "Bewaren",
+    "cancel": "Annuleren",
+    "confirmField": "{label} bevestigen",
+    "editField": "{label} aanpassen",
+    "finish": "Intake afronden",
+    "progressLabel": "{sectionsDone} van {sectionsTotal} onderdelen klaar, {required} van {requiredTotal} verplichte velden ingevuld"
+  },
+  "errors": {
+    "generic": "Er ging iets mis",
+    "fileKept": "Het bestand is bewaard, er is niets verloren"
+  },
+  "sharing": {
+    "title": "Voordat je dit naar je coach stuurt",
+    "body": "Mag je kinesist of sportarts een samenvatting van deze intake krijgen in de beveiligde omgeving die hij gebruikt? Zonder dit blijven je medische gegevens bij je coach, en ziet je behandelaar alleen je contactgegevens.",
+    "share": "Delen met mijn behandelaar",
+    "keep": "Alleen bij mijn coach houden",
+    "note": "Je kunt dit later laten aanpassen via je coach."
+  },
+  "intake": {
+    "title": "Intake",
+    "intro": "Stuur ons wat je al hebt. De assistent leest het en vraagt alleen naar wat nog ontbreekt.",
+    "fieldsKnown": "{filled} van {total} gegevens bekend",
+    "requiredCount": "{filled}/{total} verplicht",
+    "conflicts": "{count, plural, one {1 tegenstrijdigheid tussen je documenten. De assistent vraagt je welke waarde klopt.} other {# tegenstrijdigheden tussen je documenten. De assistent vraagt je welke waarden kloppen.}}",
+    "documents": "Documenten",
+    "documentsHint": "Medische verslagen, scans, je trainingsschema, testresultaten, screenshots of een WhatsApp-export. PDF, JPEG, PNG, tekst of CSV.",
+    "documentFailed": "verwerken mislukt",
+    "documentKept": "het bestand is bewaard",
+    "documentSummary": "{fields, plural, one {1 gegeven gevonden} other {# gegevens gevonden}}, {verified} met een geverifieerd citaat",
+    "injuriesFound": "{count, plural, one {1 blessure} other {# blessures}}",
+    "toQuestions": "Verder naar de vragen",
+    "answerPlaceholder": "Je antwoord",
+    "sendAnswer": "Versturen",
+    "submitted": "Verstuurd",
+    "submittedBody": "Je coach kijkt je dossier na en neemt contact op. De documenten die je stuurde blijven bewaard naast de gegevens die eruit gehaald zijn.",
+    "submittedNotion": "Er is een opvolgactie en een factuurregel voor je coach aangemaakt.",
+    "notComplete": "nog niet volledig",
+    "duplicateDocument": "Je stuurde {filename} al eerder, dus er is niets opnieuw gelezen. Wat erin stond staat hierboven."
   }
 }
