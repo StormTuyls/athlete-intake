@@ -1,12 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "unbound intake",
-  description: "AI-guided intake assistant for athlete support",
-  // Geen indexering: de intake is per definitie niet publiek vindbaar.
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("app");
+
+  return {
+    title: t("title"),
+    description: t("description"),
+    // Geen indexering: de intake is per definitie niet publiek vindbaar.
+    robots: { index: false, follow: false },
+  };
+}
 
 /**
  * De schermen zijn mobile-first, dus de viewport moet kloppen.
@@ -22,14 +28,24 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 
-export default function RootLayout({
+/**
+ * De provider staat hier en niet per pagina, omdat clientcomponenten diep in de
+ * boom zitten (het chatscherm, het coachdossier) en die allemaal bij dezelfde
+ * berichten moeten kunnen. `lang` volgt dezelfde taal: een schermlezer die de
+ * verkeerde taal aanneemt spreekt Nederlandse namen als Engelse woorden uit.
+ */
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
+
   return (
-    <html lang="en">
-      <body className="antialiased">{children}</body>
+    <html lang={locale}>
+      <body className="antialiased">
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      </body>
     </html>
   );
 }

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const nextConfig: NextConfig = {
   // Medische data: geen bronmaps in productiebundels.
@@ -12,4 +13,12 @@ const nextConfig: NextConfig = {
   devIndicators: false,
 };
 
-export default nextConfig;
+/**
+ * next-intl zonder [locale]-segment.
+ *
+ * De plugin doet één ding dat we nodig hebben: hij legt de alias
+ * `next-intl/config` naar ./i18n/request.ts, zodat getTranslations en
+ * NextIntlClientProvider weten waar de berichten staan. Geen middleware, geen
+ * routing: de taal is hier een kolom en geen URL. Zie lib/i18n/locale.ts.
+ */
+export default createNextIntlPlugin()(nextConfig);
