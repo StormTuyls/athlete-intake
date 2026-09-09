@@ -59,14 +59,16 @@ export const OPENING_NUDGE: Record<Locale, string> = {
  * Een vaste lijst en geen vrije tekst uit de client: die zou de prompt kunnen
  * schrijven. De sleutel komt van de client, de tekst staat hier.
  */
-export const NUDGES: Record<Locale, { document_uploaded: string }> = {
+export const NUDGES: Record<Locale, { document_read: string }> = {
   nl: {
-    document_uploaded:
-      "Ik heb net een document geupload. Bevestig kort wat je eruit hebt gehaald en stel dan de volgende openstaande vraag.",
+    // Heette document_uploaded, en dat klopte niet meer sinds uploaden en lezen
+    // twee handelingen zijn: deze beurt volgt op het lezen, niet op de upload.
+    document_read:
+      "Ik heb je net gevraagd een document te lezen. Bevestig kort wat je eruit hebt gehaald en stel dan de volgende openstaande vraag.",
   },
   en: {
-    document_uploaded:
-      "I have just uploaded a document. Briefly confirm what you took from it, then ask the next open question.",
+    document_read:
+      "I have just asked you to read a document. Briefly confirm what you took from it, then ask the next open question.",
   },
 };
 

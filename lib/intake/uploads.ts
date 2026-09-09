@@ -22,6 +22,19 @@ export const ACCEPTED_MIME_TYPES = [
 
 export const ACCEPT_ATTRIBUTE = ACCEPTED_MIME_TYPES.join(",");
 
+/**
+ * Smallere lijsten voor de drie tegels op het thuisscherm.
+ *
+ * Een tegel die "Screenshot" heet en dan alles aanbiedt is geen snelkoppeling
+ * maar dezelfde keuze met een ander label. Deze lijsten zijn deelverzamelingen
+ * van ACCEPTED_MIME_TYPES, want de deur weigert alles wat daar niet in staat.
+ */
+export const ACCEPT_BY_TILE = {
+  screenshot: "image/jpeg,image/png,image/webp",
+  pdf: "application/pdf",
+  whatsapp: "text/plain",
+} as const satisfies Record<string, string>;
+
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 /**

@@ -3,25 +3,22 @@ import { apiMessages } from "@/lib/i18n/server";
 import { listDocuments } from "@/lib/db/medical";
 import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
-import { processDocument } from "@/lib/intake/processDocument";
-import { getProposals, syncDossier } from "@/lib/db/dossier";
-import {
-  cardsForDocument,
-  collectingFrom,
-  computeProgress,
-} from "@/lib/intake/transcript";
+import { registerDocument } from "@/lib/intake/processDocument";
 import { logAudit } from "@/lib/audit";
 
-/** Verwerking van een gescande PDF met veel pagina's duurt langer dan een pagina. */
-export const maxDuration = 300;
+/**
+ * Tekst uit een PDF met veel pagina's halen duurt langer dan uit een pagina.
+ * Wel korter dan vroeger: de modelcall zit hier niet meer in.
+ */
+export const maxDuration = 120;
 
 /**
- * Een geupload bestand registreren en verwerken.
+ * Een geupload bestand registreren.
  *
- * Verwerking gebeurt synchroon: de atleet ziet direct wat eruit gehaald is, en
- * dat is precies het moment waarop hij een ontbrekend document nog kan
- * aanleveren. Bij grotere volumes hoort dit naar een wachtrij, maar dan verliest
- * de intake zijn directe terugkoppeling.
+ * Registreren en niet verwerken. Er komt hier geen modelcall aan te pas en er
+ * verschijnt geen enkel voorstel in het dossier; het bestand ligt klaar en de
+ * atleet beslist daarna zelf of het gelezen wordt. Zie de uitleg boven
+ * lib/intake/processDocument.ts, en POST .../[documentId]/read voor stap twee.
  */
 export async function POST(request: Request) {
   try {
@@ -48,41 +45,14 @@ export async function POST(request: Request) {
       return badRequest(t("notThisIntake"));
     }
 
-    const result = await processDocument({
+    const result = await registerDocument({
       intakeId: session.intakeId,
       storagePath: body.path,
       originalFilename: body.filename,
       mimeType: body.mimeType,
     });
 
-    // Het gesprek toont het resultaat meteen als kaarten. Die hier meegeven
-    // scheelt een tweede ronde, en belangrijker: ze komen uit dezelfde bouwer
-    // als de transcriptie, dus wat de atleet nu ziet is wat hij na een reload
-    // opnieuw ziet.
-    const state = await syncDossier(session.intakeId, session.locale);
-    const proposals = await getProposals(session.intakeId);
-
-    const extraction = cardsForDocument(
-      result.documentId,
-      proposals,
-      new Map(state.definitions.map((d) => [d.key, d])),
-      state.resolved,
-      new Map(proposals.map((p) => [p.id, p])),
-      session.locale,
-    );
-
-    return NextResponse.json({
-      ...result,
-      cards: extraction.cards,
-      completeness: state.completeness,
-      collecting: collectingFrom(state.gaps, session.locale),
-      progress: computeProgress(
-        state.definitions,
-        state.gaps,
-        state.completeness.requiredFilled,
-        state.completeness.requiredTotal,
-      ),
-    });
+    return NextResponse.json(result);
   } catch (error) {
     return handleError(error);
   }

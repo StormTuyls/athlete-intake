@@ -66,7 +66,11 @@
     "submittedBody": "Your coach will review your file and get in touch. The documents you sent stay stored alongside the data taken from them.",
     "submittedNotion": "A follow-up task and an invoice line were created for your coach.",
     "notComplete": "not complete yet",
-    "duplicateDocument": "You already sent {filename}, so nothing was read again. What it contained is above."
+    "duplicateDocument": "You already sent {filename}, so nothing was read again. What it contained is above.",
+    "readDocument": "Read this document",
+    "readingDocument": "Reading",
+    "unreadHint": "Not read yet. Nothing enters your record until you tap this.",
+    "alreadyReadDocument": "You sent {filename} before and I already read it then. What was in it is above."
   },
   "sections": {
     "athlete": {
@@ -156,7 +160,8 @@
     "processing": "reading",
     "read": "read",
     "failed": "could not be read",
-    "quotesVerified": "{verified} of {total} quotes verified"
+    "quotesVerified": "{verified} of {total} quotes verified",
+    "unread": "not read yet"
   },
   "extraction": {
     "nothingFound": "I read {filename}, but I could not find any details to add. You can tell me instead.",

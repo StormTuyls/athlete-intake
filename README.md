@@ -21,6 +21,11 @@ De server verifieert dat het citaat echt in dat document staat. Een regel bepaal
 betrouwbaarheidsniveau. De coach keurt goed en bevriest een versie. Het rapport komt uit dat
 bevroren snapshot, niet uit een live modelcall.
 
+Uploaden is daarom ook niet hetzelfde als aanleveren. Een bestand dat binnenkomt ligt klaar en wordt
+niet gelezen; er gaat pas een modelcall overheen als de atleet dat per document vraagt. Zo is een
+stapel scans neerleggen en er dan twee uit kiezen een normale handeling in plaats van een correctie
+achteraf.
+
 Daarmee is "de professional beslist" een eigenschap van het systeem in plaats van een belofte in een
 document. En de betrouwbaarheidsindicatie is controleerbaar in plaats van een niet-gekalibreerd
 getal dat het model over zichzelf rapporteert.
@@ -36,6 +41,7 @@ getal dat het model over zichzelf rapporteert.
 ```
 browser -> signed upload URL -> Supabase Storage (ruw bestand, permanent, onaangeroerd)
         -> tekstextractie per pagina (nodig voor citaatverificatie)
+        -- hier stopt het tot de atleet zegt "lees dit" --
         -> Claude-extractie per document, structured output met provenance per veld
         -> citaatverificatie server-side -> quote_verified
         -> merge in dossier, conflictdetectie

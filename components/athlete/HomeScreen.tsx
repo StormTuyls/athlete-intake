@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -16,6 +16,8 @@ import {
   PdfIcon,
 } from "@/components/athlete/icons";
 import { formatIntakeTitle } from "@/lib/intake/title";
+import { ACCEPT_BY_TILE } from "@/lib/intake/uploads";
+import { stashFiles } from "@/lib/intake/handoff";
 import type { HomeData, HomeIntake } from "@/lib/intake/home";
 
 /**
@@ -34,6 +36,19 @@ import type { HomeData, HomeIntake } from "@/lib/intake/home";
  */
 
 type T = ReturnType<typeof useTranslations<"home">>;
+
+/**
+ * De drie tegels. De sleutel is tegelijk de berichtsleutel en de sleutel in
+ * ACCEPT_BY_TILE, zodat een vierde tegel toevoegen niet op drie plekken hoeft.
+ */
+const TILES = [
+  { key: "screenshot", Icon: ImageIcon },
+  { key: "pdf", Icon: PdfIcon },
+  { key: "whatsapp", Icon: ChatIcon },
+] as const satisfies ReadonlyArray<{
+  key: keyof typeof ACCEPT_BY_TILE;
+  Icon: (props: { className?: string }) => React.ReactElement;
+}>;
 
 function greeting(t: T): string {
   const hour = new Date().getHours();
@@ -81,10 +96,20 @@ export function HomeScreen({ data }: { data: HomeData }) {
     fallback: tTitle("fallback"),
   };
   const router = useRouter();
+  const pickers = useRef<Partial<Record<(typeof TILES)[number]["key"], HTMLInputElement | null>>>(
+    {},
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function open() {
+  /**
+   * De intake openen of hervatten, eventueel met bestanden in de hand.
+   *
+   * De bestanden gaan niet vanaf hier de deur uit. Ze worden doorgegeven aan
+   * het gesprek, en dat uploadt ze langs het pad dat er al is, met de
+   * bestandsbubbel en de voortgang op de plek waar de atleet ze verwacht.
+   */
+  async function openWith(files?: File[]) {
     setBusy(true);
     setError(null);
     try {
@@ -96,12 +121,18 @@ export function HomeScreen({ data }: { data: HomeData }) {
       if (!response.ok) {
         throw new Error((await response.json()).error ?? t("couldNotStart"));
       }
+      // Pas nadat de intake er is. Klapt de aanroep hierboven, dan blijft de
+      // atleet hier staan en mogen er geen bestanden klaarstaan voor een
+      // scherm dat hij nooit te zien krijgt.
+      if (files?.length) stashFiles(files);
       router.push("/intake");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("couldNotStart"));
       setBusy(false);
     }
   }
+
+  const open = () => openWith();
 
   const progress = data.inProgress;
 
@@ -211,29 +242,48 @@ export function HomeScreen({ data }: { data: HomeData }) {
         </section>
       )}
 
-      {/* Quick add: hetzelfde doel als de + in het gesprek, en dus dezelfde
-          route. Openen en dan uploaden, in plaats van een tweede uploadpad dat
-          los van het gesprek zijn eigen fouten kan maken. */}
+      {/* Quick add: een echte bestandskiezer per tegel, en dan door naar het
+          gesprek. De upload zelf gebeurt daar, langs hetzelfde pad als de + in
+          de invoerbalk: een tweede uploadpad naast het eerste zou zijn eigen
+          fouten kunnen maken. Wat er NIET gebeurt is lezen. Het bestand ligt
+          straks klaar in het gesprek met een knop erbij; tot die knop
+          ingedrukt wordt komt er niets in het dossier. */}
       <section className="mt-6">
         <SectionLabel>{t("quickAdd")}</SectionLabel>
         <div className="mt-2 grid grid-cols-3 gap-2">
-          {[
-            { label: t("screenshot"), Icon: ImageIcon },
-            { label: t("pdf"), Icon: PdfIcon },
-            { label: t("whatsapp"), Icon: ChatIcon },
-          ].map(({ label, Icon }) => (
+          {TILES.map(({ key, Icon }) => (
             <button
-              key={label}
+              key={key}
               type="button"
-              onClick={() => void open()}
+              onClick={() => pickers.current[key]?.click()}
               disabled={busy}
               className="flex flex-col items-center gap-1.5 rounded-card bg-surface px-2 py-3 shadow-card ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas disabled:opacity-50"
             >
               <Icon className="size-5 text-ink-muted" />
-              <span className="text-xs text-ink">{label}</span>
+              <span className="text-xs text-ink">{t(key)}</span>
             </button>
           ))}
         </div>
+
+        {TILES.map(({ key }) => (
+          <input
+            key={key}
+            ref={(element) => {
+              pickers.current[key] = element;
+            }}
+            type="file"
+            multiple
+            accept={ACCEPT_BY_TILE[key]}
+            className="hidden"
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              // Leegmaken, anders vuurt hetzelfde bestand twee keer kiezen geen
+              // change meer.
+              event.target.value = "";
+              if (files.length > 0) void openWith(files);
+            }}
+          />
+        ))}
       </section>
 
       <section className="mt-6">

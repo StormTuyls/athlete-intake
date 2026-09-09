@@ -7,7 +7,7 @@ loadEnv();
 
 import { appDb, storage, DOCUMENTS_BUCKET } from "../lib/supabase/service";
 import { newToken } from "../lib/intake/session";
-import { processDocument } from "../lib/intake/processDocument";
+import { readDocument, registerDocument } from "../lib/intake/processDocument";
 import { syncDossier } from "../lib/db/dossier";
 import { purgeAthleteRows } from "../lib/purge/db";
 
@@ -60,12 +60,16 @@ async function main() {
       .upload(path, readFileSync(`${FIXTURES}/${file}`), { contentType: mimeType });
     if (upload.error) throw new Error(upload.error.message);
 
-    const result = await processDocument({
+    // Twee stappen, zoals de app ze ook doet: binnenhalen en dan lezen. In de
+    // app zit de atleet ertussen; hier niet, want een eval hoort de hele
+    // pijplijn te draaien.
+    const registered = await registerDocument({
       intakeId,
       storagePath: path,
       originalFilename: file,
       mimeType,
     });
+    const result = await readDocument({ intakeId, documentId: registered.documentId });
     console.log(`${file}: ${result.fieldsProposed} velden, ${result.quotesVerified} citaten geverifieerd`);
   }
 

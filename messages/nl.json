@@ -66,7 +66,11 @@
     "submittedBody": "Je coach kijkt je dossier na en neemt contact op. De documenten die je stuurde blijven bewaard naast de gegevens die eruit gehaald zijn.",
     "submittedNotion": "Er is een opvolgactie en een factuurregel voor je coach aangemaakt.",
     "notComplete": "nog niet volledig",
-    "duplicateDocument": "Je stuurde {filename} al eerder, dus er is niets opnieuw gelezen. Wat erin stond staat hierboven."
+    "duplicateDocument": "Je stuurde {filename} al eerder, dus er is niets opnieuw gelezen. Wat erin stond staat hierboven.",
+    "readDocument": "Dit document lezen",
+    "readingDocument": "Bezig met lezen",
+    "unreadHint": "Nog niet gelezen. Er komt niets in je dossier tot je hierop tikt.",
+    "alreadyReadDocument": "Je stuurde {filename} al eerder en ik heb het toen al gelezen. Wat erin stond staat hierboven."
   },
   "sections": {
     "athlete": {
@@ -156,7 +160,8 @@
     "processing": "lezen",
     "read": "gelezen",
     "failed": "kon niet gelezen worden",
-    "quotesVerified": "{verified} van {total} citaten geverifieerd"
+    "quotesVerified": "{verified} van {total} citaten geverifieerd",
+    "unread": "nog niet gelezen"
   },
   "extraction": {
     "nothingFound": "Ik heb {filename} gelezen, maar er stonden geen gegevens in die ik kan toevoegen. Je kunt het me ook zelf vertellen.",

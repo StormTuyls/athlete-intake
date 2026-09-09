@@ -25,6 +25,7 @@ export function Transcript({
   intro,
   onConfirm,
   onEdit,
+  onRead,
 }: {
   items: TranscriptItem[];
   busy: boolean;
@@ -36,6 +37,8 @@ export function Transcript({
   intro?: ReactNode;
   onConfirm?: (fieldKey: string) => Promise<void>;
   onEdit?: (fieldKey: string, value: string) => Promise<void>;
+  /** Een binnengehaald document alsnog laten lezen. */
+  onRead?: (documentId: string) => void;
 }) {
   const locale = toLocale(useLocale());
   const bottom = useRef<HTMLDivElement>(null);
@@ -116,6 +119,13 @@ export function Transcript({
                 quotesVerified={
                   item.documentId
                     ? extractionByDocument.get(item.documentId)?.quotesVerified
+                    : undefined
+                }
+                onRead={
+                  // Geen id betekent dat de upload nog loopt en de server het
+                  // bestand nog niet kent. Dan is er niets om te lezen.
+                  item.documentId && onRead
+                    ? () => onRead(item.documentId as string)
                     : undefined
                 }
               />

@@ -61,7 +61,20 @@ export interface Progress {
   requiredTotal: number;
 }
 
-export type DocumentState = "uploading" | "processing" | "read" | "failed";
+/**
+ * De toestanden van een bestand in het gesprek.
+ *
+ * 'unread' is de belangrijke: het bestand staat in de opslag, de paginatekst is
+ * eruit, en er is nog geen modelcall geweest. Dat is een eindtoestand en geen
+ * tussenstap; er gebeurt niets meer tenzij de atleet erom vraagt. 'processing'
+ * betekent dat hij dat gedaan heeft en dat het model bezig is.
+ */
+export type DocumentState =
+  | "uploading"
+  | "unread"
+  | "processing"
+  | "read"
+  | "failed";
 
 export type TranscriptItem =
   | { kind: "assistant"; id: string; at: string; text: string }

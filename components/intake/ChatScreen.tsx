@@ -52,6 +52,7 @@ export function ChatScreen({
         intro={<IntroCard />}
         onConfirm={state.confirmField}
         onEdit={state.editField}
+        onRead={(documentId) => void state.readFile(documentId)}
       />
 
       {state.notice && (
