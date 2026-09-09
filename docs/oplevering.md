@@ -139,6 +139,17 @@ UI een "kijk in je mailbox"-toestand bouwen tussen registreren en het intakegesp
 het project, inclusief `site_url = "http://127.0.0.1:3000"` en de localhost-redirects, en dat is op
 een klantproject een grotere ingreep dan het probleem.
 
+**Zet in hetzelfde bezoek aan het dashboard "Leaked password protection" aan** (Authentication >
+Policies, of Password settings). Dat is de enige overgebleven bevinding van `supabase db advisors`.
+Behandelaars en atleten loggen met een wachtwoord in, en Supabase kan dat gratis tegen
+HaveIBeenPwned houden. Voor toegang tot een medisch dossier is dat het soort standaardmaatregel dat
+je niet wil hoeven verantwoorden dat je hem niet aan had staan.
+
+De rest van de linter is schoon. Er stond nog een `function_search_path_mutable` op
+`private.reject_mutation()`, de trigger die `public.audit_log` append-only houdt; die is opgelost in
+`20260909075206_harden_reject_mutation_search_path.sql`, en daarna is nagerekend dat de trigger nog
+steeds weigert.
+
 ### Moet gebeuren voordat de klant het gebruikt
 
 1. **Supabase staat op het Free-plan.** Een gratis project wordt gepauzeerd na zeven dagen zonder
