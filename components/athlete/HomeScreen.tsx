@@ -137,7 +137,7 @@ export function HomeScreen({ data }: { data: HomeData }) {
   const progress = data.inProgress;
 
   return (
-    <main className="mx-auto min-h-dvh max-w-[30rem] bg-canvas px-4 pt-6 pb-10">
+    <main className="mx-auto min-h-dvh max-w-[30rem] bg-canvas px-4 pt-6 pb-10 lg:shadow-card lg:ring-1 lg:ring-hairline">
       <header className="flex items-start justify-between px-1">
         <div>
           <SectionLabel>{greeting(t)}</SectionLabel>

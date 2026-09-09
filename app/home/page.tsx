@@ -39,5 +39,9 @@ export default async function HomePage() {
     locale,
   });
 
-  return <HomeScreen data={data} />;
+  return (
+    <div className="lg:min-h-dvh lg:bg-backdrop">
+      <HomeScreen data={data} />
+    </div>
+  );
 }

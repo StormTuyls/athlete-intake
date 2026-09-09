@@ -34,7 +34,10 @@
     "confirmField": "{label} bevestigen",
     "editField": "{label} aanpassen",
     "finish": "Intake afronden",
-    "progressLabel": "{sectionsDone} van {sectionsTotal} onderdelen klaar, {required} van {requiredTotal} verplichte velden ingevuld"
+    "progressLabel": "{sectionsDone} van {sectionsTotal} onderdelen klaar, {required} van {requiredTotal} verplichte velden ingevuld",
+    "panelTitle": "Je dossier",
+    "panelEmpty": "Zodra je iets vertelt of een document laat lezen, verschijnt het hier.",
+    "panelConflicts": "{count, plural, one {1 tegenstrijdigheid} other {# tegenstrijdigheden}}"
   },
   "errors": {
     "generic": "Er ging iets mis",

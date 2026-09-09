@@ -91,7 +91,7 @@ export function IntakeFlow() {
 
   if (done) {
     return (
-      <main className="mx-auto max-w-[30rem] px-6 py-16">
+      <main className="mx-auto max-w-[30rem] px-6 py-16 lg:min-h-dvh">
         <h1 className="text-xl font-semibold tracking-tight">{t("submitted")}</h1>
         <p className="mt-3 text-sm text-ink-muted">{t("submittedBody")}</p>
         {notionCreated && (
@@ -107,5 +107,9 @@ export function IntakeFlow() {
     );
   }
 
-  return <ChatScreen onSubmit={submit} externalError={error} submitting={busy} />;
+  return (
+    <div className="lg:min-h-dvh lg:bg-backdrop">
+      <ChatScreen onSubmit={submit} externalError={error} submitting={busy} />
+    </div>
+  );
 }

@@ -34,7 +34,10 @@
     "confirmField": "Confirm {label}",
     "editField": "Edit {label}",
     "finish": "Finish intake",
-    "progressLabel": "{sectionsDone} of {sectionsTotal} sections done, {required} of {requiredTotal} required fields complete"
+    "progressLabel": "{sectionsDone} of {sectionsTotal} sections done, {required} of {requiredTotal} required fields complete",
+    "panelTitle": "Your record",
+    "panelEmpty": "As soon as you tell me something or have a document read, it appears here.",
+    "panelConflicts": "{count, plural, one {1 contradiction} other {# contradictions}}"
   },
   "errors": {
     "generic": "Something went wrong",
