@@ -3,6 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { monthName } from "@/lib/intake/format";
+import { toLocale, type Locale } from "@/lib/i18n/locale";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { cn } from "@/lib/cn";
 import { SectionLabel } from "@/components/intake/SectionLabel";
@@ -30,34 +33,43 @@ import type { HomeData, HomeIntake } from "@/lib/intake/home";
  * berekenen is hoe een voortgangsbalk gaat liegen.
  */
 
-function greeting(): string {
+type T = ReturnType<typeof useTranslations<"home">>;
+
+function greeting(t: T): string {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return t("goodMorning");
+  if (hour < 18) return t("goodAfternoon");
+  return t("goodEvening");
 }
 
 /** Alleen de voornaam in de kop, zoals in het ontwerp. */
-function firstName(name: string | null): string {
-  if (!name) return "there";
+function firstName(name: string | null, t: T): string {
+  if (!name) return t("fallbackName");
   return name.split(/\s+/)[0];
 }
 
-function statusText(intake: HomeIntake): string {
-  if (intake.status === "approved") return "Reviewed by your coach";
-  if (intake.status === "in_review") return "With your coach";
-  return "Complete · sent to coach";
+function statusText(intake: HomeIntake, t: T): string {
+  if (intake.status === "approved") return t("statusApproved");
+  if (intake.status === "in_review") return t("statusInReview");
+  return t("statusComplete");
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function shortDate(iso: string | null): string {
+/**
+ * "8 aug" bij een intake in de lijst.
+ *
+ * Gebruikt de maandnamen uit lib/intake/format.ts in plaats van een eigen
+ * lijstje: dit scherm had er een tweede, en dan staat dezelfde maand in de
+ * transcriptie anders dan in het overzicht.
+ */
+function shortDate(iso: string | null, locale: Locale): string {
   if (!iso) return "";
   const date = new Date(iso);
-  return `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+  return `${date.getDate()} ${monthName(date.getMonth(), locale)}`;
 }
 
 export function HomeScreen({ data }: { data: HomeData }) {
+  const t = useTranslations("home");
+  const locale = toLocale(useLocale());
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,11 +84,11 @@ export function HomeScreen({ data }: { data: HomeData }) {
       // intake.
       const response = await fetch("/api/intake", { method: "POST" });
       if (!response.ok) {
-        throw new Error((await response.json()).error ?? "could not start");
+        throw new Error((await response.json()).error ?? t("couldNotStart"));
       }
       router.push("/intake");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "could not start");
+      setError(caught instanceof Error ? caught.message : t("couldNotStart"));
       setBusy(false);
     }
   }
@@ -87,9 +99,9 @@ export function HomeScreen({ data }: { data: HomeData }) {
     <main className="mx-auto min-h-dvh max-w-[30rem] bg-canvas px-4 pt-6 pb-10">
       <header className="flex items-start justify-between px-1">
         <div>
-          <SectionLabel>{greeting()}</SectionLabel>
+          <SectionLabel>{greeting(t)}</SectionLabel>
           <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-ink">
-            {firstName(data.displayName)}
+            {firstName(data.displayName, t)}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -99,7 +111,7 @@ export function HomeScreen({ data }: { data: HomeData }) {
               type="submit"
               className="rounded-chip px-2.5 py-1 text-label uppercase text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-surface"
             >
-              Sign out
+              {t("signOut")}
             </button>
           </form>
           <span
@@ -113,13 +125,12 @@ export function HomeScreen({ data }: { data: HomeData }) {
 
       {/* De teal kaart uit het ontwerp: de enige echte actie op dit scherm. */}
       <section className="mt-6 rounded-card bg-brand-600 p-4 text-white">
-        <SectionLabel className="text-white/70">AI intake assistant</SectionLabel>
+        <SectionLabel className="text-white/70">{t("assistant")}</SectionLabel>
         <h2 className="mt-1.5 text-lg font-semibold tracking-tight">
-          {progress ? "Continue your intake" : "Start a new intake"}
+          {progress ? t("continueTitle") : t("startTitle")}
         </h2>
         <p className="mt-1.5 text-sm text-white/85">
-          Chat about your symptoms, pain and history. Upload scans or reports and
-          the assistant does the rest.
+          {t("startBody")}
         </p>
         <button
           type="button"
@@ -127,7 +138,7 @@ export function HomeScreen({ data }: { data: HomeData }) {
           disabled={busy}
           className="mt-3.5 flex items-center gap-1.5 rounded-md bg-white/15 px-3.5 py-2 text-sm font-medium ring-1 ring-white/25 ring-inset transition-colors hover:bg-white/25 disabled:opacity-50"
         >
-          {busy ? "Opening" : progress ? "Continue" : "Begin"}
+          {busy ? t("opening") : progress ? t("continue") : t("begin")}
           {!busy && <ArrowRightIcon className="size-4" />}
         </button>
       </section>
@@ -143,7 +154,7 @@ export function HomeScreen({ data }: { data: HomeData }) {
           <div className="flex items-baseline justify-between gap-2">
             <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
               <span className="size-1.5 rounded-chip bg-warn" aria-hidden />
-              Intake in progress
+              {t("inProgress")}
             </span>
             <span className="text-xs tabular-nums text-ink-muted">
               {progress.sectionsDone} / {progress.sectionsTotal}
@@ -175,8 +186,8 @@ export function HomeScreen({ data }: { data: HomeData }) {
           <div className="mt-2.5 flex items-baseline justify-between gap-2">
             <span className="truncate text-xs text-ink-muted">
               {progress.nextSection
-                ? `Next: ${progress.nextSection.toLowerCase()}`
-                : "All questions answered"}
+                ? t("next", { section: progress.nextSection.toLowerCase() })
+                : t("allAnswered")}
             </span>
             <button
               type="button"
@@ -184,7 +195,7 @@ export function HomeScreen({ data }: { data: HomeData }) {
               disabled={busy}
               className="shrink-0 text-xs font-medium text-brand-600 disabled:opacity-50"
             >
-              Continue
+              {t("continue")}
             </button>
           </div>
         </section>
@@ -194,12 +205,12 @@ export function HomeScreen({ data }: { data: HomeData }) {
           route. Openen en dan uploaden, in plaats van een tweede uploadpad dat
           los van het gesprek zijn eigen fouten kan maken. */}
       <section className="mt-6">
-        <SectionLabel>Quick add</SectionLabel>
+        <SectionLabel>{t("quickAdd")}</SectionLabel>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {[
-            { label: "Screenshot", Icon: ImageIcon },
-            { label: "PDF", Icon: PdfIcon },
-            { label: "WhatsApp", Icon: ChatIcon },
+            { label: t("screenshot"), Icon: ImageIcon },
+            { label: t("pdf"), Icon: PdfIcon },
+            { label: t("whatsapp"), Icon: ChatIcon },
           ].map(({ label, Icon }) => (
             <button
               key={label}
@@ -216,7 +227,7 @@ export function HomeScreen({ data }: { data: HomeData }) {
       </section>
 
       <section className="mt-6">
-        <SectionLabel>Recent</SectionLabel>
+        <SectionLabel>{t("recent")}</SectionLabel>
         {data.recent.length === 0 ? (
           <p className="mt-2 text-sm text-ink-faint">
             Nothing here yet. Your finished intakes will appear in this list.
@@ -232,14 +243,14 @@ export function HomeScreen({ data }: { data: HomeData }) {
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
                     <span className="size-1.5 rounded-chip bg-brand-600" aria-hidden />
-                    Intake
+                    {t("intake")}
                   </span>
                   <span className="mt-0.5 block text-xs text-ink-muted">
-                    {statusText(intake)}
+                    {statusText(intake, t)}
                   </span>
                 </span>
                 <span className="shrink-0 text-xs text-ink-faint">
-                  {shortDate(intake.submittedAt ?? intake.startedAt)}
+                  {shortDate(intake.submittedAt ?? intake.startedAt, locale)}
                 </span>
                 </Link>
               </li>

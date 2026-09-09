@@ -2,7 +2,7 @@ import { appDb } from "@/lib/supabase/service";
 import { listDocuments } from "@/lib/db/medical";
 import { getProposals, syncDossier } from "@/lib/db/dossier";
 import { formatValue } from "@/lib/intake/format";
-import { sectionLabel } from "@/lib/intake/copy";
+import { sectionLabel } from "@/lib/intake/sections";
 
 /**
  * Het intakerapport zoals de ATLEET het ziet.
@@ -114,7 +114,7 @@ export async function loadAthleteReport(input: {
     } else {
       sections.set(definition.section, {
         key: definition.section,
-        label: sectionLabel(definition.section),
+        label: sectionLabel(definition.section, locale),
         values: [entry],
         filled: !missing && !conflicting ? 1 : 0,
         total: 1,

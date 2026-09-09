@@ -154,7 +154,7 @@ export async function POST(request: Request) {
         session.locale,
       ),
       completeness: after.completeness,
-      collecting: collectingFrom(after.gaps),
+      collecting: collectingFrom(after.gaps, session.locale),
       progress: computeProgress(
         after.definitions,
         after.gaps,

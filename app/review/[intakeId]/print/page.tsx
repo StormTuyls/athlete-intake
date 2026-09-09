@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { getLocale } from "next-intl/server";
+import { toLocale } from "@/lib/i18n/locale";
 import { ensureFrozenReport, getReport } from "@/lib/report/freeze";
 import { checkCoach, isIntakeId } from "@/lib/review/access";
 import { ReportDocument } from "@/components/review/ReportDocument";
@@ -91,6 +93,7 @@ export default async function PrintPage({
         snapshot={report.snapshot}
         version={report.version}
         practiceName={PRACTICE_NAME}
+        locale={toLocale(await getLocale())}
       />
     </>
   );

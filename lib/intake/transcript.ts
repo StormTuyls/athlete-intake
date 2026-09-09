@@ -2,7 +2,7 @@ import { appDb } from "@/lib/supabase/service";
 import { listDocuments } from "@/lib/db/medical";
 import { getProposals, syncDossier } from "@/lib/db/dossier";
 import { formatValue } from "@/lib/intake/format";
-import { sectionLabel } from "@/lib/intake/copy";
+import { sectionLabel } from "@/lib/intake/sections";
 import type {
   CaptureCard,
   Collecting,
@@ -84,7 +84,7 @@ export function buildCard(
     fieldKey: definition.key,
     label: locale === "nl" ? definition.labelNl : definition.labelEn,
     section: definition.section,
-    sectionLabel: sectionLabel(definition.section),
+    sectionLabel: sectionLabel(definition.section, locale),
     // De huidige waarde, niet de waarde van het voorstel. Een kaart die een
     // achterhaalde waarde toont terwijl het dossier iets anders zegt is erger
     // dan een kaart die meebeweegt.
@@ -223,9 +223,14 @@ export function computeProgress(
  * die een paar velden invult verspringt het onderwerp, en dan hoort de kop mee
  * te verspringen in plaats van te blijven staan op wat er net gevraagd werd.
  */
-export function collectingFrom(gaps: Array<{ section: string }>): Collecting | null {
+export function collectingFrom(
+  gaps: Array<{ section: string }>,
+  locale: "nl" | "en",
+): Collecting | null {
   const first = gaps[0];
-  return first ? { section: first.section, label: sectionLabel(first.section) } : null;
+  return first
+    ? { section: first.section, label: sectionLabel(first.section, locale) }
+    : null;
 }
 
 const SOURCE_RANK = { message: 0, capture: 1, document: 2, extraction: 3 } as const;
@@ -374,7 +379,7 @@ export async function buildTranscript(
   return {
     intakeId,
     transcript: items,
-    collecting: collectingFrom(state.gaps),
+    collecting: collectingFrom(state.gaps, locale),
     progress: computeProgress(
       state.definitions,
       state.gaps,

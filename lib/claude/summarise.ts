@@ -1,5 +1,5 @@
 import { anthropic, MODEL } from "@/lib/claude/client";
-import { label } from "@/lib/dossier/labels";
+import { enumLabel } from "@/lib/dossier/enumLabels";
 import type { FieldDefinition, ResolvedField } from "@/lib/types";
 
 /**
@@ -128,7 +128,9 @@ export async function clinicalSummary(input: {
     }
 
     const shown =
-      definition.dataType === "enum" ? label(field.value) : JSON.stringify(field.value);
+      definition.dataType === "enum"
+        ? enumLabel(definition.key, field.value)
+        : JSON.stringify(field.value);
 
     facts.push(`${definition.labelNl}: ${shown}${marker}`);
   }

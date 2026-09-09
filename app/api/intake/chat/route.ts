@@ -171,7 +171,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       reply: turn.reply,
       captured: cards,
-      collecting: collectingFrom(after.gaps),
+      collecting: collectingFrom(after.gaps, session.locale),
       progress: computeProgress(
         after.definitions,
         after.gaps,

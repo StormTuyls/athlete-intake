@@ -1,3 +1,5 @@
+import { sectionLabel } from "@/lib/intake/sections";
+import type { Locale } from "@/lib/i18n/locale";
 import type { ReportSnapshot, SnapshotField } from "@/lib/report/snapshot";
 import { toSummaryBlocks } from "@/lib/report/summaryBlocks";
 
@@ -13,15 +15,6 @@ import { toSummaryBlocks } from "@/lib/report/summaryBlocks";
  * kosten, geen kaartschaduwen die op papier grijs worden.
  */
 
-const SECTION_LABELS: Record<string, string> = {
-  consent: "Consent",
-  identity: "Identity and administration",
-  biometrics: "Body measurements",
-  training: "Training and competition",
-  medical_history: "Medical history",
-  current_status: "Current status and goals",
-  uploads: "Material provided",
-};
 
 /** Wat er onder een waarde staat: waar hij vandaan komt en hoe hard hij is. */
 function provenanceLine(field: SnapshotField): string {
@@ -53,10 +46,18 @@ export function ReportDocument({
   snapshot,
   version,
   practiceName,
+  locale,
 }: {
   snapshot: ReportSnapshot;
   version: number;
   practiceName: string;
+  /**
+   * Als prop en niet uit de aanvraag. Dit component rendert een document, en
+   * een document dat zijn eigen taal uit de omgeving haalt is niet te
+   * hergebruiken buiten een render: gaat archiveren ooit via een headless
+   * browser of een worker, dan moet dit blijven werken.
+   */
+  locale: Locale;
 }) {
   const sections = [...new Set(snapshot.fields.map((f) => f.section))];
   const reference = snapshot.intake.id.slice(0, 8);
@@ -194,7 +195,7 @@ export function ReportDocument({
         return (
           <section key={section} className="mt-6">
             <h2 className="border-b border-hairline pb-1 text-label uppercase text-ink-faint">
-              {SECTION_LABELS[section] ?? section}
+              {sectionLabel(section, locale, "clinical")}
             </h2>
             <dl className="mt-2 space-y-2.5">
               {fields.map((field) => (

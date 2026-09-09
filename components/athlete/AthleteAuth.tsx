@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { createClient } from "@/lib/supabase/browser";
 import { PRACTICE_NAME } from "@/lib/report/branding";
@@ -73,7 +74,7 @@ export function AthleteAuth({
           body: JSON.stringify({ consented: true }),
         });
         if (!response.ok) {
-          throw new Error((await response.json()).error ?? "could not finish signing up");
+          throw new Error((await response.json()).error ?? t("signupFailed"));
         }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -81,7 +82,7 @@ export function AthleteAuth({
           password,
         });
         // Niet uitsplitsen welk deel fout was: dat vertelt of een adres bestaat.
-        if (signInError) throw new Error("Those details do not match an account.");
+        if (signInError) throw new Error(t("noMatch"));
       }
 
       // Taalvoorkeur uit het profiel in het cookie zetten. Een cookie hangt aan
@@ -100,6 +101,7 @@ export function AthleteAuth({
     }
   }
 
+  const t = useTranslations("auth");
   const label = "text-label uppercase text-night-muted";
   const field =
     "mt-1.5 w-full rounded-md border border-night-line bg-night-raised px-3.5 py-2.5 text-base text-night-ink outline-none placeholder:text-night-muted/60 focus-visible:border-brand-500";
@@ -118,13 +120,12 @@ export function AthleteAuth({
         </div>
 
         <h1 className="mt-8 text-2xl leading-tight font-semibold tracking-tight">
-          Structured intake,
+          {t("headline")}
           <br />
-          guided by AI.
+          {t("headlineSecond")}
         </h1>
         <p className="mt-2.5 text-sm text-night-muted">
-          Tell us how you feel. The assistant builds a complete, review-ready
-          record for your coach.
+          {t("intro")}
         </p>
 
         <form
@@ -135,27 +136,27 @@ export function AthleteAuth({
           className="mt-7"
         >
           <label className="block">
-            <span className={label}>Email</span>
+            <span className={label}>{t("email")}</span>
             <input
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               type="email"
               required
               autoComplete="email"
-              placeholder="you@example.com"
+              placeholder={t("emailPlaceholder")}
               className={field}
             />
           </label>
 
           <label className="mt-4 block">
             <span className="flex items-baseline justify-between">
-              <span className={label}>Password</span>
+              <span className={label}>{t("password")}</span>
               <button
                 type="button"
                 onClick={() => setShowPassword((value) => !value)}
                 className="text-xs font-medium text-brand-500"
               >
-                {showPassword ? "Hide" : "Show"}
+                {showPassword ? t("hide") : t("show")}
               </button>
             </span>
             <input
@@ -165,7 +166,7 @@ export function AthleteAuth({
               required
               minLength={8}
               autoComplete={mode === "register" ? "new-password" : "current-password"}
-              placeholder="At least 8 characters"
+              placeholder={t("passwordPlaceholder")}
               className={field}
             />
           </label>
@@ -188,8 +189,7 @@ export function AthleteAuth({
                 className="sr-only"
               />
               <span className="text-xs leading-relaxed text-night-muted">
-                I consent to my health data being processed for the purpose of this
-                intake. {retention}
+                {t("consent")} {retention}
               </span>
             </label>
           )}
@@ -201,7 +201,7 @@ export function AthleteAuth({
             disabled={!canSubmit}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-md bg-brand-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
           >
-            {busy ? "Working" : "Continue"}
+            {busy ? t("busy") : t("continue")}
             {!busy && <ArrowRightIcon className="size-4" />}
           </button>
         </form>
@@ -215,13 +215,13 @@ export function AthleteAuth({
           className="mt-5 text-center text-xs text-night-muted underline-offset-2 hover:underline"
         >
           {mode === "register"
-            ? "I already have an account"
-            : "I am new here"}
+            ? t("haveAccount")
+            : t("newHere")}
         </button>
 
         <footer className="mt-auto flex items-center justify-center gap-1.5 pt-10 text-xs text-night-muted">
           <LockIcon className="size-3.5" />
-          <span>GDPR-compliant · Auto-logout · Privacy</span>
+          <span>{t("footer")}</span>
         </footer>
       </div>
     </main>

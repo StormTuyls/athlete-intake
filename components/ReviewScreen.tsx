@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { label as enumLabel } from "@/lib/dossier/labels";
+import { useLocale } from "next-intl";
+import { translator } from "@/lib/i18n/translator";
+import { sectionLabel } from "@/lib/intake/sections";
+import { toLocale, type Locale } from "@/lib/i18n/locale";
+import { enumLabel } from "@/lib/dossier/enumLabels";
 import { ExportBar } from "@/components/review/ExportBar";
 import { FieldEditor } from "@/components/review/FieldEditor";
 
@@ -19,15 +23,6 @@ import { FieldEditor } from "@/components/review/FieldEditor";
  * iemand eruit concludeert, en zonder dat label vervaagt dat verschil.
  */
 
-const SECTION_LABELS: Record<string, string> = {
-  consent: "Toestemming",
-  identity: "Identiteit en administratie",
-  biometrics: "Biometrie",
-  training: "Training en wedstrijden",
-  medical_history: "Medische historiek",
-  current_status: "Huidige status en doelen",
-  uploads: "Aangeleverd materiaal",
-};
 
 const CONFIDENCE_STYLE: Record<string, string> = {
   high: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
@@ -130,15 +125,29 @@ interface ReviewData {
  * Enum-sleutels zijn stabiel maar niet leesbaar. "right" en "specific_prep"
  * horen niet op het scherm van een coach.
  */
-function show(value: unknown, dataType?: string): string {
+function show(
+  value: unknown,
+  locale: Locale,
+  dataType?: string,
+  fieldKey?: string,
+): string {
   if (value === null || value === undefined) return "-";
-  if (typeof value === "boolean") return value ? "ja" : "nee";
+  if (typeof value === "boolean") {
+    return translator(locale, "format")(value ? "yes" : "no");
+  }
   if (Array.isArray(value)) return value.join(", ");
-  if (dataType === "enum") return enumLabel(value);
+  // De veldsleutel hoort erbij: enum-labels zijn per veld, want 'other' en
+  // 'competition' komen in meer dan één enum voor.
+  if (dataType === "enum" && fieldKey) return enumLabel(fieldKey, value, locale);
   return String(value);
 }
 
 export function ReviewScreen({ intakeId }: { intakeId: string }) {
+  // De taal van de coach en niet die van de intake: wie tien dossiers per week
+  // nakijkt wil niet dat de kop van taal wisselt bij het openen van een dossier
+  // van een Engelstalige atleet. De waarden in het dossier blijven staan zoals
+  // ze opgeschreven zijn.
+  const locale = toLocale(useLocale());
   const [data, setData] = useState<ReviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
@@ -325,11 +334,11 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                 <span className="font-medium">{field.label}</span>
                 <div className="mt-1 space-y-1 text-xs">
                   <div>
-                    Gekozen kandidaat: <strong>{show(field.value, field.dataType)}</strong>
+                    Gekozen kandidaat: <strong>{show(field.value, locale, field.dataType, field.key)}</strong>
                   </div>
                   {field.conflicts.map((rival, index) => (
                     <div key={index} className="opacity-80">
-                      Ook gevonden: <strong>{show(rival.value, field.dataType)}</strong>
+                      Ook gevonden: <strong>{show(rival.value, locale, field.dataType, field.key)}</strong>
                       {rival.sourceQuote && (
                         <span className="opacity-70">
                           {" "}
@@ -416,7 +425,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
       {data.sections.map((section) => (
         <section key={section.section} className="mb-6">
           <h2 className="mb-2 text-sm font-medium">
-            {SECTION_LABELS[section.section] ?? section.section}
+            {sectionLabel(section.section, locale, "clinical")}
           </h2>
           <ul className="divide-y divide-black/5 dark:divide-white/10">
             {section.fields.map((field) => {
@@ -436,7 +445,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                       {field.required && <span className="text-red-600"> *</span>}
                     </span>
                     <span className={missing ? "opacity-40 sm:flex-1" : "sm:flex-1"}>
-                      {show(field.value, field.dataType)}
+                      {show(field.value, locale, field.dataType, field.key)}
                     </span>
                     <span className="flex flex-wrap items-baseline gap-3">
                     {!missing &&
@@ -505,7 +514,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                     <ul className="mt-2 space-y-1.5 text-xs opacity-75 sm:ml-52">
                       {field.proposals.map((proposal) => (
                         <li key={proposal.id}>
-                          <strong>{show(proposal.value, field.dataType)}</strong>
+                          <strong>{show(proposal.value, locale, field.dataType, field.key)}</strong>
                           <span className="opacity-70">
                             {" "}
                             · {proposal.proposedBy === "model" ? "uit document" : proposal.proposedBy === "athlete" ? "door atleet" : "door coach"}

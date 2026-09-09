@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       ...result,
       cards: extraction.cards,
       completeness: state.completeness,
-      collecting: collectingFrom(state.gaps),
+      collecting: collectingFrom(state.gaps, session.locale),
       progress: computeProgress(
         state.definitions,
         state.gaps,

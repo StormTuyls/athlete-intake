@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { translator } from "@/lib/i18n/translator";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 
 /**
  * De bewaartermijn, op één plek.
@@ -81,12 +83,10 @@ export function preConsentUntil(from: Date = new Date()): string {
  * staan als het waar is: bij RETENTION_MODE=indefinite is 24 maanden een
  * onjuiste mededeling in precies de tekst waar iemand toestemming voor geeft.
  */
-export function retentionSentence(): string {
+export function retentionSentence(locale: Locale = DEFAULT_LOCALE): string {
   const config = retentionConfig();
+  const t = translator(locale, "retention");
 
-  if (config.mode === "indefinite") {
-    return "Your record is kept for as long as your care continues, and can be deleted on request.";
-  }
-
-  return `Your record is retained for ${config.months} months and can be deleted on request.`;
+  if (config.mode === "indefinite") return t("indefinite");
+  return t("months", { months: config.months });
 }

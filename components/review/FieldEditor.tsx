@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { label as enumLabel } from "@/lib/dossier/labels";
+import { useLocale } from "next-intl";
+import { enumLabel } from "@/lib/dossier/enumLabels";
+import { toLocale } from "@/lib/i18n/locale";
 
 /**
  * Een veld corrigeren in het coachscherm, met een invoer die bij het type past.
@@ -52,6 +54,7 @@ export function FieldEditor({
   onSave: (value: string) => void;
   onCancel: () => void;
 }) {
+  const locale = toLocale(useLocale());
   const [value, setValue] = useState(() => initialValue(field));
 
   const input =
@@ -78,7 +81,7 @@ export function FieldEditor({
             <option value="">-</option>
             {field.enumOptions.map((option) => (
               <option key={option} value={option}>
-                {enumLabel(option)}
+                {enumLabel(field.key, option, locale)}
               </option>
             ))}
           </select>
