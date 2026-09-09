@@ -15,7 +15,7 @@ export async function generateMetadata() {
 
   return {
     title: t("report"),
-  robots: { index: false, follow: false },
+    robots: { index: false, follow: false },
   };
 }
 

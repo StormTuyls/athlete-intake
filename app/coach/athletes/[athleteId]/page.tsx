@@ -10,7 +10,7 @@ export async function generateMetadata() {
 
   return {
     title: t("athlete"),
-  robots: { index: false, follow: false },
+    robots: { index: false, follow: false },
   };
 }
 

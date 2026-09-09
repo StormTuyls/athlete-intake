@@ -9,7 +9,7 @@ export async function generateMetadata() {
 
   return {
     title: t("intake"),
-  robots: { index: false, follow: false },
+    robots: { index: false, follow: false },
   };
 }
 
