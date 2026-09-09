@@ -267,19 +267,67 @@ steeds weigert.
     pagina die met de integratie gedeeld is; dat script maakt de drie databases aan en geeft de id's
     terug voor `NOTION_ATHLETES_DB`, `NOTION_INVOICES_DB` en `NOTION_TASKS_DB`.
 
-12. **`PRACTICE_LOCALE` bestaat niet.** Die variabele stond in de opleverlijst maar wordt door geen
-    enkele regel code gelezen. De taal komt uit `profiles.locale` en `intakes.locale`. Er is dus niets
-    te configureren en niets stuk; de naam hoort uit de lijst.
+12. **`PRACTICE_LOCALE` bestaat wel, sinds de tweetaligheid.** Dit punt zei eerder dat de variabele
+    door geen enkele regel code gelezen werd, en dat was juist tot de tweetalige uitbreiding. Nu
+    bepaalt hij in welke taal de SAMENVATTINGEN geschreven worden, en alleen die. Standaard `nl`;
+    zet hem op `en` als de praktijk Engels leest. Zie `lib/report/branding.ts`.
+
+    De taal van de samenvatting volgt met opzet de praktijk en niet de intake: de atleet ziet nooit
+    een samenvatting, die bestaat voor de coach en de behandelaar. Zou hij de intake volgen, dan
+    leest een Vlaamse praktijk de helft van haar dossiers in het Engels omdat een paar atleten de
+    intake in het Engels invulden. Het houdt ook de vraag "welke tekst keurde de coach goed"
+    enkelvoudig.
+
+    Niet gezet in Vercel betekent `nl`, dus er gaat niets stuk, maar de naam hoort weer in de lijst.
 
 13. **Er is geen favicon.** `/favicon.ico` geeft een 404 en dat is de enige melding in de
     browserconsole op productie. Cosmetisch.
+
+## Talen
+
+De app is tweetalig, Nederlands en Engels, en de taal is geen URL-segment maar een gegeven. Drie
+lagen, in deze volgorde:
+
+1. **Expliciet per ding.** Het gesprek en alles wat eruit volgt gebruiken `intakes.locale`: de
+   assistent en de vastgelegde transcriptie moeten één taal spreken. Een bevroren rapport draagt
+   beide veldlabels, dus het is in beide talen te renderen zonder opnieuw te bevriezen.
+2. **Een cookie**, voor het renderen en voor alle meldingen. Eén leesactie, geen query. Een melding
+   hoort bij het scherm: de taal van een ingediende intake staat vast, terwijl de bezoeker daarna op
+   de taalknop kan hebben gedrukt.
+3. **De kolom bij de persoon** (`athletes.locale`, `profiles.locale`), alleen bij het inloggen
+   gelezen om het cookie te vullen. Een cookie hangt aan een browser, een voorkeur aan een mens.
+
+Wie geen cookie heeft krijgt Engels. Dat is een productbeslissing en geen technische: alle teksten
+bestaan in beide talen, dus `nl` zou ook kunnen. De databank heeft wel `default 'nl'` op de
+locale-kolommen, dus een atleet die een account maakt krijgt daarna zijn eigen voorkeur.
+
+De coach ziet zijn eigen taal en niet die van de intake. Wie tien dossiers per week nakijkt wil niet
+dat de kop en de veldlabels omslaan bij het openen van een dossier van een Engelstalige atleet.
+
+**Waar de teksten staan.** `messages/{nl,en}.json`, met `nl` als bron: dat bestand is de volledige
+lijst en het is ook het type in `types/i18n.d.ts`, dus een verkeerde sleutel is een compilefout.
+`evals/unit/i18n-keys.test.ts` houdt de twee gelijk, inclusief de ICU-plaatshouders en de
+meervoudsvormen. Dat is nodig omdat een ontbrekende sleutel terugvalt op de andere taal: goed voor
+uitleveren, maar het maakt een gat onzichtbaar.
+
+**Promptteksten staan er met opzet buiten.** Die zitten in `lib/claude/prompts/` als code, naast de
+evals die ze dekken. Het zijn specificaties: wie regel 4 van de chatprompt ("Leidt niets af")
+herformuleert verandert geen tekst maar gedrag, en dan staan er waarden in een dossier die niemand
+gezegd heeft. De extractieprompt blijft Nederlands en taalloos, want zijn uitvoer is gestructureerde
+JSON plus letterlijke citaten en `evals/expected/` is eraan gepind.
+
+**Wat er in de CSV-export veranderde:** er staat een kolom `label_nl` bij, na `label_en`, dus de
+kolomorde blijft en een bestaande draaitabel verliest zijn verwijzingen niet. `status`,
+`confidence`, `proposed_by` en `data_type` blijven onvertaald: een export is data, en wie erop
+filtert heeft stabiele waarden nodig.
 
 ## Sleutels en waar ze staan
 
 Geen enkele sleutel staat in git. `.env.example` bevat alleen namen.
 
 - **Vercel**: alle productievariabelen staan in het project. `CRON_SECRET` en `NEXT_PUBLIC_APP_URL`
-  staan alleen op `production`, de rest op `production` en `preview`.
+  staan alleen op `production`, de rest op `production` en `preview`. `PRACTICE_LOCALE` is optioneel
+  en betekent `nl` als hij ontbreekt.
 - **`INTAKE_SERVER_PASSWORD` is uit Vercel verwijderd.** Die variabele hoort alleen lokaal te bestaan,
   waar `scripts/db-local.ts` er het rolwachtwoord in de Docker-stack mee zet. In productie deed hij
   niets en zag hij eruit als een geheim.
