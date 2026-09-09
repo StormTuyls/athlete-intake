@@ -3,6 +3,7 @@ import { checkCoach } from "@/lib/review/access";
 import { listAthletesForCoach } from "@/lib/db/athletes";
 import { PRACTICE_NAME } from "@/lib/report/branding";
 import { AthleteList } from "@/components/coach/AthleteList";
+import { LocaleToggle } from "@/components/LocaleToggle";
 
 export const metadata = {
   title: "Athletes",
@@ -44,14 +45,17 @@ export default async function CoachPage() {
             {PRACTICE_NAME} · signed in as {coach.fullName ?? coach.email}
           </p>
         </div>
-        <form action="/auth/signout" method="post">
+        <div className="flex items-center gap-2">
+          <LocaleToggle />
+          <form action="/auth/signout" method="post">
           <button
             type="submit"
             className="rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
           >
-            Sign out
-          </button>
-        </form>
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       <AthleteList athletes={athletes} />

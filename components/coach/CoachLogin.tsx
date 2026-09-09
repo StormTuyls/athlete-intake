@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LocaleToggle } from "@/components/LocaleToggle";
 import { createClient } from "@/lib/supabase/browser";
 import { PRACTICE_NAME } from "@/lib/report/branding";
 
@@ -38,6 +39,13 @@ export function CoachLogin({ next }: { next: string | null }) {
       });
       if (signInError) throw new Error("Those details do not match an account.");
 
+      // Taalvoorkeur uit het profiel in het cookie zetten. Een cookie hangt aan
+      // een browser, een voorkeur aan een persoon: wie op een nieuw toestel
+      // inlogt zou anders de standaardtaal krijgen. Faalt dit, dan is het
+      // gevolg een verkeerde taal en geen mislukte aanmelding, dus het mag de
+      // login niet tegenhouden.
+      await fetch("/api/locale/sync", { method: "POST" }).catch(() => {});
+
       router.replace(next && next.startsWith("/") ? next : "/coach");
       router.refresh();
     } catch (caught) {
@@ -52,7 +60,10 @@ export function CoachLogin({ next }: { next: string | null }) {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
-      <h1 className="text-xl font-semibold tracking-tight">{PRACTICE_NAME}</h1>
+      <div className="flex items-baseline justify-between gap-2">
+        <h1 className="text-xl font-semibold tracking-tight">{PRACTICE_NAME}</h1>
+        <LocaleToggle />
+      </div>
       <p className="mt-1 text-sm text-ink-muted">
         Sign in to review athlete intakes.
       </p>

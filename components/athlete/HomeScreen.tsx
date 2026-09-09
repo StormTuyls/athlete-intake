@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LocaleToggle } from "@/components/LocaleToggle";
 import { cn } from "@/lib/cn";
 import { SectionLabel } from "@/components/intake/SectionLabel";
 import {
@@ -65,11 +66,11 @@ export function HomeScreen({ data }: { data: HomeData }) {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locale: "en" }),
-      });
+      // Geen locale meesturen: de server neemt die van de atleet. Dit stond
+      // hier hard op "en", en app/api/intake/route.ts gaf de body voorrang op
+      // athletes.locale, dus een Nederlandstalige atleet kreeg een Engelse
+      // intake.
+      const response = await fetch("/api/intake", { method: "POST" });
       if (!response.ok) {
         throw new Error((await response.json()).error ?? "could not start");
       }
@@ -92,6 +93,7 @@ export function HomeScreen({ data }: { data: HomeData }) {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <LocaleToggle />
           <form action="/auth/signout" method="post">
             <button
               type="submit"

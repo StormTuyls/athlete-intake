@@ -3,5 +3,8 @@
     "name": "unbound",
     "title": "unbound intake",
     "description": "AI-begeleide intake voor atletenbegeleiding"
+  },
+  "toggle": {
+    "label": "Taal kiezen"
   }
 }

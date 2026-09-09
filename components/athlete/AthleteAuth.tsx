@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LocaleToggle } from "@/components/LocaleToggle";
 import { createClient } from "@/lib/supabase/browser";
 import { PRACTICE_NAME } from "@/lib/report/branding";
 import {
@@ -67,7 +68,9 @@ export function AthleteAuth({
         const response = await fetch("/api/athlete/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ locale: "en", consented: true }),
+          // Geen locale: die komt uit het taalcookie dat de bezoeker net op dit
+          // scherm gezet kan hebben.
+          body: JSON.stringify({ consented: true }),
         });
         if (!response.ok) {
           throw new Error((await response.json()).error ?? "could not finish signing up");
@@ -80,6 +83,13 @@ export function AthleteAuth({
         // Niet uitsplitsen welk deel fout was: dat vertelt of een adres bestaat.
         if (signInError) throw new Error("Those details do not match an account.");
       }
+
+      // Taalvoorkeur uit het profiel in het cookie zetten. Een cookie hangt aan
+      // een browser, een voorkeur aan een persoon: wie op een nieuw toestel
+      // inlogt zou anders de standaardtaal krijgen. Faalt dit, dan is het
+      // gevolg een verkeerde taal en geen mislukte aanmelding, dus het mag de
+      // login niet tegenhouden.
+      await fetch("/api/locale/sync", { method: "POST" }).catch(() => {});
 
       router.replace(next);
       router.refresh();
@@ -97,9 +107,14 @@ export function AthleteAuth({
   return (
     <main className="flex min-h-dvh flex-col bg-night px-6 py-10 text-night-ink">
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col">
-        <div className="flex items-center gap-2">
-          <BrandMark className="size-5 text-brand-500" />
-          <span className="text-base font-semibold tracking-tight">{PRACTICE_NAME}</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <BrandMark className="size-5 text-brand-500" />
+            <span className="text-base font-semibold tracking-tight">{PRACTICE_NAME}</span>
+          </div>
+          {/* Bovenaan en niet onderaan: de keuze hoort te staan voordat iemand
+              de consenttekst leest, want die tekst is waar hij mee instemt. */}
+          <LocaleToggle className="ring-night-line" />
         </div>
 
         <h1 className="mt-8 text-2xl leading-tight font-semibold tracking-tight">
