@@ -8,6 +8,10 @@ scherm nakijkt en goedkeurt.
 Fase 1 van een gefaseerd traject. Zie [docs/plan.md](docs/plan.md) voor de volledige scope, de
 milestones en wat bewust buiten scope valt.
 
+Draait op https://athlete-intake.vercel.app. Voor de opgeleverde omgeving, de subverwerkerslijst en
+de openstaande punten: [docs/oplevering.md](docs/oplevering.md). Lees die eerst als je dit project
+overneemt, en zeker voor je hem aan de klant oplevert.
+
 ## Kernprincipe
 
 **Het model schrijft nooit rechtstreeks in het dossier.**
