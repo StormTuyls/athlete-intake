@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiMessages } from "@/lib/i18n/server";
+import { apiMessages, requestLocale } from "@/lib/i18n/server";
 import { handleError } from "@/lib/http";
 import { getReviewData } from "@/lib/db/review";
 import { isIntakeId, requireCoach } from "@/lib/review/access";
@@ -30,7 +30,7 @@ export async function GET(
       return NextResponse.json({ error: t("intakeNotFound") }, { status: 404 });
     }
 
-    const data = await getReviewData(intakeId, coach.id);
+    const data = await getReviewData(intakeId, coach.id, await requestLocale());
 
     if (!data) {
       return NextResponse.json({ error: t("intakeNotFound") }, { status: 404 });

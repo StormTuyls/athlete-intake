@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getLocale } from "next-intl/server";
@@ -9,10 +10,14 @@ import { AutoPrint } from "@/components/review/AutoPrint";
 import { PRACTICE_NAME } from "@/lib/report/branding";
 import { logAudit } from "@/lib/audit";
 
-export const metadata = {
-  title: "Intake report",
+export async function generateMetadata() {
+  const t = await getTranslations("titles");
+
+  return {
+    title: t("report"),
   robots: { index: false, follow: false },
-};
+  };
+}
 
 /** Het rapport is per definitie niet te prerenderen: het leest een versie op aanvraag. */
 export const dynamic = "force-dynamic";

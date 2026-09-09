@@ -62,7 +62,11 @@ for (const payload of ["=1+1", "+1", "-2+3+cmd|' /c calc'!A0", "@SUM(A1)", "\tx"
   const line = toCsv(snapshot([field({ displayValue: payload })]))
     .split("\r\n")
     .find((row) => row.includes("current_complaints"))!;
-  const value = line.split(",")[6].replace(/^"|"$/g, "");
+  // Kolom op naam en niet op index: deze test brak toen er een label_nl-kolom
+  // bij kwam, en dat is geen fout in de export maar in de test.
+  const header = toCsv(snapshot([field({})])).split("\r\n")[0].replace("\ufeff", "");
+  const valueColumn = header.split(",").indexOf("value");
+  const value = line.split(",")[valueColumn].replace(/^"|"$/g, "");
   assert.ok(
     value.startsWith("'"),
     `waarde ${JSON.stringify(payload)} moet geneutraliseerd zijn, kreeg ${JSON.stringify(value)}`,
@@ -99,9 +103,28 @@ assert.ok(nasty.includes('"regel een\nregel twee, met komma"'), "een citaat met 
 // 5. Kopregel: precies de verwachte kolommen, en de herkomst hoort erbij, want
 //    dat is wat een export van een screenshot onderscheidt.
 const header = basic.replace("﻿", "").split("\r\n")[0].split(",");
-assert.equal(header.length, 15);
-for (const column of ["field_key", "source_document", "source_quote", "quote_verified"]) {
+assert.equal(header.length, 16);
+for (const column of [
+  "field_key",
+  "label_nl",
+  "label_en",
+  "source_document",
+  "source_quote",
+  "quote_verified",
+]) {
   assert.ok(header.includes(column), `kolom ${column} moet bestaan`);
+}
+
+// Machinewaarden blijven onvertaald: een coach die hierop filtert of pivoteert
+// heeft stabiele waarden nodig, geen woorden die met de interfacetaal meebewegen.
+const dataRow = basic.replace("\ufeff", "").split("\r\n")[1].split(",");
+for (const column of ["status", "confidence", "proposed_by", "data_type"]) {
+  const value = dataRow[header.indexOf(column)];
+  assert.match(
+    value,
+    /^[a-z_]+$/,
+    `${column} moet een machinewaarde blijven, kreeg ${JSON.stringify(value)}`,
+  );
 }
 
 console.log("csv-export: BOM, quoting en formule-injectie afgedekt");

@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { checkCoach } from "@/lib/review/access";
 import { listAthletesForCoach } from "@/lib/db/athletes";
@@ -5,10 +6,14 @@ import { PRACTICE_NAME } from "@/lib/report/branding";
 import { AthleteList } from "@/components/coach/AthleteList";
 import { LocaleToggle } from "@/components/LocaleToggle";
 
-export const metadata = {
-  title: "Athletes",
+export async function generateMetadata() {
+  const t = await getTranslations("titles");
+
+  return {
+    title: t("athletes"),
   robots: { index: false, follow: false },
-};
+  };
+}
 
 export const dynamic = "force-dynamic";
 
