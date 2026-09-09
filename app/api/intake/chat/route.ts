@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMessages } from "@/lib/i18n/server";
+import { NUDGES, type NudgeKey } from "@/lib/claude/prompts/chat";
 import { appDb } from "@/lib/supabase/service";
 import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
@@ -44,11 +45,6 @@ function isConsentField(fieldKey: string): boolean {
  * het model gegeven, en een client die daar zelf tekst in mag zetten schrijft de
  * prompt mee. De tekst wordt nooit opgeslagen in chat_messages.
  */
-const NUDGES = {
-  document_uploaded:
-    "Ik heb net een document geupload. Bevestig kort wat je eruit hebt gehaald en stel dan de volgende openstaande vraag.",
-} as const;
-
 /**
  * Eén beurt van het intakegesprek.
  *
@@ -72,7 +68,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json().catch(() => ({}))) as {
       message?: string;
-      nudge?: keyof typeof NUDGES;
+      nudge?: NudgeKey;
     };
     const db = appDb();
 
@@ -119,7 +115,7 @@ export async function POST(request: Request) {
       carried: carried.filter((item) =>
         state.gaps.some((gap) => gap.fieldKey === item.fieldKey),
       ),
-      nudge: body.nudge ? NUDGES[body.nudge] : undefined,
+      nudge: body.nudge ? NUDGES[session.locale][body.nudge] : undefined,
     });
 
     // Tweede slot op hetzelfde: ook als het model een consentveld zou teruggeven

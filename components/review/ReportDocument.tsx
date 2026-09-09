@@ -207,6 +207,20 @@ export function ReportDocument({
           <p className="mt-1 text-xs text-ink-muted">
             {t("summaryDisclaimer")}
           </p>
+          {/* Staat de tekst in een andere taal dan de pagina, zeg dat dan. Een
+              Nederlandse samenvatting onder een Engelse kop zonder uitleg leest
+              als een fout in plaats van als een keuze; de samenvatting volgt de
+              taal van de praktijk, zie PRACTICE_LOCALE. */}
+          {(snapshot.summary.locale ?? "nl") !== locale && (
+            <p className="mt-1 text-xs text-ink-faint">
+              {t("summaryLanguageNote", {
+                language:
+                  (snapshot.summary.locale ?? "nl") === "nl"
+                    ? t("languageNl")
+                    : t("languageEn"),
+              })}
+            </p>
+          )}
           <div className="mt-2 space-y-1 text-sm">
             {toSummaryBlocks(snapshot.summary.text).map((block, index) =>
               block.kind === "heading" ? (

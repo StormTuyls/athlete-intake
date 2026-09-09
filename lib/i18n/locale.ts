@@ -21,9 +21,14 @@ export const LOCALES = ["nl", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 /**
- * Voorlopig Engels, want dat is wat de app vandaag uitlevert. Dit wordt `nl`
- * zodra alle teksten er in beide talen zijn; eerder omzetten levert een half
- * Nederlands scherm op. Zie stap C7 in het plan.
+ * Engels als er niets bekend is, en dat blijft zo.
+ *
+ * Alle teksten bestaan nu in beide talen, dus `nl` zou technisch kunnen. Het
+ * blijft een productbeslissing en niet een technische: de klant kiest wat een
+ * bezoeker zonder cookie ziet, en die keuze is Engels. De databank heeft wel
+ * `default 'nl'` op de locale-kolommen, dus een atleet die een account maakt
+ * krijgt daarna zijn eigen voorkeur; deze constante geldt alleen voor wie nog
+ * niets gekozen heeft.
  */
 export const DEFAULT_LOCALE: Locale = "en";
 

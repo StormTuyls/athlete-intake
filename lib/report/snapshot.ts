@@ -93,6 +93,19 @@ export interface SnapshotDocument {
 export interface SnapshotSummary {
   /** Klinisch alleen met toestemming; anders zakelijk. Zie lib/notion/sync.ts. */
   kind: "clinical" | "commercial";
+  /**
+   * De taal waarin deze tekst geschreven is.
+   *
+   * Nodig omdat de samenvatting de praktijktaal volgt en niet die van de lezer:
+   * zonder dit veld kan een rapport niet zeggen dat de tekst eronder in een
+   * andere taal staat dan de rest van de pagina.
+   *
+   * Toevoegen is gratis: `summary` staat in UNHASHED, dus de content-hash
+   * verandert niet en geen enkele bestaande bevroren versie wordt ongeldig.
+   * Oude rijen hebben dit veld niet; lees ze als "nl", want elke prompt in deze
+   * codebase was tot nu Nederlands.
+   */
+  locale?: "nl" | "en";
   text: string;
   modelId: string;
   generatedAt: string;

@@ -52,7 +52,7 @@ browser -> signed upload URL -> Supabase Storage (ruw bestand, permanent, onaang
 - **Notion** als werkomgeving van de behandelend kinesist: een korte atleetkaart plus de klinische samenvatting op de pagina. Medische inhoud gaat alleen mee als de atleet toestemming gaf om met behandelaars te delen.
 - **Geen aparte OCR-dienst.** Gescande PDF's gaan als `document` content block naar Claude,
   screenshots als `image` block. Eén integratie en één subverwerker minder.
-- **Tailwind 4**, **next-intl** (NL/EN).
+- **Tailwind 4**, **next-intl** (NL/EN, zie hieronder).
 
 ## Databescheiding
 
@@ -77,6 +77,44 @@ Drie lagen, elk voldoende op zichzelf:
 
 Medische data valt onder artikel 9 AVG. De consequenties daarvan (rechtsgrond, bewaartermijn,
 subverwerkerslijst, verwijderingspad) zijn geen bijzaak maar een deel van de opdracht.
+
+### Talen
+
+Nederlands en Engels, en de taal is hier geen URL-segment maar een gegeven. Drie
+lagen, in deze volgorde:
+
+1. **Expliciet per ding.** Het gesprek en alles wat eruit volgt gebruiken
+   `intakes.locale`: de assistent en de vastgelegde transcriptie moeten één taal
+   spreken. Een bevroren rapport draagt beide veldlabels, dus het is in beide
+   talen te renderen zonder opnieuw te bevriezen.
+2. **Een cookie**, voor het renderen en voor alle meldingen. Eén leesactie, geen
+   query. Een melding hoort bij het scherm: de taal van een ingediende intake
+   staat vast, terwijl de bezoeker daarna op de taalknop kan hebben gedrukt.
+3. **De kolom bij de persoon** (`athletes.locale`, `profiles.locale`), alleen bij
+   het inloggen gelezen om het cookie te vullen. Een cookie hangt aan een
+   browser, een voorkeur aan een mens.
+
+De coach ziet zijn eigen taal en niet die van de intake. Wie tien dossiers per
+week nakijkt wil niet dat de kop en de labels omslaan bij het openen van een
+dossier van een Engelstalige atleet.
+
+De teksten staan in `messages/{nl,en}.json`, met `nl` als bron: dat bestand is
+de volledige lijst en het is ook het type in `types/i18n.d.ts`, dus een verkeerde
+sleutel is een compilefout. `evals/unit/i18n-keys.test.ts` houdt de twee gelijk,
+inclusief de ICU-plaatshouders en de meervoudsvormen. Dat is nodig omdat een
+ontbrekende sleutel terugvalt op de andere taal: goed voor uitleveren, maar het
+maakt een gat onzichtbaar.
+
+**Promptteksten zijn geen kopij.** Ze staan in `lib/claude/prompts/` als code,
+naast de evals die ze dekken, en niet in de berichtencatalogus. Het zijn
+specificaties: wie regel 4 van de chatprompt ("Leidt niets af") herformuleert
+verandert geen tekst maar gedrag.
+
+De samenvattingen volgen `PRACTICE_LOCALE` en niet de intake. De atleet ziet
+nooit een samenvatting; die bestaat voor de coach en de behandelaar. Zou de taal
+de intake volgen, dan leest een Vlaamse praktijk de helft van haar dossiers in
+het Engels. Het houdt ook "welke tekst keurde de coach goed" een vraag met één
+antwoord.
 
 ### Bewaartermijn
 
