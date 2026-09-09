@@ -1,4 +1,5 @@
 import { sectionLabel } from "@/lib/intake/sections";
+import { documentError } from "@/lib/intake/format";
 import type { Locale } from "@/lib/i18n/locale";
 import type { ReportSnapshot, SnapshotField } from "@/lib/report/snapshot";
 import { toSummaryBlocks } from "@/lib/report/summaryBlocks";
@@ -268,7 +269,7 @@ export function ReportDocument({
                   {document.pageCount ? ` · ${document.pageCount} pages` : ""}
                 </span>
                 {document.processingError && (
-                  <span className="text-danger"> · {document.processingError}</span>
+                  <span className="text-danger"> · {documentError(document.processingError, locale)}</span>
                 )}
               </li>
             ))}

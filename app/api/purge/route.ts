@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { handleError } from "@/lib/http";
 import { isUuid, requireCoach } from "@/lib/review/access";
 import { appDb } from "@/lib/supabase/service";
@@ -26,6 +27,7 @@ export const maxDuration = 300;
  */
 export async function POST(request: Request) {
   try {
+    const t = await apiMessages();
     const coach = await requireCoach();
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
     };
 
     if (!body.athleteId || !isUuid(body.athleteId)) {
-      return NextResponse.json({ error: "atleet niet gevonden" }, { status: 404 });
+      return NextResponse.json({ error: t("athleteNotFound") }, { status: 404 });
     }
 
     const { data: athlete } = await appDb()
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (!athlete) {
-      return NextResponse.json({ error: "atleet niet gevonden" }, { status: 404 });
+      return NextResponse.json({ error: t("athleteNotFound") }, { status: 404 });
     }
 
     // De tweede sleutel, en de server controleert hem ook. Zou alleen de
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
     if (expected) {
       if ((body.confirmName ?? "").trim().toLowerCase() !== expected.toLowerCase()) {
         return NextResponse.json(
-          { error: "de ingetypte naam klopt niet met deze atleet" },
+          { error: t("nameMismatch") },
           { status: 400 },
         );
       }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { handleError } from "@/lib/http";
 import { ensureFrozenReport } from "@/lib/report/freeze";
 import { logAudit } from "@/lib/audit";
@@ -21,12 +22,13 @@ export async function POST(
   context: { params: Promise<{ intakeId: string }> },
 ) {
   try {
+    const t = await apiMessages();
     const { intakeId } = await context.params;
 
     const coach = await requireCoach();
 
     if (!isIntakeId(intakeId)) {
-      return NextResponse.json({ error: "niet gevonden" }, { status: 404 });
+      return NextResponse.json({ error: t("notFound") }, { status: 404 });
     }
 
     const report = await ensureFrozenReport(intakeId, "export");

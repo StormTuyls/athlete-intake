@@ -101,10 +101,7 @@ export async function processDocument(input: {
         kind,
         pageCount: null,
       });
-      await markProcessed(
-        documentId,
-        `This image format (${input.mimeType}) cannot be read. Please upload a JPEG or PNG.`,
-      );
+      await markProcessed(documentId, "unsupportedImage");
       throw new Error(`beeldformaat ${input.mimeType} niet ondersteund`);
     }
     extractionInput = {
@@ -154,10 +151,10 @@ export async function processDocument(input: {
     // niets, en het hoort niet buiten de server te komen. Zie ook lib/http.ts,
     // waar dezelfde regel geldt voor HTTP-antwoorden.
     console.error("[intake] extractie mislukt", { documentId, error });
-    await markProcessed(
-      documentId,
-      "This document could not be read. You can try again, or tell the assistant what is in it.",
-    );
+    // Een code en geen volzin. Deze kolom is OPGESLAGEN en komt op drie
+    // schermen terecht, dus een Engelse zin in de databank betekent een Engelse
+    // zin in een Nederlandse interface, voor altijd. Zie documentError().
+    await markProcessed(documentId, "unreadable");
     throw error;
   }
 

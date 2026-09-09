@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { cookies } from "next/headers";
 import { handleError } from "@/lib/http";
 import { appDb } from "@/lib/supabase/service";
@@ -34,10 +35,11 @@ import {
  */
 export async function POST(request: Request) {
   try {
+    const t = await apiMessages();
     const body = (await request.json().catch(() => ({}))) as { locale?: string };
 
     if (!isLocale(body.locale)) {
-      return NextResponse.json({ error: "onbekende taal" }, { status: 400 });
+      return NextResponse.json({ error: t("unknownLocale") }, { status: 400 });
     }
 
     const locale: Locale = body.locale;

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { appDb } from "@/lib/supabase/service";
 import { newToken, setSessionCookie } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
@@ -26,9 +27,10 @@ import { addProposals } from "@/lib/db/dossier";
  */
 export async function POST(request: Request) {
   try {
+    const t = await apiMessages();
     const athlete = await currentAthlete();
     if (!athlete) {
-      return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+      return NextResponse.json({ error: t("signIn") }, { status: 401 });
     }
 
     // De toestemming om gezondheidsgegevens te verwerken is gegeven bij het
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
     // een dossier vol medische documenten waar geen grond voor is.
     if (!(await hasAccountConsent(athlete.athleteId))) {
       return NextResponse.json(
-        { error: "Your consent record is missing. Please sign in again." },
+        { error: t("consentMissing") },
         { status: 409 },
       );
     }
@@ -115,5 +117,5 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  return badRequest("Use POST to start an intake.");
+  return badRequest((await apiMessages())("usePost"));
 }

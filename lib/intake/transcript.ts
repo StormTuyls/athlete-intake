@@ -3,6 +3,7 @@ import { listDocuments } from "@/lib/db/medical";
 import { getProposals, syncDossier } from "@/lib/db/dossier";
 import { formatValue } from "@/lib/intake/format";
 import { sectionLabel } from "@/lib/intake/sections";
+import { documentError } from "@/lib/intake/format";
 import type {
   CaptureCard,
   Collecting,
@@ -340,7 +341,7 @@ export async function buildTranscript(
           : document.processedAt
             ? "read"
             : "processing",
-        error: document.processingError,
+        error: documentError(document.processingError, locale),
       },
     });
 

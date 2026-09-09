@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { handleError } from "@/lib/http";
 import { getReviewData } from "@/lib/db/review";
 import { isIntakeId, requireCoach } from "@/lib/review/access";
@@ -20,18 +21,19 @@ export async function GET(
   context: { params: Promise<{ intakeId: string }> },
 ) {
   try {
+    const t = await apiMessages();
     const { intakeId } = await context.params;
 
     const coach = await requireCoach();
 
     if (!isIntakeId(intakeId)) {
-      return NextResponse.json({ error: "intake niet gevonden" }, { status: 404 });
+      return NextResponse.json({ error: t("intakeNotFound") }, { status: 404 });
     }
 
     const data = await getReviewData(intakeId, coach.id);
 
     if (!data) {
-      return NextResponse.json({ error: "intake niet gevonden" }, { status: 404 });
+      return NextResponse.json({ error: t("intakeNotFound") }, { status: 404 });
     }
 
     return NextResponse.json(data);

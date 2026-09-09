@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { cookies } from "next/headers";
 import { handleError } from "@/lib/http";
 import { appDb } from "@/lib/supabase/service";
@@ -27,11 +28,12 @@ import {
  */
 export async function POST() {
   try {
+    const t = await apiMessages();
     const supabase = await createServerSupabase();
     const { data: auth } = await supabase.auth.getUser();
 
     if (!auth.user) {
-      return NextResponse.json({ error: "geen sessie" }, { status: 401 });
+      return NextResponse.json({ error: t("noSession") }, { status: 401 });
     }
 
     const { data: profile } = await appDb()

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { translator } from "@/lib/i18n/translator";
+import { documentError } from "@/lib/intake/format";
 import { sectionLabel } from "@/lib/intake/sections";
 import { toLocale, type Locale } from "@/lib/i18n/locale";
 import { enumLabel } from "@/lib/dossier/enumLabels";
@@ -550,7 +551,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
               {document.processingError && (
                 <span className="text-red-700 dark:text-red-400">
                   {" "}
-                  · {document.processingError}
+                  · {documentError(document.processingError, locale)}
                 </span>
               )}
             </li>

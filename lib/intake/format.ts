@@ -106,3 +106,24 @@ export function dividerLabel(iso: string, locale: Locale = DEFAULT_LOCALE): stri
 
   return `${date.getDate()} ${months(locale)[date.getMonth()]} · ${time}`;
 }
+
+/**
+ * De opgeslagen verwerkingsfout, leesbaar.
+ *
+ * `medical.documents.processing_error` bewaart een code en geen zin, want die
+ * kolom komt op drie schermen terecht: de transcriptie van de atleet, het
+ * coachdossier en het rapport. Een Engelse volzin in de databank is een Engelse
+ * volzin in een Nederlandse interface, en die verandert niet meer mee.
+ *
+ * Rijen van voor die wijziging dragen nog wel een zin. Die gaan er ongewijzigd
+ * door: een bestaande melding vervangen door "onbekende fout" zou informatie
+ * weggooien die er is.
+ */
+export function documentError(
+  stored: string | null,
+  locale: Locale = DEFAULT_LOCALE,
+): string | null {
+  if (!stored) return null;
+  const t = translator(locale, "api");
+  return t.has(stored as never) ? t(stored as never) : stored;
+}

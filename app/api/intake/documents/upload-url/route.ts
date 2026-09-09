@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { randomUUID } from "node:crypto";
 import { storage, DOCUMENTS_BUCKET } from "@/lib/supabase/service";
 import { requireEditableIntake } from "@/lib/intake/session";
@@ -28,10 +29,11 @@ const MAX_BYTES = MAX_UPLOAD_BYTES;
 
 export async function POST(request: Request) {
   try {
+    const t = await apiMessages();
     const session = await requireEditableIntake();
 
     if (!session.consentGrantedAt) {
-      return badRequest("Please give consent before we process your data.");
+      return badRequest(t("consentFirst"));
     }
 
     const body = (await request.json()) as {
@@ -41,7 +43,7 @@ export async function POST(request: Request) {
     };
 
     if (!body.filename || !body.mimeType) {
-      return badRequest("A filename and a file type are required.");
+      return badRequest(t("filenameRequired"));
     }
     if (!ALLOWED.has(body.mimeType)) {
       return badRequest(
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
       );
     }
     if ((body.byteSize ?? 0) > MAX_BYTES) {
-      return badRequest("That file is larger than 50 MB.");
+      return badRequest(t("tooLarge"));
     }
 
     // Pad per intake, met een eigen id per bestand. De originele naam gaat naar

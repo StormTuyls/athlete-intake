@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { addProposals, getProposals, syncDossier } from "@/lib/db/dossier";
@@ -42,29 +43,33 @@ import {
  * interface, en al helemaal niet als enige uitleg: "no readable date" zegt niet
  * wat er dan wel verwacht wordt. Het veldtype weet dat, dus die bepaalt de hint.
  */
-function inputHint(definition: FieldDefinition): string {
+function inputHint(
+  definition: FieldDefinition,
+  t: Awaited<ReturnType<typeof apiMessages>>,
+): string {
   switch (definition.dataType) {
     case "number":
-      return "Enter a number, for example 76.5.";
+      return t("hintNumber");
     case "date":
-      return "Enter a date as year-month-day, for example 1992-03-14.";
+      return t("hintDate");
     case "boolean":
-      return "Choose yes or no.";
+      return t("hintBoolean");
     case "enum":
-      return `Choose one of: ${(definition.enumOptions ?? []).join(", ")}.`;
+      return t("hintEnum", { options: (definition.enumOptions ?? []).join(", ") });
     case "list":
-      return "Enter one or more values, separated by commas.";
+      return t("hintList");
     default:
-      return "This field cannot be empty.";
+      return t("hintText");
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const t = await apiMessages();
     const session = await requireEditableIntake();
 
     if (!session.consentGrantedAt) {
-      return badRequest("Please give consent before we process your data.");
+      return badRequest(t("consentFirst"));
     }
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -72,11 +77,11 @@ export async function POST(request: Request) {
       value?: unknown;
     };
 
-    if (!body.fieldKey) return badRequest("A field is required.");
+    if (!body.fieldKey) return badRequest(t("fieldRequired"));
 
     const state = await syncDossier(session.intakeId, session.locale);
     const definition = state.definitions.find((d) => d.key === body.fieldKey);
-    if (!definition) return badRequest("Unknown field.");
+    if (!definition) return badRequest(t("unknownField"));
 
     const resolved = state.resolved.get(definition.key);
     const proposals = await getProposals(session.intakeId);
@@ -87,7 +92,7 @@ export async function POST(request: Request) {
     if (isEdit) {
       const validation = validateValue(definition, body.value);
       if (!validation.valid) {
-        return badRequest(inputHint(definition));
+        return badRequest(inputHint(definition, t));
       }
 
       // Al dezelfde waarde van een mens? Dan niets schrijven. Twee keer opslaan
@@ -123,7 +128,7 @@ export async function POST(request: Request) {
         ? undefined
         : proposalById.get(winningId);
 
-      if (!winner) return badRequest("There is nothing to confirm for this field.");
+      if (!winner) return badRequest(t("nothingToConfirm"));
 
       // Komt de winnaar al van een mens, dan is er niets te bevestigen.
       if (winner.proposedBy === "model") {

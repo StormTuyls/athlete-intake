@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { handleError } from "@/lib/http";
 import { ensureFrozenReport, getReport } from "@/lib/report/freeze";
 import { toCsv } from "@/lib/report/csv";
@@ -26,18 +27,19 @@ export async function GET(
   context: { params: Promise<{ intakeId: string }> },
 ) {
   try {
+    const t = await apiMessages();
     const { intakeId } = await context.params;
 
     const coach = await requireCoach();
 
     if (!isIntakeId(intakeId)) {
-      return NextResponse.json({ error: "niet gevonden" }, { status: 404 });
+      return NextResponse.json({ error: t("notFound") }, { status: 404 });
     }
 
     const url = new URL(request.url);
     const format = url.searchParams.get("format") ?? "json";
     if (format !== "json" && format !== "csv") {
-      return NextResponse.json({ error: "format must be json or csv" }, { status: 400 });
+      return NextResponse.json({ error: t("badFormat") }, { status: 400 });
     }
 
     const requested = url.searchParams.get("version");
@@ -46,11 +48,11 @@ export async function GET(
     if (requested !== null) {
       const version = Number(requested);
       if (!Number.isInteger(version) || version < 1) {
-        return NextResponse.json({ error: "version must be a positive integer" }, { status: 400 });
+        return NextResponse.json({ error: t("badVersion") }, { status: 400 });
       }
       report = await getReport(intakeId, version);
       if (!report) {
-        return NextResponse.json({ error: "niet gevonden" }, { status: 404 });
+        return NextResponse.json({ error: t("notFound") }, { status: 404 });
       }
     } else {
       report = await ensureFrozenReport(intakeId, "export");
