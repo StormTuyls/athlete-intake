@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { LocaleToggle } from "@/components/LocaleToggle";
 import { createClient } from "@/lib/supabase/browser";
 import { PRACTICE_NAME } from "@/lib/report/branding";
 
@@ -36,7 +38,14 @@ export function CoachLogin({ next }: { next: string | null }) {
         email: email.trim(),
         password,
       });
-      if (signInError) throw new Error("Those details do not match an account.");
+      if (signInError) throw new Error(t("noMatch"));
+
+      // Taalvoorkeur uit het profiel in het cookie zetten. Een cookie hangt aan
+      // een browser, een voorkeur aan een persoon: wie op een nieuw toestel
+      // inlogt zou anders de standaardtaal krijgen. Faalt dit, dan is het
+      // gevolg een verkeerde taal en geen mislukte aanmelding, dus het mag de
+      // login niet tegenhouden.
+      await fetch("/api/locale/sync", { method: "POST" }).catch(() => {});
 
       router.replace(next && next.startsWith("/") ? next : "/coach");
       router.refresh();
@@ -47,14 +56,18 @@ export function CoachLogin({ next }: { next: string | null }) {
     }
   }
 
+  const t = useTranslations("auth");
   const field =
     "mt-1.5 w-full rounded-md border border-hairline bg-surface px-3.5 py-2.5 text-base outline-none focus-visible:border-brand-500";
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
-      <h1 className="text-xl font-semibold tracking-tight">{PRACTICE_NAME}</h1>
+      <div className="flex items-baseline justify-between gap-2">
+        <h1 className="text-xl font-semibold tracking-tight">{PRACTICE_NAME}</h1>
+        <LocaleToggle />
+      </div>
       <p className="mt-1 text-sm text-ink-muted">
-        Sign in to review athlete intakes.
+        {t("coachIntro")}
       </p>
 
       <form
@@ -65,7 +78,7 @@ export function CoachLogin({ next }: { next: string | null }) {
         className="mt-6"
       >
         <label className="block">
-          <span className="text-label uppercase text-ink-faint">Work email</span>
+          <span className="text-label uppercase text-ink-faint">{t("workEmail")}</span>
           <input
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -79,13 +92,13 @@ export function CoachLogin({ next }: { next: string | null }) {
 
         <label className="mt-4 block">
           <span className="flex items-baseline justify-between">
-            <span className="text-label uppercase text-ink-faint">Password</span>
+            <span className="text-label uppercase text-ink-faint">{t("password")}</span>
             <button
               type="button"
               onClick={() => setShowPassword((value) => !value)}
               className="text-xs font-medium text-brand-600"
             >
-              {showPassword ? "Hide" : "Show"}
+              {showPassword ? t("hide") : t("show")}
             </button>
           </span>
           <input
@@ -105,13 +118,12 @@ export function CoachLogin({ next }: { next: string | null }) {
           disabled={busy || !email.trim() || !password}
           className="mt-6 w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
         >
-          {busy ? "Signing in" : "Sign in"}
+          {busy ? t("signingIn") : t("signIn")}
         </button>
       </form>
 
       <p className="mt-6 text-xs text-ink-faint">
-        Accounts are created by the practice. Ask an administrator to reset your
-        password if you cannot sign in.
+        {t("coachFooter")}
       </p>
     </main>
   );

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { SectionLabel } from "@/components/intake/SectionLabel";
@@ -23,6 +24,7 @@ export function AthleteReportView({
   report: AthleteReport;
   backTo: string;
 }) {
+  const t = useTranslations("athleteReport");
   const dated = report.submittedAt ?? report.startedAt;
 
   return (
@@ -30,13 +32,13 @@ export function AthleteReportView({
       <header className="flex items-center gap-3 px-1 py-2">
         <Link
           href={backTo}
-          aria-label="Back"
+          aria-label={t("back")}
           className="-ml-1.5 flex size-8 shrink-0 items-center justify-center rounded-chip text-ink-muted hover:bg-surface"
         >
           <ChevronLeftIcon className="size-5" />
         </Link>
         <div className="min-w-0">
-          <SectionLabel>Intake report</SectionLabel>
+          <SectionLabel>{t("title")}</SectionLabel>
           <h1 className="text-lg font-semibold tracking-tight text-ink">
             {PRACTICE_NAME}
           </h1>
@@ -49,7 +51,7 @@ export function AthleteReportView({
             <strong>
               {report.requiredFilled} of {report.requiredTotal}
             </strong>{" "}
-            required answers complete
+            {t("requiredComplete")}
           </p>
           <span className="text-xs text-ink-faint">
             {dated ? dated.slice(0, 10) : ""}
@@ -57,14 +59,14 @@ export function AthleteReportView({
         </div>
         <p className="mt-1 text-xs text-ink-muted">
           {report.status === "draft"
-            ? "Still open. Your coach cannot see this yet."
-            : "Sent to your coach."}
+            ? t("stillOpen")
+            : t("sent")}
         </p>
       </section>
 
       {report.attention.length > 0 && (
         <section className="mt-3 rounded-card border border-warn/30 bg-warn-soft p-4">
-          <SectionLabel className="text-warn">Needs your attention</SectionLabel>
+          <SectionLabel className="text-warn">{t("attention")}</SectionLabel>
           <ul className="mt-2 space-y-1.5">
             {report.attention.map((item) => (
               <li key={item.fieldKey} className="text-sm text-ink">
@@ -103,7 +105,7 @@ export function AthleteReportView({
                     item.value ? "text-ink" : "text-ink-faint italic",
                   )}
                 >
-                  {item.value || "Not answered yet"}
+                  {item.value || t("notAnswered")}
                 </dd>
                 {item.fromDocument && (
                   <p className="mt-0.5 text-xs text-ink-faint">
@@ -117,9 +119,9 @@ export function AthleteReportView({
       ))}
 
       <section className="mt-5">
-        <SectionLabel>Documents you sent</SectionLabel>
+        <SectionLabel>{t("documents")}</SectionLabel>
         {report.documents.length === 0 ? (
-          <p className="mt-2 px-1 text-sm text-ink-faint">None yet.</p>
+          <p className="mt-2 px-1 text-sm text-ink-faint">{t("noneYet")}</p>
         ) : (
           <ul className="mt-2 divide-y divide-hairline rounded-card bg-surface shadow-card ring-1 ring-hairline ring-inset">
             {report.documents.map((document) => (

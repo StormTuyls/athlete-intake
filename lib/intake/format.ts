@@ -1,3 +1,6 @@
+import { translator } from "@/lib/i18n/translator";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { enumLabel } from "@/lib/dossier/enumLabels";
 import type { FieldDefinition } from "@/lib/types";
 
 /**
@@ -11,49 +14,49 @@ import type { FieldDefinition } from "@/lib/types";
  * de PDF en de CSV het straks niet elk anders opschrijven.
  */
 
-/** enum-sleutels zijn snake_case in de taxonomie; een mens leest dat niet. */
-function humaniseEnum(value: string): string {
-  const words = value.replace(/_/g, " ");
-  return words.charAt(0).toUpperCase() + words.slice(1);
+/**
+ * Maandnamen per taal, met de hand.
+ *
+ * Nog steeds geen toLocaleDateString, en de reden verandert niet doordat er een
+ * tweede taal bij komt: die functie kijkt naar de omgeving, en dan verschilt een
+ * rapport dat de server rendert van hetzelfde rapport in de browser. Een datum
+ * in een medisch dossier moet er overal hetzelfde uitzien. Twee handgeschreven
+ * lijstjes zijn de prijs daarvoor.
+ */
+export function monthName(index: number, locale: Locale): string {
+  return months(locale)[index] ?? "";
 }
 
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
+function months(locale: Locale): string[] {
+  return translator(locale, "format").raw("months") as string[];
+}
 
-/**
- * ISO-datum naar "14 Mar 1992".
- *
- * Handmatig en niet via toLocaleDateString: die kijkt naar de locale van de
- * omgeving, en dan verschilt een rapport dat de server rendert van hetzelfde
- * rapport in de browser. Een datum in een medisch dossier moet er overal
- * hetzelfde uitzien.
- */
-function formatIsoDate(value: string): string {
+/** ISO-datum naar "14 mrt 1992" of "14 Mar 1992". */
+function formatIsoDate(value: string, locale: Locale): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return value;
   const [, year, month, day] = match;
-  const monthName = MONTHS[Number(month) - 1];
+  const monthName = months(locale)[Number(month) - 1];
   if (!monthName) return value;
   return `${Number(day)} ${monthName} ${year}`;
 }
 
 export function formatValue(
-  definition: Pick<FieldDefinition, "dataType" | "enumOptions">,
+  definition: Pick<FieldDefinition, "key" | "dataType" | "enumOptions">,
   value: unknown,
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
   if (value === null || value === undefined) return "";
 
   switch (definition.dataType) {
     case "boolean":
-      return value ? "Yes" : "No";
+      return translator(locale, "format")(value ? "yes" : "no");
 
     case "date":
-      return formatIsoDate(String(value));
+      return formatIsoDate(String(value), locale);
 
     case "enum":
-      return humaniseEnum(String(value));
+      return enumLabel(definition.key, value, locale);
 
     case "list":
       return (Array.isArray(value) ? value : [value]).map(String).join(", ");
@@ -87,16 +90,40 @@ export function dayKey(iso: string): string {
  * Label voor de datumscheiding: "Today · 14:32", of met de datum erbij als het
  * gesprek over meerdere dagen loopt.
  */
-export function dividerLabel(iso: string): string {
+export function dividerLabel(iso: string, locale: Locale = DEFAULT_LOCALE): string {
   const date = new Date(iso);
   const now = new Date();
   const time = formatTime(iso);
+  const t = translator(locale, "format");
 
-  if (dayKey(iso) === dayKey(now.toISOString())) return `Today · ${time}`;
+  if (dayKey(iso) === dayKey(now.toISOString())) return `${t("today")} · ${time}`;
 
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (dayKey(iso) === dayKey(yesterday.toISOString())) return `Yesterday · ${time}`;
+  if (dayKey(iso) === dayKey(yesterday.toISOString())) {
+    return `${t("yesterday")} · ${time}`;
+  }
 
-  return `${date.getDate()} ${MONTHS[date.getMonth()]} · ${time}`;
+  return `${date.getDate()} ${months(locale)[date.getMonth()]} · ${time}`;
+}
+
+/**
+ * De opgeslagen verwerkingsfout, leesbaar.
+ *
+ * `medical.documents.processing_error` bewaart een code en geen zin, want die
+ * kolom komt op drie schermen terecht: de transcriptie van de atleet, het
+ * coachdossier en het rapport. Een Engelse volzin in de databank is een Engelse
+ * volzin in een Nederlandse interface, en die verandert niet meer mee.
+ *
+ * Rijen van voor die wijziging dragen nog wel een zin. Die gaan er ongewijzigd
+ * door: een bestaande melding vervangen door "onbekende fout" zou informatie
+ * weggooien die er is.
+ */
+export function documentError(
+  stored: string | null,
+  locale: Locale = DEFAULT_LOCALE,
+): string | null {
+  if (!stored) return null;
+  const t = translator(locale, "api");
+  return t.has(stored as never) ? t(stored as never) : stored;
 }

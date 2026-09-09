@@ -1,5 +1,8 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { getLocale } from "next-intl/server";
+import { toLocale } from "@/lib/i18n/locale";
 import { ensureFrozenReport, getReport } from "@/lib/report/freeze";
 import { checkCoach, isIntakeId } from "@/lib/review/access";
 import { ReportDocument } from "@/components/review/ReportDocument";
@@ -7,10 +10,14 @@ import { AutoPrint } from "@/components/review/AutoPrint";
 import { PRACTICE_NAME } from "@/lib/report/branding";
 import { logAudit } from "@/lib/audit";
 
-export const metadata = {
-  title: "Intake report",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata() {
+  const t = await getTranslations("titles");
+
+  return {
+    title: t("report"),
+    robots: { index: false, follow: false },
+  };
+}
 
 /** Het rapport is per definitie niet te prerenderen: het leest een versie op aanvraag. */
 export const dynamic = "force-dynamic";
@@ -91,6 +98,7 @@ export default async function PrintPage({
         snapshot={report.snapshot}
         version={report.version}
         practiceName={PRACTICE_NAME}
+        locale={toLocale(await getLocale())}
       />
     </>
   );

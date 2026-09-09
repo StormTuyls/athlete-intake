@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { LOCALE_COOKIE, toLocale } from "@/lib/i18n/locale";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { badRequest, handleError } from "@/lib/http";
 import { ensureAthleteForUser } from "@/lib/intake/athlete";
@@ -38,7 +40,11 @@ export async function POST(request: Request) {
       return badRequest("Consent is required to create an account.");
     }
 
-    const locale = body.locale === "nl" ? "nl" : "en";
+    // Uit het cookie en niet uit de body: de bezoeker heeft de knop op dit
+    // scherm staan, en wat hij daar koos is wat hij bedoelde. Een client die
+    // zijn eigen taal meestuurt kan dat tegenspreken, en deed dat ook.
+    const store = await cookies();
+    const locale = toLocale(store.get(LOCALE_COOKIE)?.value);
     const fullName = body.fullName?.trim() || null;
 
     if (fullName !== null && fullName.length > 120) {

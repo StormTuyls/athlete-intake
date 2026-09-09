@@ -1,12 +1,17 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { currentAthlete } from "@/lib/intake/athlete";
 import { currentIntake } from "@/lib/intake/session";
 import { IntakeFlow } from "@/components/IntakeFlow";
 
-export const metadata = {
-  title: "Intake",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata() {
+  const t = await getTranslations("titles");
+
+  return {
+    title: t("intake"),
+    robots: { index: false, follow: false },
+  };
+}
 
 export const dynamic = "force-dynamic";
 

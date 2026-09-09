@@ -1,11 +1,16 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { ReviewScreen } from "@/components/ReviewScreen";
 import { checkCoach, isIntakeId } from "@/lib/review/access";
 
-export const metadata = {
-  title: "Dossier",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata() {
+  const t = await getTranslations("titles");
+
+  return {
+    title: t("dossier"),
+    robots: { index: false, follow: false },
+  };
+}
 
 /**
  * Het coachdossier.

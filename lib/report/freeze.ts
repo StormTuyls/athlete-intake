@@ -7,6 +7,7 @@ import {
 import { collectReportData } from "@/lib/report/collect";
 import { clinicalSummary, commercialSummary } from "@/lib/claude/summarise";
 import { syncDossier } from "@/lib/db/dossier";
+import { PRACTICE_LOCALE } from "@/lib/report/branding";
 import { getInjuries } from "@/lib/db/review";
 import type {
   FreezeReason,
@@ -67,9 +68,11 @@ async function buildSummary(
       definitions: state.definitions,
       resolved: state.resolved,
       injuries,
+      locale: PRACTICE_LOCALE,
     });
     return {
       kind: "clinical",
+      locale: PRACTICE_LOCALE,
       text: result.text,
       modelId: result.modelId,
       generatedAt: new Date().toISOString(),
@@ -81,15 +84,22 @@ async function buildSummary(
     if (!field.isMedical) values.set(field.key, field.value);
   }
 
+  // De definities voor de labels: die komen uit de taxonomie in plaats van uit
+  // een lijst hardgeschreven Nederlandse namen.
+  const state = await syncDossier(intakeId, snapshot.intake.locale);
+
   const result = await commercialSummary({
     values,
+    definitions: state.definitions,
     documentCount: snapshot.documents.length,
     openFields: snapshot.completeness.total - snapshot.completeness.filled,
     conflicts: snapshot.completeness.conflicts,
+    locale: PRACTICE_LOCALE,
   });
 
   return {
     kind: "commercial",
+    locale: PRACTICE_LOCALE,
     text: result.text,
     modelId: result.modelId,
     generatedAt: new Date().toISOString(),

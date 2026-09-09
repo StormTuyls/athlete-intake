@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { appDb } from "@/lib/supabase/service";
 import { requireIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
@@ -20,10 +21,11 @@ import { consentContext, recordSharingChoice } from "@/lib/intake/consent";
  */
 export async function POST(request: Request) {
   try {
+    const t = await apiMessages();
     const session = await requireIntake();
 
     if (session.status !== "draft") {
-      return badRequest("This intake has already been submitted.");
+      return badRequest(t("alreadySubmitted"));
     }
 
     const body = (await request.json().catch(() => ({}))) as { share?: boolean };
@@ -32,7 +34,7 @@ export async function POST(request: Request) {
     // niet bij het starten: dit is het moment waarop het dossier naar de coach
     // gaat. Een expliciete boolean, geen ontbrekende waarde die als ja telt.
     if (typeof body.share !== "boolean") {
-      return badRequest("Please choose whether your practitioner may receive a summary.");
+      return badRequest(t("chooseSharing"));
     }
 
     const state = await syncDossier(session.intakeId, session.locale);
@@ -40,7 +42,7 @@ export async function POST(request: Request) {
     if (!state.completeness.readyToSubmit) {
       return NextResponse.json(
         {
-          error: "intake is nog niet volledig",
+          error: t("notComplete"),
           completeness: state.completeness,
           gaps: state.gaps.filter((gap) => gap.required || gap.reason === "conflicting"),
         },

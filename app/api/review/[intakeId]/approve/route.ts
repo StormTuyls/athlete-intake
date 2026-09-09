@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { handleError } from "@/lib/http";
 import { logAudit } from "@/lib/audit";
 import { syncDossier } from "@/lib/db/dossier";
@@ -38,11 +39,12 @@ export async function POST(
   context: { params: Promise<{ intakeId: string }> },
 ) {
   try {
+    const t = await apiMessages();
     const { intakeId } = await context.params;
     const coach = await requireCoach();
 
     if (!isIntakeId(intakeId)) {
-      return NextResponse.json({ error: "intake niet gevonden" }, { status: 404 });
+      return NextResponse.json({ error: t("intakeNotFound") }, { status: 404 });
     }
 
     const { data: intake } = await appDb()
@@ -52,12 +54,12 @@ export async function POST(
       .maybeSingle();
 
     if (!intake) {
-      return NextResponse.json({ error: "intake niet gevonden" }, { status: 404 });
+      return NextResponse.json({ error: t("intakeNotFound") }, { status: 404 });
     }
 
     if (intake.status === "approved") {
       return NextResponse.json(
-        { error: "deze intake is al goedgekeurd" },
+        { error: t("alreadyApproved") },
         { status: 409 },
       );
     }
@@ -67,7 +69,7 @@ export async function POST(
     // te geven.
     if (!intake.submitted_at) {
       return NextResponse.json(
-        { error: "deze intake is nog niet ingediend" },
+        { error: t("notSubmitted") },
         { status: 409 },
       );
     }
@@ -76,10 +78,7 @@ export async function POST(
     if (state.completeness.conflicts > 0) {
       return NextResponse.json(
         {
-          error:
-            state.completeness.conflicts === 1
-              ? "er staat nog een tegenstrijdigheid open"
-              : `er staan nog ${state.completeness.conflicts} tegenstrijdigheden open`,
+          error: t("conflictsOpen", { count: state.completeness.conflicts }),
           conflicts: state.completeness.conflicts,
         },
         { status: 409 },
@@ -105,7 +104,7 @@ export async function POST(
 
     if (!updated) {
       return NextResponse.json(
-        { error: "de intake is inmiddels door iemand anders bijgewerkt" },
+        { error: t("changedElsewhere") },
         { status: 409 },
       );
     }

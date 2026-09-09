@@ -1,5 +1,6 @@
 import { query } from "@/lib/db/sql";
-import { sectionLabel } from "@/lib/intake/copy";
+import { sectionLabel } from "@/lib/intake/sections";
+import type { Locale } from "@/lib/i18n/locale";
 
 /**
  * Wat het thuisscherm van de atleet nodig heeft.
@@ -86,6 +87,8 @@ export async function loadHome(input: {
   athleteId: string;
   fullName: string | null;
   email: string | null;
+  /** Voor de sectienaam bij "hier gaat het gesprek verder". */
+  locale: Locale;
 }): Promise<HomeData> {
   // Eén query voor alle intakes van deze atleet. De tellingen gebeuren in SQL,
   // want 41 velden per intake ophalen om ze in TypeScript te tellen is werk dat
@@ -149,7 +152,9 @@ export async function loadHome(input: {
     sectionsTotal: Number(row.sections_total),
     requiredFilled: Number(row.required_filled),
     requiredTotal: Number(row.required_total),
-    nextSection: row.next_section ? sectionLabel(row.next_section) : null,
+    nextSection: row.next_section
+      ? sectionLabel(row.next_section, input.locale)
+      : null,
   }));
 
   const name = displayName(input.fullName, input.email);

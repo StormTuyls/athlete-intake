@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { MessageBubble } from "@/components/intake/MessageBubble";
 import { CaptureCardView } from "@/components/intake/CaptureCard";
 import type { CaptureCard } from "@/lib/intake/transcriptTypes";
@@ -24,12 +27,11 @@ export function ExtractionCard({
   onConfirm?: (fieldKey: string) => Promise<void>;
   onEdit?: (fieldKey: string, value: string) => Promise<void>;
 }) {
+  const t = useTranslations("extraction");
   const sentence =
     fieldsProposed === 0
-      ? `I read ${filename}, but I could not find any details to add. You can tell me instead.`
-      : `I read ${filename} and found ${fieldsProposed} ${
-          fieldsProposed === 1 ? "detail" : "details"
-        }. Please check ${fieldsProposed === 1 ? "it" : "them"}.`;
+      ? t("nothingFound", { filename })
+      : t("found", { filename, count: fieldsProposed });
 
   return (
     <div className="flex flex-col gap-2">

@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { label as enumLabel } from "@/lib/dossier/labels";
+import { useLocale, useTranslations } from "next-intl";
+import { translator } from "@/lib/i18n/translator";
+import { documentError } from "@/lib/intake/format";
+import { sectionLabel } from "@/lib/intake/sections";
+import { toLocale, type Locale } from "@/lib/i18n/locale";
+import { enumLabel } from "@/lib/dossier/enumLabels";
 import { ExportBar } from "@/components/review/ExportBar";
 import { FieldEditor } from "@/components/review/FieldEditor";
 
@@ -19,15 +24,6 @@ import { FieldEditor } from "@/components/review/FieldEditor";
  * iemand eruit concludeert, en zonder dat label vervaagt dat verschil.
  */
 
-const SECTION_LABELS: Record<string, string> = {
-  consent: "Toestemming",
-  identity: "Identiteit en administratie",
-  biometrics: "Biometrie",
-  training: "Training en wedstrijden",
-  medical_history: "Medische historiek",
-  current_status: "Huidige status en doelen",
-  uploads: "Aangeleverd materiaal",
-};
 
 const CONFIDENCE_STYLE: Record<string, string> = {
   high: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
@@ -41,20 +37,22 @@ const CONFIDENCE_STYLE: Record<string, string> = {
  * "Niet verifieerbaar" bij een naam die de atleet zelf intypte zet een coach aan
  * het zoeken naar een origineel dat niet bestaat. Dat is erger dan geen label.
  */
-function badge(field: Field): { text: string; style: string } {
+type T = ReturnType<typeof useTranslations<"review">>;
+
+function badge(field: Field, t: T): { text: string; style: string } {
   if (field.status === "conflicting") {
-    return { text: "tegenstrijdig", style: CONFIDENCE_STYLE.low };
+    return { text: t("badgeConflicting"), style: CONFIDENCE_STYLE.low };
   }
   if (field.proposedBy === "coach") {
-    return { text: "door coach bevestigd", style: CONFIDENCE_STYLE.high };
+    return { text: t("badgeCoachConfirmed"), style: CONFIDENCE_STYLE.high };
   }
   if (field.proposedBy === "athlete") {
-    return { text: "door atleet opgegeven", style: CONFIDENCE_STYLE.medium };
+    return { text: t("badgeAthleteReported"), style: CONFIDENCE_STYLE.medium };
   }
   if (field.confidence === "high") {
-    return { text: "citaat geverifieerd", style: CONFIDENCE_STYLE.high };
+    return { text: t("badgeQuoteVerified"), style: CONFIDENCE_STYLE.high };
   }
-  return { text: "citaat niet terugvindbaar", style: CONFIDENCE_STYLE.medium };
+  return { text: t("badgeQuoteNotFound"), style: CONFIDENCE_STYLE.medium };
 }
 
 interface Proposal {
@@ -130,15 +128,30 @@ interface ReviewData {
  * Enum-sleutels zijn stabiel maar niet leesbaar. "right" en "specific_prep"
  * horen niet op het scherm van een coach.
  */
-function show(value: unknown, dataType?: string): string {
+function show(
+  value: unknown,
+  locale: Locale,
+  dataType?: string,
+  fieldKey?: string,
+): string {
   if (value === null || value === undefined) return "-";
-  if (typeof value === "boolean") return value ? "ja" : "nee";
+  if (typeof value === "boolean") {
+    return translator(locale, "format")(value ? "yes" : "no");
+  }
   if (Array.isArray(value)) return value.join(", ");
-  if (dataType === "enum") return enumLabel(value);
+  // De veldsleutel hoort erbij: enum-labels zijn per veld, want 'other' en
+  // 'competition' komen in meer dan één enum voor.
+  if (dataType === "enum" && fieldKey) return enumLabel(fieldKey, value, locale);
   return String(value);
 }
 
 export function ReviewScreen({ intakeId }: { intakeId: string }) {
+  // De taal van de coach en niet die van de intake: wie tien dossiers per week
+  // nakijkt wil niet dat de kop van taal wisselt bij het openen van een dossier
+  // van een Engelstalige atleet. De waarden in het dossier blijven staan zoals
+  // ze opgeschreven zijn.
+  const locale = toLocale(useLocale());
+  const t = useTranslations("review");
   const [data, setData] = useState<ReviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
@@ -158,9 +171,9 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
   const load = useCallback(async () => {
     const response = await fetch(`/api/review/${intakeId}`);
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error ?? "kon dossier niet laden");
+    if (!response.ok) throw new Error(payload.error ?? t("loadFailed"));
     return payload as ReviewData;
-  }, [intakeId]);
+  }, [intakeId, t]);
 
   // Het resultaat landt in een callback, met een vlag tegen een antwoord dat
   // binnenkomt nadat het scherm weg is of nadat een nieuwere aanvraag al geland
@@ -175,13 +188,13 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
       })
       .catch((caught: unknown) => {
         if (ignore) return;
-        setError(caught instanceof Error ? caught.message : "kon dossier niet laden");
+        setError(caught instanceof Error ? caught.message : t("loadFailed"));
       });
 
     return () => {
       ignore = true;
     };
-  }, [load]);
+  }, [load, t]);
 
   /**
    * Corrigeren en bevestigen lopen langs hetzelfde endpoint. Het verschil is of
@@ -199,11 +212,11 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
         body: JSON.stringify(value === undefined ? { fieldKey } : { fieldKey, value }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "opslaan mislukt");
+      if (!response.ok) throw new Error(payload.error ?? t("saveFailed"));
       setData(await load());
       setEditing(null);
     } catch (caught) {
-      setFieldError(caught instanceof Error ? caught.message : "opslaan mislukt");
+      setFieldError(caught instanceof Error ? caught.message : t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -215,10 +228,10 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
     try {
       const response = await fetch(`/api/review/${intakeId}/summary`, { method: "POST" });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "samenvatting mislukt");
+      if (!response.ok) throw new Error(payload.error ?? t("summaryFailed"));
       setSummary(payload.summary);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "samenvatting mislukt");
+      setError(caught instanceof Error ? caught.message : t("summaryFailed"));
     } finally {
       setSummarising(false);
     }
@@ -235,10 +248,10 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
     try {
       const response = await fetch(`/api/review/${intakeId}/approve`, { method: "POST" });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "goedkeuren mislukt");
+      if (!response.ok) throw new Error(payload.error ?? t("approveFailed"));
       setData(await load());
     } catch (caught) {
-      setApproveError(caught instanceof Error ? caught.message : "goedkeuren mislukt");
+      setApproveError(caught instanceof Error ? caught.message : t("approveFailed"));
     } finally {
       setApproving(false);
     }
@@ -264,7 +277,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
   if (!data) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <p className="text-sm opacity-60">Dossier laden</p>
+        <p className="text-sm opacity-60">{t("loading")}</p>
       </main>
     );
   }
@@ -288,24 +301,32 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
         href={`/coach/athletes/${data.athleteId}`}
         className="text-xs underline opacity-60"
       >
-        Terug naar het profiel
+        {t("backToProfile")}
       </a>
 
       <header className="mt-3 mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">
-          {data.athleteName ?? "Naam onbekend"}
+          {data.athleteName ?? t("nameUnknown")}
         </h1>
         <p className="mt-1 text-sm opacity-60">
-          {data.completeness.filled} van {data.completeness.total} velden bekend ·{" "}
-          {data.completeness.requiredFilled}/{data.completeness.requiredTotal} verplicht ·{" "}
-          {data.documents.length} document{data.documents.length === 1 ? "" : "en"}
-          {data.submittedAt && ` · ingediend ${data.submittedAt.slice(0, 10)}`}
+          {t("fieldsKnown", {
+            filled: data.completeness.filled,
+            total: data.completeness.total,
+          })}{" · "}
+          {t("requiredCount", {
+            filled: data.completeness.requiredFilled,
+            total: data.completeness.requiredTotal,
+          })}{" · "}
+          {t("documentCount", { count: data.documents.length })}
+          {data.submittedAt &&
+            ` · ${t("submittedOn", { date: data.submittedAt.slice(0, 10) })}`}
         </p>
         {locked && (
           <p className="mt-2 inline-block rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-700 dark:text-emerald-400">
-            Goedgekeurd op {data.approvedAt?.slice(0, 10)}
-            {data.approvedBy && ` door ${data.approvedBy}`}
-            {data.reportVersion !== null && ` · rapportversie ${data.reportVersion}`}
+            {t("approvedOn", { date: data.approvedAt?.slice(0, 10) ?? "" })}
+            {data.approvedBy && ` ${t("approvedBy", { name: data.approvedBy })}`}
+            {data.reportVersion !== null &&
+              ` · ${t("reportVersion", { version: data.reportVersion })}`}
           </p>
         )}
       </header>
@@ -313,11 +334,10 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
       {conflicting.length > 0 && (
         <section className="mb-8 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
           <h2 className="text-sm font-medium text-amber-800 dark:text-amber-300">
-            {conflicting.length} tegenstrijdigheid
-            {conflicting.length === 1 ? "" : "heden"} tussen bronnen
+            {t("conflictsTitle", { count: conflicting.length })}
           </h2>
           <p className="mt-1 text-xs opacity-70">
-            Deze blokkeren goedkeuring. Het systeem heeft niet gekozen; dat is aan jou.
+            {t("conflictsBody")}
           </p>
           <ul className="mt-3 space-y-3 text-sm">
             {conflicting.map((field) => (
@@ -325,11 +345,11 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                 <span className="font-medium">{field.label}</span>
                 <div className="mt-1 space-y-1 text-xs">
                   <div>
-                    Gekozen kandidaat: <strong>{show(field.value, field.dataType)}</strong>
+                    {t("chosenCandidate")} <strong>{show(field.value, locale, field.dataType, field.key)}</strong>
                   </div>
                   {field.conflicts.map((rival, index) => (
                     <div key={index} className="opacity-80">
-                      Ook gevonden: <strong>{show(rival.value, field.dataType)}</strong>
+                      {t("alsoFound")} <strong>{show(rival.value, locale, field.dataType, field.key)}</strong>
                       {rival.sourceQuote && (
                         <span className="opacity-70">
                           {" "}
@@ -348,13 +368,13 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
 
       <section className="mb-8 rounded-lg border border-black/10 p-4 dark:border-white/15">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-sm font-medium">Klinische samenvatting</h2>
+          <h2 className="text-sm font-medium">{t("summaryTitle")}</h2>
           <button
             onClick={generateSummary}
             disabled={summarising}
             className="rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40 dark:bg-white dark:text-black"
           >
-            {summarising ? "Bezig" : summary ? "Opnieuw" : "Genereren"}
+            {summarising ? t("summaryBusy") : summary ? t("summaryRegenerate") : t("summaryGenerate")}
           </button>
         </div>
 
@@ -362,22 +382,19 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
           <>
             <div className="mt-3 space-y-2 text-sm whitespace-pre-wrap">{summary}</div>
             <p className="mt-3 text-xs opacity-50">
-              Gegenereerd uit het dossier. Feiten komen uit de brondocumenten,
-              observaties zijn interpretatie en geen diagnose. De ruwe documenten
-              blijven bewaard en zijn hieronder per veld terug te vinden.
+              {t("summaryDisclaimer")}
             </p>
           </>
         ) : (
           <p className="mt-2 text-xs opacity-60">
-            Vat de intake samen in wat er staat, wat opvalt en wat nog nagekeken
-            moet worden.
+            {t("summaryEmpty")}
           </p>
         )}
       </section>
 
       {data.injuries.length > 0 && (
         <section className="mb-8">
-          <h2 className="mb-2 text-sm font-medium">Blessuretijdlijn</h2>
+          <h2 className="mb-2 text-sm font-medium">{t("timelineTitle")}</h2>
           <ul className="space-y-2 text-sm">
             {data.injuries.map((injury) => (
               <li
@@ -392,15 +409,15 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                       eerdere intake als iets wat in deze documenten stond. */}
                   {injury.fromEarlierIntake && (
                     <span className="rounded bg-black/5 px-1.5 py-0.5 text-[10px] whitespace-nowrap opacity-70 dark:bg-white/10">
-                      uit een eerdere intake
+                      {t("fromEarlierIntake")}
                       {injury.recordedAt && ` · ${injury.recordedAt}`}
                     </span>
                   )}
                 </div>
                 <div className="mt-0.5 text-xs opacity-60">
-                  {injury.onsetDate ?? "datum onbekend"}
-                  {injury.endDate && ` tot ${injury.endDate}`}
-                  {!injury.quoteVerified && " · citaat niet verifieerbaar"}
+                  {injury.onsetDate ?? t("dateUnknown")}
+                  {injury.endDate && ` ${t("until", { date: injury.endDate })}`}
+                  {!injury.quoteVerified && ` · ${t("quoteUnverifiable")}`}
                 </div>
                 {injury.sourceQuote && (
                   <div className="mt-1 text-xs italic opacity-60">
@@ -416,7 +433,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
       {data.sections.map((section) => (
         <section key={section.section} className="mb-6">
           <h2 className="mb-2 text-sm font-medium">
-            {SECTION_LABELS[section.section] ?? section.section}
+            {sectionLabel(section.section, locale, "clinical")}
           </h2>
           <ul className="divide-y divide-black/5 dark:divide-white/10">
             {section.fields.map((field) => {
@@ -436,12 +453,12 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                       {field.required && <span className="text-red-600"> *</span>}
                     </span>
                     <span className={missing ? "opacity-40 sm:flex-1" : "sm:flex-1"}>
-                      {show(field.value, field.dataType)}
+                      {show(field.value, locale, field.dataType, field.key)}
                     </span>
                     <span className="flex flex-wrap items-baseline gap-3">
                     {!missing &&
                       (() => {
-                        const { text, style } = badge(field);
+                        const { text, style } = badge(field, t);
                         return (
                           <span
                             className={`rounded px-1.5 py-0.5 text-[10px] whitespace-nowrap ${style}`}
@@ -455,7 +472,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                         onClick={() => toggle(field.key)}
                         className="text-[10px] underline opacity-50"
                       >
-                        {isOpen ? "verberg" : "herkomst"}
+                        {isOpen ? t("provenanceHide") : t("provenance")}
                       </button>
                     )}
                     {!locked && !missing && field.proposedBy !== "coach" && (
@@ -467,7 +484,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                         // hoort niet achter een formulier te zitten.
                         className="text-[10px] underline opacity-50 disabled:opacity-25"
                       >
-                        bevestigen
+                        {t("confirm")}
                       </button>
                     )}
                     {!locked && (
@@ -479,10 +496,10 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                         className="text-[10px] underline opacity-50"
                       >
                         {editing === field.key
-                          ? "sluiten"
+                          ? t("close")
                           : missing
-                            ? "invullen"
-                            : "corrigeren"}
+                            ? t("fill")
+                            : t("correct")}
                       </button>
                     )}
                     </span>
@@ -505,10 +522,10 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                     <ul className="mt-2 space-y-1.5 text-xs opacity-75 sm:ml-52">
                       {field.proposals.map((proposal) => (
                         <li key={proposal.id}>
-                          <strong>{show(proposal.value, field.dataType)}</strong>
+                          <strong>{show(proposal.value, locale, field.dataType, field.key)}</strong>
                           <span className="opacity-70">
                             {" "}
-                            · {proposal.proposedBy === "model" ? "uit document" : proposal.proposedBy === "athlete" ? "door atleet" : "door coach"}
+                            · {proposal.proposedBy === "model" ? t("fromDocument") : proposal.proposedBy === "athlete" ? t("fromAthlete") : t("fromCoach")}
                             {proposal.sourcePage && ` · p${proposal.sourcePage}`}
                             {proposal.sourceQuote &&
                               (proposal.quoteVerified
@@ -532,24 +549,23 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
       ))}
 
       <section className="mt-8 border-t border-black/10 pt-6 dark:border-white/15">
-        <h2 className="mb-2 text-sm font-medium">Aangeleverde documenten</h2>
+        <h2 className="mb-2 text-sm font-medium">{t("documentsTitle")}</h2>
         <ul className="space-y-1 text-xs opacity-70">
           {data.documents.map((document) => (
             <li key={document.id}>
               {document.originalFilename} · {document.kind}
-              {document.pageCount && ` · ${document.pageCount} pagina's`}
+              {document.pageCount && ` · ${t("pageCount", { count: document.pageCount })}`}
               {document.processingError && (
                 <span className="text-red-700 dark:text-red-400">
                   {" "}
-                  · {document.processingError}
+                  · {documentError(document.processingError, locale)}
                 </span>
               )}
             </li>
           ))}
         </ul>
         <p className="mt-3 text-xs opacity-50">
-          De ruwe bestanden blijven permanent bewaard naast de gegevens die eruit
-          gehaald zijn.
+          {t("documentsNote")}
         </p>
       </section>
 
@@ -557,13 +573,13 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
         <section className="mt-8 rounded-lg border border-black/10 p-4 dark:border-white/15">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-medium">Goedkeuren</h2>
+              <h2 className="text-sm font-medium">{t("approveTitle")}</h2>
               <p className="mt-1 text-xs opacity-70">
                 {conflicting.length > 0
-                  ? "Los eerst de tegenstrijdigheden hierboven op."
+                  ? t("approveBlocked")
                   : data.submittedAt
-                    ? "Legt een rapportversie vast met jouw naam eronder. Daarna staat het dossier vast en kan de atleet er niets meer aan wijzigen."
-                    : "Kan pas als de atleet de intake heeft ingediend."}
+                    ? t("approveBody")
+                    : t("approveNotSubmitted")}
               </p>
             </div>
             <button
@@ -571,7 +587,7 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
               disabled={approving || conflicting.length > 0 || !data.submittedAt}
               className="shrink-0 rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40 dark:bg-white dark:text-black"
             >
-              {approving ? "Bezig" : "Goedkeuren"}
+              {approving ? t("approveBusy") : t("approveButton")}
             </button>
           </div>
           {approveError && (

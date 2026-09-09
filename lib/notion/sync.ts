@@ -4,7 +4,6 @@ import { appDb } from "@/lib/supabase/service";
 import { syncDossier } from "@/lib/db/dossier";
 import { ensureFrozenReport } from "@/lib/report/freeze";
 import { markdownToBlocks } from "@/lib/notion/blocks";
-import { label } from "@/lib/dossier/labels";
 import { logAudit } from "@/lib/audit";
 import type { FieldDefinition } from "@/lib/types";
 

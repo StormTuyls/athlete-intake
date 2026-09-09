@@ -1,5 +1,7 @@
+"use client";
+
 import { cn } from "@/lib/cn";
-import { intake } from "@/lib/intake/copy";
+import { useTranslations } from "next-intl";
 import { formatBytes } from "@/lib/intake/uploads";
 import { FileIcon } from "@/components/intake/icons";
 import type { DocumentState } from "@/lib/intake/transcriptTypes";
@@ -15,11 +17,12 @@ import type { DocumentState } from "@/lib/intake/transcriptTypes";
  * zijn.
  */
 
-const STATE_TEXT: Record<DocumentState, string> = {
+/** De toestand van een upload, als berichtsleutel. */
+const STATE_KEY: Record<DocumentState, string> = {
   uploading: "uploading",
-  processing: "reading",
+  processing: "processing",
   read: "read",
-  failed: "could not be read",
+  failed: "failed",
 };
 
 /**
@@ -30,19 +33,24 @@ const STATE_TEXT: Record<DocumentState, string> = {
  * blind als "PDF" tonen liegt over het bestand dat de atleet net verstuurde,
  * dus het mimetype beslist en het kind vult alleen aan.
  */
-const KIND_TEXT: Record<string, string> = {
-  pdf_scanned: "scanned PDF",
+/** Van documentsoort naar berichtsleutel; snake_case wordt camelCase. */
+const KIND_KEY: Record<string, string> = {
+  pdf_scanned: "pdfScanned",
   image: "image",
-  whatsapp_export: "WhatsApp export",
-  vald_csv: "test data",
+  whatsapp_export: "whatsappExport",
+  vald_csv: "valdCsv",
 };
 
-function kindLabel(kind: string | null, mimeType: string): string | null {
-  if (kind && KIND_TEXT[kind]) return KIND_TEXT[kind];
-  if (mimeType === "application/pdf") return "PDF";
-  if (mimeType === "text/csv") return "CSV";
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType === "text/plain") return "text";
+function kindLabel(
+  kind: string | null,
+  mimeType: string,
+  t: (key: string) => string,
+): string | null {
+  if (kind && KIND_KEY[kind]) return t(KIND_KEY[kind]);
+  if (mimeType === "application/pdf") return t("pdf");
+  if (mimeType === "text/csv") return t("csv");
+  if (mimeType.startsWith("image/")) return t("image");
+  if (mimeType === "text/plain") return t("text");
   return kind;
 }
 
@@ -68,12 +76,14 @@ export function FileBubble({
   fieldsProposed?: number;
   className?: string;
 }) {
+  const t = useTranslations("intake");
+  const tFile = useTranslations("files");
   const meta = [
     formatBytes(byteSize),
-    kindLabel(documentKind, mimeType),
+    kindLabel(documentKind, mimeType, tFile as (key: string) => string),
     state === "read" && fieldsProposed !== undefined && quotesVerified !== undefined
-      ? `${quotesVerified} of ${fieldsProposed} quotes verified`
-      : STATE_TEXT[state],
+      ? tFile("quotesVerified", { verified: quotesVerified, total: fieldsProposed })
+      : tFile(STATE_KEY[state] as never),
   ].filter(Boolean);
 
   return (
@@ -101,7 +111,7 @@ export function FileBubble({
         <p className="mt-0.5 text-xs text-ink-muted">{meta.join(" · ")}</p>
         {error && (
           <p className="mt-1 text-xs text-danger">
-            {error} ({intake.documentKept})
+            {error} ({t("documentKept")})
           </p>
         )}
       </div>

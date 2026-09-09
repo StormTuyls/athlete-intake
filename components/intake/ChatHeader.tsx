@@ -1,5 +1,7 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
-import { chat } from "@/lib/intake/copy";
 import { ChevronLeftIcon } from "@/components/intake/icons";
 import Link from "next/link";
 import { ProgressRing } from "@/components/intake/ProgressRing";
@@ -39,6 +41,15 @@ export function ChatHeader({
   reportHref?: string | null;
   className?: string;
 }) {
+  const t = useTranslations("chat");
+  // Eén keer opbouwen: hij staat twee keer in de boom, met en zonder link.
+  const progress = t("progressLabel", {
+    sectionsDone,
+    sectionsTotal,
+    required: requiredFilled,
+    requiredTotal,
+  });
+
   return (
     <header
       className={cn(
@@ -50,7 +61,7 @@ export function ChatHeader({
         <button
           type="button"
           onClick={onBack}
-          aria-label={chat.back}
+          aria-label={t("back")}
           className="-ml-1.5 flex size-8 shrink-0 items-center justify-center rounded-chip text-ink-muted hover:bg-canvas"
         >
           <ChevronLeftIcon className="size-5" />
@@ -58,15 +69,15 @@ export function ChatHeader({
       )}
 
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-[0.9375rem] font-semibold text-ink">{chat.title}</h1>
+        <h1 className="truncate text-[0.9375rem] font-semibold text-ink">{t("title")}</h1>
         <p className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-muted">
           <span className="size-1.5 shrink-0 rounded-chip bg-brand-600" aria-hidden />
           <span className="truncate">
             {ready
-              ? chat.collectingReady
+              ? t("collectingReady")
               : collecting
-                ? chat.collecting(collecting)
-                : chat.collectingIdle}
+                ? t("collecting", { section: collecting.toLowerCase() })
+                : t("collectingIdle")}
           </span>
         </p>
       </div>
@@ -76,30 +87,20 @@ export function ChatHeader({
       {reportHref ? (
         <Link
           href={reportHref}
-          aria-label={chat.openReport}
+          aria-label={t("openReport")}
           className="shrink-0 rounded-chip transition-opacity hover:opacity-80"
         >
           <ProgressRing
             done={sectionsDone}
             total={sectionsTotal}
-            label={chat.progressLabel(
-              sectionsDone,
-              sectionsTotal,
-              requiredFilled,
-              requiredTotal,
-            )}
+            label={progress}
           />
         </Link>
       ) : (
         <ProgressRing
           done={sectionsDone}
           total={sectionsTotal}
-          label={chat.progressLabel(
-            sectionsDone,
-            sectionsTotal,
-            requiredFilled,
-            requiredTotal,
-          )}
+          label={progress}
         />
       )}
     </header>

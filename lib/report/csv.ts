@@ -12,6 +12,9 @@ const COLUMNS = [
   "section",
   "field_key",
   "label_en",
+  // Beide labels, en label_en blijft op zijn plek staan: een coach die hier een
+  // draaitabel op heeft gebouwd verliest zijn kolomverwijzingen niet.
+  "label_nl",
   "data_type",
   "required",
   "is_medical",
@@ -65,6 +68,7 @@ export function toCsv(snapshot: ReportSnapshot): string {
         field.section,
         field.key,
         field.labelEn,
+        field.labelNl,
         field.dataType,
         field.required,
         field.isMedical,

@@ -1,11 +1,16 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { currentCoach } from "@/lib/review/access";
 import { CoachLogin } from "@/components/coach/CoachLogin";
 
-export const metadata = {
-  title: "Sign in",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata() {
+  const t = await getTranslations("titles");
+
+  return {
+    title: t("signIn"),
+    robots: { index: false, follow: false },
+  };
+}
 
 /** Inloggen voor de behandelaar. Zelfde manier als de atleet: e-mail en wachtwoord. */
 export default async function CoachLoginPage({

@@ -1,13 +1,18 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { checkCoach, isIntakeId } from "@/lib/review/access";
 import { getAthleteProfile } from "@/lib/db/athletes";
 import { PurgeAthlete } from "@/components/coach/PurgeAthlete";
 
-export const metadata = {
-  title: "Athlete",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata() {
+  const t = await getTranslations("titles");
+
+  return {
+    title: t("athlete"),
+    robots: { index: false, follow: false },
+  };
+}
 
 export const dynamic = "force-dynamic";
 

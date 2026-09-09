@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import type { Confidence, ProposedBy } from "@/lib/types";
 
@@ -32,44 +35,36 @@ export type ChipVariant =
   | "needs-review"
   | "not-stated";
 
-const VARIANTS: Record<ChipVariant, { label: string; className: string; dot: string }> = {
+const VARIANTS: Record<ChipVariant, { className: string; dot: string }> = {
   confirmed: {
-    label: "Confirmed by coach",
     className: "bg-brand-600 text-white",
     dot: "bg-white",
   },
   "you-confirmed": {
-    label: "You confirmed",
     className: "bg-brand-50 text-brand-700 ring-1 ring-brand-100 ring-inset",
     dot: "bg-brand-600",
   },
   "self-reported": {
-    label: "You told us",
     className: "bg-brand-50 text-brand-700 ring-1 ring-brand-100 ring-inset",
     dot: "bg-brand-500",
   },
   high: {
-    label: "Quote verified",
     className: "bg-brand-50 text-brand-700 ring-1 ring-brand-100 ring-inset",
     dot: "bg-brand-600",
   },
   unverified: {
-    label: "Quote not found",
     className: "bg-unverified-soft text-unverified ring-1 ring-hairline ring-inset",
     dot: "bg-unverified",
   },
   inferred: {
-    label: "Inferred",
     className: "bg-warn-soft text-warn ring-1 ring-warn/20 ring-inset",
     dot: "bg-warn",
   },
   "needs-review": {
-    label: "Needs review",
     className: "bg-warn-soft text-warn ring-1 ring-warn/20 ring-inset",
     dot: "bg-warn",
   },
   "not-stated": {
-    label: "Not stated",
     className: "bg-canvas text-ink-faint ring-1 ring-hairline ring-inset",
     dot: "bg-ink-faint",
   },
@@ -106,6 +101,24 @@ export function confidenceVariant(
   return "inferred";
 }
 
+/**
+ * Van variant naar berichtsleutel.
+ *
+ * De varianten houden hun streepjes, want die staan in de data en in de
+ * confidenceVariant-regels; berichtsleutels met een streepje leest next-intl als
+ * nesting. Vandaar één map in plaats van de sleutels omdopen.
+ */
+const MESSAGE_KEY: Record<ChipVariant, string> = {
+  confirmed: "confirmed",
+  "you-confirmed": "youConfirmed",
+  "self-reported": "selfReported",
+  high: "high",
+  unverified: "unverified",
+  inferred: "inferred",
+  "needs-review": "needsReview",
+  "not-stated": "notStated",
+};
+
 export function ConfidenceChip({
   variant,
   label,
@@ -117,6 +130,7 @@ export function ConfidenceChip({
   className?: string;
 }) {
   const spec = VARIANTS[variant];
+  const t = useTranslations("confidence");
 
   return (
     <span
@@ -127,7 +141,7 @@ export function ConfidenceChip({
       )}
     >
       <span className={cn("size-1.5 rounded-chip", spec.dot)} aria-hidden />
-      {label ?? spec.label}
+      {label ?? t(MESSAGE_KEY[variant] as never)}
     </span>
   );
 }

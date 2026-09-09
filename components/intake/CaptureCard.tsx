@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/cn";
-import { chat } from "@/lib/intake/copy";
+import { useTranslations } from "next-intl";
 import { ConfidenceChip, confidenceVariant } from "@/components/intake/ConfidenceChip";
 import { SectionLabel } from "@/components/intake/SectionLabel";
 import { CheckIcon, PencilIcon, TagIcon } from "@/components/intake/icons";
@@ -31,6 +31,7 @@ export function CaptureCardView({
   onEdit?: (fieldKey: string, value: string) => Promise<void> | void;
   className?: string;
 }) {
+  const t = useTranslations("chat");
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export function CaptureCardView({
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <SectionLabel>{chat.fieldCaptured}</SectionLabel>
+        <SectionLabel>{t("fieldCaptured")}</SectionLabel>
         <ConfidenceChip variant={confidenceVariant(card.confidence, card.proposedBy)} />
       </div>
 
@@ -95,11 +96,11 @@ export function CaptureCardView({
               type="button"
               disabled={busy}
               onClick={() => void run(() => onConfirm(card.fieldKey))}
-              aria-label={chat.confirmField(card.label)}
+              aria-label={t("confirmField", { label: card.label.toLowerCase() })}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
             >
               <CheckIcon className="size-3.5" />
-              {chat.confirm}
+              {t("confirm")}
             </button>
           )}
           {onEdit && (
@@ -107,11 +108,11 @@ export function CaptureCardView({
               type="button"
               disabled={busy}
               onClick={() => setEditing(true)}
-              aria-label={chat.editField(card.label)}
+              aria-label={t("editField", { label: card.label.toLowerCase() })}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas disabled:opacity-40"
             >
               <PencilIcon className="size-3.5" />
-              {chat.edit}
+              {t("edit")}
             </button>
           )}
         </div>

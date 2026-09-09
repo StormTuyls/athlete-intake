@@ -1,4 +1,6 @@
-import { chat } from "@/lib/intake/copy";
+"use client";
+
+import { useTranslations } from "next-intl";
 
 /**
  * Drie puntjes terwijl de beurt loopt.
@@ -11,9 +13,11 @@ import { chat } from "@/lib/intake/copy";
  * van hetzelfde. Bij prefers-reduced-motion staan ze stil.
  */
 export function TypingIndicator() {
+  const t = useTranslations("chat");
+
   return (
     <div className="mr-auto flex max-w-[85%] items-center gap-1.5 rounded-bubble bg-surface px-3.5 py-3 shadow-bubble ring-1 ring-hairline ring-inset">
-      <span className="sr-only">{chat.thinking}</span>
+      <span className="sr-only">{t("thinking")}</span>
       {[0, 1, 2].map((index) => (
         <span
           key={index}

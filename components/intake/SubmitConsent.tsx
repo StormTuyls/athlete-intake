@@ -1,6 +1,6 @@
 "use client";
 
-import { sharing } from "@/lib/intake/copy";
+import { useTranslations } from "next-intl";
 import { SectionLabel } from "@/components/intake/SectionLabel";
 
 /**
@@ -18,10 +18,11 @@ export function SubmitConsent({
   busy: boolean;
   onSubmit: (share: boolean) => void;
 }) {
+  const t = useTranslations("sharing");
   return (
     <section className="mx-4 mb-2 rounded-card bg-surface p-4 shadow-card ring-1 ring-hairline ring-inset">
-      <SectionLabel>{sharing.title}</SectionLabel>
-      <p className="mt-2 text-sm text-ink">{sharing.body}</p>
+      <SectionLabel>{t("title")}</SectionLabel>
+      <p className="mt-2 text-sm text-ink">{t("body")}</p>
 
       <div className="mt-3 flex flex-col gap-2">
         <button
@@ -30,7 +31,7 @@ export function SubmitConsent({
           onClick={() => onSubmit(true)}
           className="rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
         >
-          {sharing.share}
+          {t("share")}
         </button>
         <button
           type="button"
@@ -38,11 +39,11 @@ export function SubmitConsent({
           onClick={() => onSubmit(false)}
           className="rounded-md px-4 py-2.5 text-sm font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas disabled:opacity-40"
         >
-          {sharing.keep}
+          {t("keep")}
         </button>
       </div>
 
-      <p className="mt-2.5 text-xs text-ink-faint">{sharing.note}</p>
+      <p className="mt-2.5 text-xs text-ink-faint">{t("note")}</p>
     </section>
   );
 }

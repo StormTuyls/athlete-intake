@@ -2,6 +2,12 @@ import { anthropic, MODEL } from "@/lib/claude/client";
 import type { Gap } from "@/lib/dossier/completeness";
 import type { FieldDefinition } from "@/lib/types";
 import type { CarriedValue } from "@/lib/intake/carryForward";
+import {
+  GAP_MARKERS,
+  OPENING_NUDGE,
+  chatLayout,
+  chatSystemPrompt,
+} from "@/lib/claude/prompts/chat";
 
 /**
  * Eén beurt van de intake-assistent.
@@ -85,6 +91,8 @@ function systemPrompt(
   carried: CarriedValue[],
 ): string {
   const byKey = new Map(definitions.map((d) => [d.key, d]));
+  const markers = GAP_MARKERS[locale];
+  const layout = chatLayout(locale);
 
   const gapList = gaps
     .slice(0, 12)
@@ -94,16 +102,11 @@ function systemPrompt(
         definition?.dataType === "enum"
           ? `enum(${definition.enumOptions?.join("|")})`
           : (definition?.dataType ?? "text");
-      const mark = gap.required ? "verplicht" : "optioneel";
-      const why =
-        gap.reason === "conflicting"
-          ? "TEGENSTRIJDIG in de documenten, vraag de atleet welke klopt"
-          : "ontbreekt";
+      const mark = gap.required ? markers.required : markers.optional;
+      const why = gap.reason === "conflicting" ? markers.conflicting : markers.missing;
       return `- ${gap.fieldKey} [${type}, ${mark}, ${why}]: ${gap.question}`;
     })
     .join("\n");
-
-  const language = locale === "nl" ? "Nederlands" : "Engels";
 
   // Twee verschillende lijsten, en dat onderscheid is wezenlijk.
   //
@@ -135,45 +138,17 @@ function systemPrompt(
       const shown = Array.isArray(item.value)
         ? item.value.join(", ")
         : String(item.value);
-      const when = item.fromDate ? ` (opgegeven ${item.fromDate})` : "";
+      const when = item.fromDate ? layout.recordedOn(item.fromDate) : "";
       return `- ${item.fieldKey}: ${item.label} = ${shown}${when}`;
     })
     .join("\n");
 
-  const carryRule = carried.length
-    ? `
-8. Onder "Bekend uit een eerdere intake" staan gegevens die deze atleet eerder al gaf. Heeft hij in DIT gesprek nog niets geantwoord, open dan met een bericht dat die gegevens opsomt en in een vraag laat bevestigen of ze nog kloppen. Dat is nog steeds een vraag, dus regel 1 blijft gelden.
-9. Neem die gegevens niet vanzelf over. Pas als de atleet bevestigt, geef je de betreffende velden terug met exact de waarden die hierboven staan. Corrigeert hij er een, dan geef je die ene gecorrigeerde waarde terug en de rest zoals bevestigd. Zegt hij niets over een veld, dan geef je dat veld niet terug.
-`
-    : "";
-
-  const carrySection = carried.length
-    ? `
-
-Bekend uit een eerdere intake:
-
-${known}`
-    : "";
-
-  return `Je begeleidt de intake van een atleet bij een praktijk voor eliteatletenbegeleiding. Je spreekt ${language}. Je bent kort, concreet en vriendelijk zonder overdaad.
-
-Werkwijze:
-
-1. Stel een vraag per beurt. Niet twee, niet een lijst.
-2. Neem de eerste openstaande vraag uit "Nu vragen", tenzij het antwoord van de atleet logisch om een vervolgvraag vraagt.
-3. Haal uit het laatste antwoord van de atleet ELK veld dat er letterlijk in zit, ook velden waar je niet naar vroeg en ook velden die niet in "Nu vragen" staan. Alles uit "Mag je oppikken" komt in aanmerking. Noemt iemand bij een vraag over lengte ook zijn gewicht, sport en club, dan geef je die alle vier terug.
-4. Leidt niets af. "Ik voetbal" vult identity.sport, maar niet identity.discipline.
-5. Bij een tegenstrijdigheid: leg kort voor wat er in de documenten staat en vraag welke waarde klopt.
-6. Geen medisch advies, geen interpretatie van klachten, geen trainingsadvies. Je verzamelt.
-7. Is "Nu vragen" leeg, zet done op true en sluit in een zin af.
-${carryRule}
-Nu vragen:
-
-${gapList || "(niets meer open)"}
-
-Mag je oppikken uit een antwoord:
-
-${capturable || "(niets meer open)"}${carrySection}`;
+  return chatSystemPrompt(locale, {
+    gapList: gapList || markers.nothingOpen,
+    capturable: capturable || markers.nothingOpen,
+    carryRule: carried.length ? "yes" : "",
+    carrySection: carried.length ? `\n\n${layout.knownFromEarlier}\n\n${known}` : "",
+  });
 }
 
 export async function runChatTurn(input: {
@@ -207,7 +182,7 @@ export async function runChatTurn(input: {
         ...input.history,
         {
           role: "user" as const,
-          content: input.nudge ?? "Ik wil de intake starten.",
+          content: input.nudge ?? OPENING_NUDGE[input.locale],
         },
       ]
     : input.history;

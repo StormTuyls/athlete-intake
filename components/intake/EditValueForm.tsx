@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { chat } from "@/lib/intake/copy";
+import { useTranslations } from "next-intl";
 import type { CaptureCard } from "@/lib/intake/transcriptTypes";
 
 /**
@@ -43,6 +43,7 @@ export function EditValueForm({
   onSave: (value: string) => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("chat");
   const [value, setValue] = useState(() => initialValue(card));
 
   const field = "w-full rounded-md border border-hairline bg-surface px-3 py-2 text-base text-ink outline-none focus-visible:border-brand-500";
@@ -118,7 +119,7 @@ export function EditValueForm({
           disabled={busy}
           className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
         >
-          {chat.save}
+          {t("save")}
         </button>
         <button
           type="button"
@@ -126,7 +127,7 @@ export function EditValueForm({
           disabled={busy}
           className="rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas disabled:opacity-40"
         >
-          {chat.cancel}
+          {t("cancel")}
         </button>
       </div>
     </form>

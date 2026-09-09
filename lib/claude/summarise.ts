@@ -1,5 +1,12 @@
 import { anthropic, MODEL } from "@/lib/claude/client";
-import { label } from "@/lib/dossier/labels";
+import { enumLabel } from "@/lib/dossier/enumLabels";
+import type { Locale } from "@/lib/i18n/locale";
+import {
+  CLINICAL_MARKERS,
+  COMMERCIAL_COUNTS,
+  COMMERCIAL_SYSTEM,
+  clinicalSystem,
+} from "@/lib/claude/prompts/summary";
 import type { FieldDefinition, ResolvedField } from "@/lib/types";
 
 /**
@@ -28,30 +35,52 @@ function line(label: string, value: unknown): string | null {
 /**
  * Zakelijke samenvatting voor Notion. Geen medische gegevens in de input.
  */
+/**
+ * De niet-medische velden die de kaartkop nodig heeft, in deze volgorde.
+ *
+ * Sleutels en geen labels. De labels stonden hier eerder hardgeschreven in het
+ * Nederlands, twaalf stuks, en dat had twee gebreken: ze liepen los van de
+ * taxonomie (een label dat in field_definitions verandert, verandert hier niet
+ * mee) en ze maakten de invoer eentalig. Nu komen ze uit de definities, dus ze
+ * zijn per definitie in de taal van de samenvatting.
+ */
+const COMMERCIAL_FIELDS = [
+  "identity.full_name",
+  "identity.date_of_birth",
+  "identity.sport",
+  "identity.discipline",
+  "identity.club",
+  "identity.federation",
+  "identity.coach_name",
+  "status.target_event",
+  "training.weekly_volume_hours",
+  "training.season_phase",
+  "training.seasons_experience",
+  "training.strength_training_years",
+] as const;
+
 export async function commercialSummary(input: {
   values: Map<string, unknown>;
+  definitions: FieldDefinition[];
   documentCount: number;
   openFields: number;
   conflicts: number;
+  locale: Locale;
 }): Promise<SummaryResult> {
-  const get = (key: string) => input.values.get(key);
+  const byKey = new Map(input.definitions.map((d) => [d.key, d]));
+  const counts = COMMERCIAL_COUNTS[input.locale];
 
   const facts = [
-    line("Naam", get("identity.full_name")),
-    line("Geboortedatum", get("identity.date_of_birth")),
-    line("Sport", get("identity.sport")),
-    line("Discipline", get("identity.discipline")),
-    line("Club", get("identity.club")),
-    line("Federatie", get("identity.federation")),
-    line("Coach", get("identity.coach_name")),
-    line("Doelwedstrijd", get("status.target_event")),
-    line("Trainingsvolume per week in uren", get("training.weekly_volume_hours")),
-    line("Seizoensfase", get("training.season_phase")),
-    line("Jaren ervaring", get("training.seasons_experience")),
-    line("Jaren krachttraining", get("training.strength_training_years")),
-    `Aangeleverde documenten: ${input.documentCount}`,
-    `Velden nog niet ingevuld: ${input.openFields}`,
-    `Tegenstrijdigheden tussen bronnen: ${input.conflicts}`,
+    ...COMMERCIAL_FIELDS.map((key) => {
+      const definition = byKey.get(key);
+      if (!definition) return null;
+      const label =
+        input.locale === "nl" ? definition.labelNl : definition.labelEn;
+      return line(label, input.values.get(key));
+    }),
+    `${counts.documents}: ${input.documentCount}`,
+    `${counts.openFields}: ${input.openFields}`,
+    `${counts.conflicts}: ${input.conflicts}`,
   ]
     .filter((entry): entry is string => entry !== null)
     .join("\n");
@@ -63,16 +92,7 @@ export async function commercialSummary(input: {
     system: [
       {
         type: "text",
-        text: `Je schrijft de kop van een atleetkaart voor een coach die tien van deze kaarten per week bekijkt.
-
-Regels:
-
-1. Twee tot vier zinnen, lopende tekst. Geen opsomming, geen kopjes, geen labels.
-2. Begin met wie het is en wat hij doet. Daarna de trainingscontext en het doel.
-3. Sluit af met wat er nog moet gebeuren, als er iets openstaat. Een tegenstrijdigheid tussen bronnen noem je expliciet, want die blokkeert goedkeuring.
-4. Herhaal geen labels die de coach al in de kolommen ziet. Schrijf "sprinter bij AC Herentals", niet "Sport: sprint, Club: AC Herentals".
-5. Verzin niets. Ontbreekt iets, laat het weg. Schrijf niet dat iets onbekend is, tenzij het de coach tot actie moet aanzetten.
-6. Geen uitspraken over gezondheid, klachten of belastbaarheid. Die gegevens staan hier niet en horen hier niet.`,
+        text: COMMERCIAL_SYSTEM[input.locale],
         cache_control: { type: "ephemeral" },
       },
     ],
@@ -99,6 +119,8 @@ Regels:
 export async function clinicalSummary(input: {
   definitions: FieldDefinition[];
   resolved: Map<string, ResolvedField>;
+  /** De taal waarin de samenvatting geschreven wordt. Zie PRACTICE_LOCALE. */
+  locale: Locale;
   injuries: Array<{
     bodyRegion: string;
     side: string;
@@ -108,6 +130,7 @@ export async function clinicalSummary(input: {
   }>;
 }): Promise<SummaryResult> {
   const facts: string[] = [];
+  const markers = CLINICAL_MARKERS[input.locale];
 
   for (const definition of input.definitions) {
     const field = input.resolved.get(definition.key);
@@ -118,26 +141,31 @@ export async function clinicalSummary(input: {
     // advies om iets tegen een origineel te controleren dat niet bestaat.
     let marker = "";
     if (field.status === "conflicting") {
-      marker = " [TEGENSTRIJDIG tussen bronnen]";
+      marker = ` ${markers.conflicting}`;
     } else if (field.proposedBy === "athlete") {
-      marker = " [door de atleet zelf opgegeven]";
+      marker = ` ${markers.athlete}`;
     } else if (field.proposedBy === "coach") {
-      marker = " [door de coach bevestigd]";
+      marker = ` ${markers.coach}`;
     } else if (field.confidence === "medium") {
-      marker = " [uit een scan, citaat niet terugvindbaar in de brontekst]";
+      marker = ` ${markers.unverified}`;
     }
 
     const shown =
-      definition.dataType === "enum" ? label(field.value) : JSON.stringify(field.value);
+      definition.dataType === "enum"
+        ? enumLabel(definition.key, field.value, input.locale)
+        : JSON.stringify(field.value);
 
-    facts.push(`${definition.labelNl}: ${shown}${marker}`);
+    const label = input.locale === "nl" ? definition.labelNl : definition.labelEn;
+    facts.push(`${label}: ${shown}${marker}`);
   }
 
   if (input.injuries.length > 0) {
     facts.push("");
-    facts.push("Blessuretijdlijn:");
+    facts.push(markers.timeline);
     for (const injury of input.injuries) {
-      const period = [injury.onsetDate, injury.endDate].filter(Boolean).join(" tot ");
+      const period = [injury.onsetDate, injury.endDate]
+        .filter(Boolean)
+        .join(` ${markers.until} `);
       facts.push(
         `- ${injury.bodyRegion} ${injury.side}${injury.diagnosis ? `, ${injury.diagnosis}` : ""}${period ? ` (${period})` : ""}`,
       );
@@ -151,30 +179,7 @@ export async function clinicalSummary(input: {
     system: [
       {
         type: "text",
-        text: `Je vat een atleetintake samen voor de coach of behandelaar die het dossier gaat nakijken. Je bent geen behandelaar en je stelt geen diagnose.
-
-Structuur, met exact deze drie kopjes:
-
-**Wat er staat**
-Wat er feitelijk in het dossier zit. Klachten, historiek en belastbaarheid in de woorden van de bron, niet in jouw interpretatie. Neem diagnoses over zoals ze er staan.
-
-**Wat opvalt**
-Verbanden die uit de feiten volgen en die de coach zou willen zien, bijvoorbeeld een klacht op dezelfde plek als een eerdere blessure. Formuleer als observatie, niet als conclusie. Dit is jouw interpretatie en dat mag blijken uit de formulering.
-
-**Wat nog nagekeken moet worden**
-Ontbrekende gegevens die ertoe doen, en elke tegenstrijdigheid tussen bronnen. Een tegenstrijdigheid noem je altijd, met beide waarden.
-
-Regels:
-
-1. Verzin niets. Wat er niet staat, staat er niet.
-2. Geen behandeladvies, geen trainingsadvies, geen prognose.
-3. De markers tussen blokhaken zijn instructies voor jou, niet tekst om over te nemen. Schrijf ze NOOIT letterlijk in je antwoord. Een kinesist die "[door de coach bevestigd]" leest, leest de binnenkant van het systeem. Waar het uitmaakt zeg je het in gewone taal ("volgens de atleet zelf", "niet terug te vinden in de brontekst"), en waar het niet uitmaakt zeg je niets.
-4. Wat de markers betekenen:
-   - [door de atleet zelf opgegeven]: zelfgerapporteerd. Niet nakijken tegen een document, dat bestaat niet. Alleen noemen als het klinisch uitmaakt, bijvoorbeeld bij een gewicht of een klacht.
-   - [door de coach bevestigd]: hard gegeven. Geen voorbehoud nodig.
-   - [uit een scan, citaat niet terugvindbaar in de brontekst]: dit hoort in "Wat nog nagekeken moet worden", met de naam van het gegeven.
-   - [TEGENSTRIJDIG tussen bronnen]: altijd noemen, met beide waarden.
-5. Kort. De lezer neemt dit in dertig seconden door.`,
+        text: clinicalSystem(input.locale),
         cache_control: { type: "ephemeral" },
       },
     ],

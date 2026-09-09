@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { badRequest, handleError } from "@/lib/http";
 import { logAudit } from "@/lib/audit";
 import { addProposals, getProposals, syncDossier } from "@/lib/db/dossier";
@@ -33,20 +34,23 @@ export const maxDuration = 60;
  */
 
 /** Waarom de waarde niet gelezen kon worden, in het Nederlands: dit scherm is van de coach. */
-function inputHint(definition: FieldDefinition): string {
+function inputHint(
+  definition: FieldDefinition,
+  t: Awaited<ReturnType<typeof apiMessages>>,
+): string {
   switch (definition.dataType) {
     case "number":
-      return "Vul een getal in, bijvoorbeeld 76,5.";
+      return t("hintNumber");
     case "date":
-      return "Vul een datum in als jaar-maand-dag, bijvoorbeeld 1992-03-14.";
+      return t("hintDate");
     case "boolean":
-      return "Kies ja of nee.";
+      return t("hintBoolean");
     case "enum":
-      return `Kies een van: ${(definition.enumOptions ?? []).join(", ")}.`;
+      return t("hintEnum", { options: (definition.enumOptions ?? []).join(", ") });
     case "list":
-      return "Vul een of meer waarden in, gescheiden door komma's.";
+      return t("hintList");
     default:
-      return "Dit veld mag niet leeg zijn.";
+      return t("hintText");
   }
 }
 
@@ -55,11 +59,12 @@ export async function POST(
   context: { params: Promise<{ intakeId: string }> },
 ) {
   try {
+    const t = await apiMessages();
     const { intakeId } = await context.params;
     const coach = await requireCoach();
 
     if (!isIntakeId(intakeId)) {
-      return NextResponse.json({ error: "intake niet gevonden" }, { status: 404 });
+      return NextResponse.json({ error: t("intakeNotFound") }, { status: 404 });
     }
 
     const { data: intake } = await appDb()
@@ -69,7 +74,7 @@ export async function POST(
       .maybeSingle();
 
     if (!intake) {
-      return NextResponse.json({ error: "intake niet gevonden" }, { status: 404 });
+      return NextResponse.json({ error: t("intakeNotFound") }, { status: 404 });
     }
 
     // Een goedgekeurd dossier is bevroren. Wie er toch iets in wil wijzigen
@@ -77,7 +82,7 @@ export async function POST(
     // op 2 september" niets meer.
     if (intake.status === "approved") {
       return NextResponse.json(
-        { error: "dit dossier is goedgekeurd en niet meer te wijzigen" },
+        { error: t("approvedLocked") },
         { status: 409 },
       );
     }
@@ -87,12 +92,12 @@ export async function POST(
       value?: unknown;
     };
 
-    if (!body.fieldKey) return badRequest("Een veld is verplicht.");
+    if (!body.fieldKey) return badRequest(t("fieldRequired"));
 
     const locale = intake.locale as "nl" | "en";
     const state = await syncDossier(intakeId, locale);
     const definition = state.definitions.find((d) => d.key === body.fieldKey);
-    if (!definition) return badRequest("Onbekend veld.");
+    if (!definition) return badRequest(t("unknownField"));
 
     const resolved = state.resolved.get(definition.key);
     const proposals = await getProposals(intakeId);
@@ -100,7 +105,7 @@ export async function POST(
 
     if (body.value !== undefined) {
       const validation = validateValue(definition, body.value);
-      if (!validation.valid) return badRequest(inputHint(definition));
+      if (!validation.valid) return badRequest(inputHint(definition, t));
 
       // Staat dezelfde waarde er al van de coach, dan is er niets gebeurd. Een
       // tweede identieke rij maakt de historie langer zonder hem beter te maken.
@@ -129,7 +134,7 @@ export async function POST(
           ? undefined
           : proposalById.get(winningId);
 
-      if (!winner) return badRequest("Er is niets te bevestigen voor dit veld.");
+      if (!winner) return badRequest(t("nothingToConfirm"));
 
       // Al door de coach afgetikt: niets te doen.
       if (winner.proposedBy !== "coach") {

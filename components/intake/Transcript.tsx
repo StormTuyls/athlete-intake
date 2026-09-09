@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useLocale } from "next-intl";
+import { toLocale } from "@/lib/i18n/locale";
 import { dayKey, dividerLabel } from "@/lib/intake/format";
 import { DateDivider } from "@/components/intake/DateDivider";
 import { MessageBubble } from "@/components/intake/MessageBubble";
@@ -28,6 +30,7 @@ export function Transcript({
   onConfirm?: (fieldKey: string) => Promise<void>;
   onEdit?: (fieldKey: string, value: string) => Promise<void>;
 }) {
+  const locale = toLocale(useLocale());
   const bottom = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -70,7 +73,7 @@ export function Transcript({
       {rows.map(({ item, showDivider }) => {
         return (
           <div key={item.id} className="flex flex-col gap-3">
-            {showDivider && <DateDivider label={dividerLabel(item.at)} />}
+            {showDivider && <DateDivider label={dividerLabel(item.at, locale)} />}
 
             {item.kind === "assistant" && (
               <MessageBubble role="assistant">{item.text}</MessageBubble>

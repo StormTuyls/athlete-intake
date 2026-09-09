@@ -3,6 +3,7 @@ import { appDb } from "@/lib/supabase/service";
 import { getFieldDefinitions, syncDossier } from "@/lib/db/dossier";
 import { listDocuments, readLatestReport, type DocumentSummary } from "@/lib/db/medical";
 import { logAudit } from "@/lib/audit";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { resolveInjuryTimeline, type TimelineEntry } from "@/lib/dossier/timeline";
 import type { Proposal, ResolvedField } from "@/lib/types";
 
@@ -385,6 +386,15 @@ export async function getReviewData(
   /** Wie het dossier opvraagt. Gaat mee in het spoor; zonder actor is een
    *  leesregel alleen "iemand heeft gekeken", en dat is te weinig. */
   actorId?: string,
+  /**
+   * De taal van de COACH, niet die van de intake.
+   *
+   * Wie tien dossiers per week nakijkt wil niet dat de veldlabels van taal
+   * wisselen bij het openen van een dossier van een Engelstalige atleet.
+   * `intake.locale` blijft wel de taal van de gaten en de vragen hieronder: die
+   * gaan naar de atleet.
+   */
+  coachLocale: Locale = DEFAULT_LOCALE,
 ): Promise<ReviewData | null> {
   const { data: intake, error } = await appDb()
     .from("intakes")
@@ -432,7 +442,7 @@ export async function getReviewData(
     const field = state.resolved.get(definition.key);
     const entry = {
       key: definition.key,
-      label: definition.labelNl,
+      label: coachLocale === "nl" ? definition.labelNl : definition.labelEn,
       dataType: definition.dataType,
       required: definition.required,
       isMedical: definition.isMedical,

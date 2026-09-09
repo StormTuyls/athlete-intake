@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMessages } from "@/lib/i18n/server";
 import { listDocuments } from "@/lib/db/medical";
 import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
@@ -24,10 +25,11 @@ export const maxDuration = 300;
  */
 export async function POST(request: Request) {
   try {
+    const t = await apiMessages();
     const session = await requireEditableIntake();
 
     if (!session.consentGrantedAt) {
-      return badRequest("Please give consent before we process your data.");
+      return badRequest(t("consentFirst"));
     }
 
     const body = (await request.json()) as {
@@ -37,13 +39,13 @@ export async function POST(request: Request) {
     };
 
     if (!body.path || !body.filename || !body.mimeType) {
-      return badRequest("A path, filename and file type are required.");
+      return badRequest(t("pathRequired"));
     }
 
     // Het pad moet in de map van deze intake liggen. Anders zou een geldige
     // sessie het document van een andere atleet kunnen laten verwerken.
     if (!body.path.startsWith(`${session.intakeId}/`)) {
-      return badRequest("That file does not belong to this intake.");
+      return badRequest(t("notThisIntake"));
     }
 
     const result = await processDocument({
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
       ...result,
       cards: extraction.cards,
       completeness: state.completeness,
-      collecting: collectingFrom(state.gaps),
+      collecting: collectingFrom(state.gaps, session.locale),
       progress: computeProgress(
         state.definitions,
         state.gaps,
