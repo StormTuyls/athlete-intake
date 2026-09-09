@@ -1,4 +1,5 @@
 import { Pool, types, type QueryResultRow } from "pg";
+import { SUPABASE_ROOT_CA } from "./supabaseCa";
 
 /**
  * Directe Postgres-verbinding voor het `medical`-schema.
@@ -33,11 +34,35 @@ types.setTypeParser(types.builtins.DATE, (value) => value);
 
 let pool: Pool | null = null;
 
+/**
+ * `sslmode` uit de verbindingsstring halen, en dat is geen kosmetiek.
+ *
+ * Staat er een `sslmode` in, dan bouwt pg-connection-string zelf een
+ * TLS-configuratie op uit die parameter en gooit de `ssl` die wij meegeven weg,
+ * inclusief de CA. Het gevolg is niet een zwakkere verbinding maar geen
+ * verbinding: `self-signed certificate in certificate chain`. Gemeten tegen de
+ * echte pooler, niet bedacht.
+ *
+ * Erger is de variant die wel werkt: `sslmode=no-verify` verbindt gewoon, en dan
+ * is de verbinding versleuteld maar niet geverifieerd. Dat is precies de stille
+ * verzwakking die niemand opmerkt. Daarom bepaalt deze module het TLS-beleid en
+ * niet de omgevingsvariabele: wie later `?sslmode=...` aan DATABASE_URL plakt,
+ * verandert er niets mee.
+ */
+function withoutSslMode(connectionString: string): string {
+  if (!/[?&]sslmode=/i.test(connectionString)) return connectionString;
+
+  const url = new URL(connectionString);
+  url.searchParams.delete("sslmode");
+  return url.toString();
+}
+
 function getPool(): Pool {
   if (pool) return pool;
 
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error("DATABASE_URL ontbreekt");
+  const raw = process.env.DATABASE_URL;
+  if (!raw) throw new Error("DATABASE_URL ontbreekt");
+  const connectionString = withoutSslMode(raw);
 
   pool = new Pool({
     connectionString,
@@ -46,9 +71,14 @@ function getPool(): Pool {
     max: 4,
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 5_000,
+    // Lokaal loopt Postgres in Docker zonder TLS. Alles daarbuiten verifieert
+    // volledig: de keten moet kloppen en de hostnaam moet op het certificaat
+    // staan. De CA gaat mee in de bundel, want die van Supabase zit niet in de
+    // truststore van Node. Zie lib/db/supabaseCa.ts voor de reden en de
+    // herkomst van dat certificaat.
     ssl: connectionString.includes("127.0.0.1") || connectionString.includes("localhost")
       ? undefined
-      : { rejectUnauthorized: true },
+      : { ca: SUPABASE_ROOT_CA, rejectUnauthorized: true },
   });
 
   return pool;
