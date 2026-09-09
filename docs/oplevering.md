@@ -39,6 +39,19 @@ Tegen de echte productie-URL, niet lokaal:
 - De rol `intake_server` mag `medical` en `public.field_definitions` lezen, en wordt geweigerd op
   `public.profiles`. Least privilege, gemeten.
 - Inloggen als behandelaar werkt op productie, dus de Supabase-auth loopt door de CSP heen.
+- Een atleet registreren, consent geven, een intake openen en een vraag beantwoorden werkt. Het
+  model haalde uit "I am 182 cm tall and I weigh 74 kg" twee velden (Height en Body mass) en stelde
+  daarna zelf de volgende vraag; de voortgang liep van 2/15 naar 4/15 verplichte velden. Daarmee is
+  ook de Anthropic-kant en het schrijven naar `field_proposals` en `dossier_fields` op productie
+  aangetoond, niet alleen de infrastructuur eromheen.
+- Hervatten werkt: het thuisscherm laat "Continue your intake" zien met de juiste voortgang.
+- **Het verwijderpad is op productie doorlopen, niet alleen in de test.** Die atleet is via het
+  coachscherm verwijderd, en daarna is per tabel geteld: `athletes`, `intakes`, `consents`,
+  `chat_messages`, `profiles`, `auth.users`, `medical.field_proposals`, `medical.dossier_fields`,
+  `medical.documents`, `medical.injury_events`, `medical.intake_reports` en de Storage-objecten staan
+  allemaal op nul. Wat overbleef is precies wat het bevestigingsscherm belooft: een regel in
+  `public.audit_log` met `action=purge`, `entity_table=athletes`, `actor_kind=coach`, plus de
+  samenvattingsrij in `medical.purge_jobs`.
 
 ## Subverwerkers
 
@@ -101,10 +114,10 @@ want die stond er nooit in.
 
 Op volgorde van wat eerst opgelost moet worden.
 
-### Eerst dit: een atleet kan zich niet registreren op productie
+### Opgelost tijdens de oplevering: een atleet kon zich niet registreren
 
-Dit is het enige echte defect in de opgeleverde omgeving, en het zit niet in de code maar in een
-instelling van het cloudproject.
+Dit stond hier als het enige echte defect. Het is opgelost en nagerekend; de beschrijving blijft
+staan omdat de eerste helft een instelling is die bij een volgend project weer zo staat.
 
 `supabase/config.toml` zet `enable_confirmations = false` voor de lokale stack. Een nieuw
 Supabase-cloudproject staat standaard omgekeerd: e-mailbevestiging staat aan. Gemeten op productie:
@@ -126,24 +139,58 @@ Twee dingen gaan daardoor stuk, en ze stapelen:
 De registratieflow is dus gebouwd op de aanname die `config.toml` maakt: bevestiging uit, meteen een
 sessie. Het cloudproject moet daarop gezet worden.
 
-**De ingreep**: zet in het Supabase-dashboard onder Authentication > Sign In / Providers > Email de
-optie "Confirm email" uit. Dat is dezelfde instelling als `enable_confirmations = false`.
+**Wat er gedaan is**, via de Management API op het cloudproject:
 
-Dat is een bewuste keuze en geen omissie: atleetaccounts worden dan niet per e-mail geverifieerd. Voor
-deze opzet is dat verdedigbaar, want de intakelink wordt door de praktijk gedeeld en een coach kijkt
-elk dossier na voor het iets betekent. Wil de klant wel verifieren, dan is dat een change request met
-drie delen: eigen SMTP instellen, `site_url` en de redirect-allowlist naar productie zetten, en in de
-UI een "kijk in je mailbox"-toestand bouwen tussen registreren en het intakegesprek.
+| Instelling | Was | Nu |
+|---|---|---|
+| `mailer_autoconfirm` | `false` | `true` |
+| `site_url` | `http://localhost:3000` | `https://athlete-intake.vercel.app` |
+| `uri_allow_list` | leeg | `https://athlete-intake.vercel.app/**` |
+| `password_min_length` | 6 | 8 |
+
+Die `site_url` was ook precies waarom de bevestigingsmail naar localhost wees. Hij staat nu goed, ook
+al wordt er voorlopig geen mail meer gestuurd: een instelling die naar een ontwikkelmachine wijst gaat
+een keer iemand bijten.
+
+`password_min_length` stond op 6 terwijl het registratieformulier zelf 8 eist en het coachscript 12.
+De server was dus zwakker dan de UI beloofde. Nu 8, gelijk aan het formulier.
+
+Dat autoconfirm aan staat is een bewuste keuze en geen omissie: atleetaccounts worden niet per e-mail
+geverifieerd. Voor deze opzet is dat verdedigbaar, want de intakelink wordt door de praktijk gedeeld
+en een coach kijkt elk dossier na voor het iets betekent.
+
+**Wil de klant wel verifieren, gebruik dan Resend en niet de mailer van Supabase.** Die ingebouwde
+mailer is gelimiteerd op een paar berichten per uur, en de standaardtemplate ziet er niet uit. Dat is
+een change request met drie delen: Resend als SMTP-provider instellen, de e-mailtemplate vervangen, en
+in de UI een "kijk in je mailbox"-toestand bouwen tussen registreren en het intakegesprek. `site_url`
+en de allowlist staan dan al goed.
+
+### En het tweede deel: /intake liep dood na registreren
+
+Met autoconfirm aan bleef er een tweede gat, en dat zat wel in de code. De linktree wijst naar
+`/intake`. Een atleet zonder account ging van daar naar `/start?next=/intake`, registreerde zich, en
+kwam door dat `next` weer op `/intake` uit. Daar stond dan "Your session has expired", 0 van 0 velden,
+en twee 401's.
+
+`POST /api/athlete/register` maakt namelijk het profiel, de atleetrij en de toestemming, en zet geen
+intakecookie. Dat doet `POST /api/intake`, en dat gebeurt op het thuisscherm. De eerste pagina die een
+atleet ooit zag was dus een doodlopend scherm.
+
+Opgelost in `app/intake/page.tsx`: zonder account naar `/start?next=/home`, en met account maar zonder
+geldige intakesessie naar `/home`. Die tweede redirect dekt hetzelfde gat voor een bestaande atleet,
+want het intakecookie is een capability token van dertig dagen en reist niet mee naar een ander
+toestel.
 
 `supabase config push` is hier met opzet niet gebruikt. Dat commando duwt de hele `config.toml` naar
 het project, inclusief `site_url = "http://127.0.0.1:3000"` en de localhost-redirects, en dat is op
 een klantproject een grotere ingreep dan het probleem.
 
-**Zet in hetzelfde bezoek aan het dashboard "Leaked password protection" aan** (Authentication >
-Policies, of Password settings). Dat is de enige overgebleven bevinding van `supabase db advisors`.
-Behandelaars en atleten loggen met een wachtwoord in, en Supabase kan dat gratis tegen
-HaveIBeenPwned houden. Voor toegang tot een medisch dossier is dat het soort standaardmaatregel dat
-je niet wil hoeven verantwoorden dat je hem niet aan had staan.
+**Leaked password protection kan niet aan op het Free-plan.** De API antwoordt letterlijk
+"Configuring leaked password protection via HaveIBeenPwned.org is available on Pro Plans and up". Dat
+is de enige overgebleven bevinding van `supabase db advisors`, en hij is opgelost op het moment dat de
+org naar Pro gaat (punt 1 hieronder). Zet hem dan meteen aan: behandelaars en atleten loggen met een
+wachtwoord in, en dit is het soort standaardmaatregel waarvan je niet wil hoeven verantwoorden dat hij
+uit stond.
 
 De rest van de linter is schoon. Er stond nog een `function_search_path_mutable` op
 `private.reject_mutation()`, de trigger die `public.audit_log` append-only houdt; die is opgelost in
@@ -164,9 +211,13 @@ steeds weigert.
    licentiekwestie staat los daarvan. Upgrade naar Pro ($20 per maand).
 
 3. **De service-role-sleutel is nog de oude JWT.** De nieuwe `sb_secret_`-sleutel is niet via de API
-   of de CLI op te halen, die wordt alleen in het dashboard getoond. Haal hem daar op, zet hem als
-   `SUPABASE_SERVICE_ROLE_KEY` in Vercel, en schakel daarna de oude JWT-sleutels uit. De
-   publiekelijke sleutel in de browser is al de nieuwe stijl (`sb_publishable_`).
+   of de CLI op te halen (die komt gemaskeerd terug), dus hij moet uit het dashboard komen. Let op de
+   juiste plek: de sleutel die tijdens de oplevering aangeleverd werd begon met `sb_secret_lxK` en gaf
+   een 401, terwijl de enige secret key van dit project met `sb_secret_yIK` begint. Die eerste hoorde
+   bij een ander project. Haal hem uit het dashboard van **athlete-intake** zelf, zet hem als
+   `SUPABASE_SERVICE_ROLE_KEY` in Vercel, controleer dat `/coach` nog werkt, en schakel daarna de oude
+   JWT-sleutels uit. De publiekelijke sleutel in de browser is al de nieuwe stijl
+   (`sb_publishable_`).
 
 4. **Previews praten met de productiedatabank.** De omgevingsvariabelen staan op `production` en
    `preview`, dus een preview-deployment van een willekeurige branch schrijft in het echte dossier.
@@ -174,16 +225,22 @@ steeds weigert.
    klantdata in staat, hoort een preview naar een Supabase-branch te wijzen of geen databank te
    krijgen.
 
-5. **Het volledige intakegesprek is nog niet op productie doorlopen.** Getest zijn: de deploy, de
-   headers, de CSP, de retentiejob, de databankverbinding en het inloggen. Niet getest op productie:
-   een document uploaden, de extractie, de chat, goedkeuren en het rapport. Dat vraagt een echt
-   document, en het schrijft medische testdata in de databank van de klant, dus dat is een bewuste
-   handeling en geen bijproduct van een verificatie. Doe die run met een synthetisch document en ruim
-   hem daarna op via het verwijderpad. **`npm run seed:demo` mag nooit tegen productie draaien.**
+5. **Het uploadpad is nog niet op productie doorlopen.** Wel doorlopen en opgeruimd: registreren,
+   consent, een intake openen, een chatantwoord dat door het model in twee velden werd omgezet
+   (`182 cm` en `74 kg` naar Height en Body mass, voortgang van 2/15 naar 4/15), hervatten via het
+   thuisscherm, de atleet terugvinden in het coachscherm, en verwijderen. Niet doorlopen: een document
+   uploaden, de extractie eruit, de citaatverificatie, goedkeuren en het PDF-rapport. Dat vraagt een
+   echt document en het schrijft medische data in de databank van de klant, dus doe die run met een
+   synthetisch document en ruim hem daarna op via het verwijderpad.
+   **`npm run seed:demo` mag nooit tegen productie draaien.**
+
+6. **Er staat nog een testatleet in de databank.** `stormtuyls@icloud.com`, een intake met status
+   `submitted`. Die is met opzet niet verwijderd, want het is niet mijn data. Ruim hem op via het
+   coachscherm voor je aan de klant oplevert, zodat die met een leeg dossier begint.
 
 ### Bekende beperkingen, bewust zo
 
-6. **De CSP staat `'unsafe-inline'` toe voor scripts.** Next zet zijn eigen opstartscript inline in de
+7. **De CSP staat `'unsafe-inline'` toe voor scripts.** Next zet zijn eigen opstartscript inline in de
    pagina, en een statische header in `vercel.json` kan geen nonce per request meegeven. De nette
    oplossing is een nonce in `proxy.ts`, maar dat dwingt elke pagina naar dynamisch renderen en
    `proxy.ts` dekt nu niet alle paden. Zolang dit zo staat, is de CSP wel een echte grens voor
@@ -191,30 +248,30 @@ steeds weigert.
    geinjecteerd inline script. Als er ooit gebruikersinvoer ongeescaped in een pagina belandt, is dit
    het verschil. Opwaarderen naar een nonce is een afgebakende klus.
 
-7. **De root-CA van Supabase zit in de bundel en verloopt op 26 april 2031.** Zie
+8. **De root-CA van Supabase zit in de bundel en verloopt op 26 april 2031.** Zie
    `lib/db/supabaseCa.ts`. Loopt die datum af zonder dat het certificaat vervangen is, dan valt de
    verbinding met het `medical`-schema weg. Dat is geen waarschuwing maar een storing.
 
-8. **`DATABASE_URL` mag geen `sslmode` bevatten.** Staat die parameter er wel in, dan bouwt
+9. **`DATABASE_URL` mag geen `sslmode` bevatten.** Staat die parameter er wel in, dan bouwt
    `pg-connection-string` zijn eigen TLS-configuratie en gooit de CA die de applicatie meegeeft weg.
    `sslmode=require` breekt de verbinding volledig; `sslmode=no-verify` doet iets ergers en verbindt
    zonder te verifieren. `lib/db/sql.ts` strippt de parameter er nu uit, dus het gaat niet stuk, maar
    zet hem er niet in met de gedachte dat het strenger is.
 
-9. **Er is geen wachtwoordherstel voor behandelaars.** Een wachtwoord opnieuw zetten gaat via
+10. **Er is geen wachtwoordherstel voor behandelaars.** Een wachtwoord opnieuw zetten gaat via
    `npm run coach:create -- <e-mail> "<naam>"`, dat bestaande accounts bijwerkt. Voor een praktijk met
    een handvol behandelaars werkbaar, maar het hoort een mail te worden.
 
-10. **Notion is niet geconfigureerd.** De vier `NOTION_*`-variabelen staan leeg en de sync slaat
+11. **Notion is niet geconfigureerd.** De vier `NOTION_*`-variabelen staan leeg en de sync slaat
     zichzelf over. Aanzetten gaat via `npm run notion:setup` met een `NOTION_PARENT_PAGE_ID` van een
     pagina die met de integratie gedeeld is; dat script maakt de drie databases aan en geeft de id's
     terug voor `NOTION_ATHLETES_DB`, `NOTION_INVOICES_DB` en `NOTION_TASKS_DB`.
 
-11. **`PRACTICE_LOCALE` bestaat niet.** Die variabele stond in de opleverlijst maar wordt door geen
+12. **`PRACTICE_LOCALE` bestaat niet.** Die variabele stond in de opleverlijst maar wordt door geen
     enkele regel code gelezen. De taal komt uit `profiles.locale` en `intakes.locale`. Er is dus niets
     te configureren en niets stuk; de naam hoort uit de lijst.
 
-12. **Er is geen favicon.** `/favicon.ico` geeft een 404 en dat is de enige melding in de
+13. **Er is geen favicon.** `/favicon.ico` geeft een 404 en dat is de enige melding in de
     browserconsole op productie. Cosmetisch.
 
 ## Sleutels en waar ze staan
