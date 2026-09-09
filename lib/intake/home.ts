@@ -1,15 +1,18 @@
 import { query } from "@/lib/db/sql";
 import { sectionLabel } from "@/lib/intake/sections";
+import { intakeTitles } from "@/lib/db/intakeTitle";
+import type { IntakeTitle } from "@/lib/intake/title";
 import type { Locale } from "@/lib/i18n/locale";
 
 /**
  * Wat het thuisscherm van de atleet nodig heeft.
  *
- * Bewust zonder medische inhoud. Het ontwerp zet bij een eerdere intake een
- * omschrijving ("Shoulder — right"), en dat zou een diagnose op een
- * overzichtspagina zetten die openstaat terwijl er iemand meekijkt in een
- * kleedkamer. Wat er wel staat is de datum en de status, en wie meer wil weten
- * opent de intake.
+ * Met een titel per intake, zoals in het ontwerp ("Shoulder — right"). Dit
+ * stond hier eerst zonder, met het argument dat een lichaamsdeel op een
+ * overzichtspagina meekijkbaar is in een kleedkamer. Dat argument is echt maar
+ * het verloor: drie regels "Intake" onder elkaar zijn onbruikbaar, en dit is je
+ * eigen dossier op je eigen scherm achter je eigen login. Zie lib/intake/title.ts
+ * voor waar de titel vandaan komt en waar hij met opzet niet verschijnt.
  *
  * De voortgang komt uit dezelfde telling als de ring in het gesprek: secties
  * zonder verplicht gat en zonder conflict. Twee plekken die hetzelfde getal
@@ -27,6 +30,11 @@ export interface HomeIntake {
   requiredTotal: number;
   /** De sectie waar de assistent verder zou gaan. Null als alles beantwoord is. */
   nextSection: string | null;
+  /**
+   * Waar deze intake over gaat. Onopgemaakt, want de woorden eromheen hangen
+   * aan de taal van de kijker en niet aan het dossier.
+   */
+  title: IntakeTitle;
 }
 
 export interface HomeData {
@@ -143,6 +151,9 @@ export async function loadHome(input: {
     [input.athleteId],
   );
 
+  // Eén tweede query voor alle intakes samen, geen n+1.
+  const titles = await intakeTitles(rows.map((row) => row.id));
+
   const intakes: HomeIntake[] = rows.map((row) => ({
     id: row.id,
     status: row.status,
@@ -155,6 +166,7 @@ export async function loadHome(input: {
     nextSection: row.next_section
       ? sectionLabel(row.next_section, input.locale)
       : null,
+    title: titles.get(row.id) ?? { kind: "none" },
   }));
 
   const name = displayName(input.fullName, input.email);

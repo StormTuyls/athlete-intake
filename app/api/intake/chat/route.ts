@@ -5,6 +5,7 @@ import { appDb } from "@/lib/supabase/service";
 import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { addProposals, getProposals, syncDossier } from "@/lib/db/dossier";
+import { intakeTitle } from "@/lib/db/intakeTitle";
 import { carriedValues } from "@/lib/intake/carryForward";
 import { runChatTurn, type ChatMessage } from "@/lib/claude/chatTurn";
 import {
@@ -169,6 +170,10 @@ export async function POST(request: Request) {
     return NextResponse.json({
       reply: turn.reply,
       captured: cards,
+      // Meegestuurd en niet pas bij de volgende keer laden opgehaald: een beurt
+      // waarin de pijnlocatie wordt opgepikt hoort de kop meteen te veranderen.
+      // Eén kleine query naast een modelcall van seconden.
+      title: await intakeTitle(session.intakeId),
       collecting: collectingFrom(after.gaps, session.locale),
       progress: computeProgress(
         after.definitions,

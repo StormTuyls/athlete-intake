@@ -1,6 +1,7 @@
 import { appDb } from "@/lib/supabase/service";
 import { listDocuments } from "@/lib/db/medical";
 import { getProposals, syncDossier } from "@/lib/db/dossier";
+import { intakeTitle } from "@/lib/db/intakeTitle";
 import { formatValue } from "@/lib/intake/format";
 import { sectionLabel } from "@/lib/intake/sections";
 import { documentError } from "@/lib/intake/format";
@@ -273,10 +274,11 @@ export async function buildTranscript(
 ): Promise<TranscriptResponse> {
   const state = await syncDossier(intakeId, locale);
 
-  const [messages, documents, proposals] = await Promise.all([
+  const [messages, documents, proposals, title] = await Promise.all([
     readMessages(intakeId),
     listDocuments(intakeId),
     getProposals(intakeId),
+    intakeTitle(intakeId),
   ]);
 
   const byKey = new Map(state.definitions.map((d) => [d.key, d]));
@@ -379,6 +381,7 @@ export async function buildTranscript(
 
   return {
     intakeId,
+    title,
     transcript: items,
     collecting: collectingFrom(state.gaps, locale),
     progress: computeProgress(

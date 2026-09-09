@@ -12,6 +12,7 @@ import type {
   TranscriptItem,
   TranscriptResponse,
 } from "@/lib/intake/transcriptTypes";
+import type { IntakeTitle } from "@/lib/intake/title";
 
 /**
  * Alles wat het chatscherm doet, los van hoe het eruitziet.
@@ -31,6 +32,7 @@ interface FieldActionResponse {
 
 interface ChatTurnResponse {
   reply: string;
+  title: IntakeTitle;
   captured: CaptureCard[];
   collecting: Collecting | null;
   progress: Progress;
@@ -93,6 +95,7 @@ export function useIntakeChat() {
   const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
   const [completeness, setCompleteness] = useState<Completeness | null>(null);
   const [intakeId, setIntakeId] = useState<string | null>(null);
+  const [title, setTitle] = useState<IntakeTitle>({ kind: "none" });
 
   const [draft, setDraft] = useState("");
   /** Korte terugkoppeling op een actie die geen bericht oplevert. */
@@ -119,6 +122,7 @@ export function useIntakeChat() {
   /** Zet de opgehaalde stand op het scherm. Los van het ophalen zelf. */
   const apply = useCallback((data: TranscriptResponse) => {
     setIntakeId(data.intakeId);
+    setTitle(data.title);
     setItems(data.transcript);
     setCollecting(data.collecting);
     setProgress(data.progress);
@@ -227,6 +231,7 @@ export function useIntakeChat() {
           },
         ]);
 
+        setTitle(turn.title);
         setCollecting(turn.collecting);
         setProgress(turn.progress);
         setCompleteness(turn.completeness);
@@ -445,6 +450,7 @@ export function useIntakeChat() {
   return {
     items,
     intakeId,
+    title,
     collecting,
     progress,
     completeness,

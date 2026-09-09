@@ -4,6 +4,7 @@ import { useIntakeChat } from "@/components/intake/useIntakeChat";
 import { ChatHeader } from "@/components/intake/ChatHeader";
 import { Transcript } from "@/components/intake/Transcript";
 import { Composer } from "@/components/intake/Composer";
+import { IntroCard } from "@/components/intake/IntroCard";
 import { SubmitConsent } from "@/components/intake/SubmitConsent";
 
 /**
@@ -28,6 +29,8 @@ export function ChatScreen({
   return (
     <div className="mx-auto flex min-h-dvh max-w-[30rem] flex-col bg-canvas">
       <ChatHeader
+        backHref="/home"
+        title={state.title}
         collecting={state.collecting?.label ?? null}
         ready={state.completeness?.readyToSubmit ?? false}
         reportHref={state.intakeId ? `/report/${state.intakeId}` : null}
@@ -46,6 +49,7 @@ export function ChatScreen({
       <Transcript
         items={state.items}
         busy={state.busy}
+        intro={<IntroCard />}
         onConfirm={state.confirmField}
         onEdit={state.editField}
       />

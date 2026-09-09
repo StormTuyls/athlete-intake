@@ -9,6 +9,13 @@
   },
   "chat": {
     "title": "Intake-assistent",
+    "intro": {
+      "title": "Waarvoor dit gesprek dient",
+      "body": "Ik stel je vragen over je sport, je voorgeschiedenis en je klachten, en maak daar een gestructureerd dossier van voor je coach.",
+      "point1": "Je hoeft niets voor te bereiden. Weet je iets niet, dan sla je het over en kom je er later op terug.",
+      "point2": "Je kan verslagen, scans, screenshots of een WhatsApp-export toevoegen. Ik lees er pas iets uit als jij dat vraagt.",
+      "point3": "Niets komt in je dossier zonder dat jij het bevestigt, en je coach kijkt alles na voordat het meetelt."
+    },
     "back": "Terug",
     "collecting": "Bezig met: {section}",
     "collectingIdle": "Alle vragen beantwoord",
@@ -80,6 +87,12 @@
       "current_status": "Huidige status en doelen",
       "uploads": "Aangeleverd materiaal"
     }
+  },
+  "intakeTitle": {
+    "left": "links",
+    "right": "rechts",
+    "bilateral": "beide zijden",
+    "fallback": "Intake"
   },
   "format": {
     "months": [

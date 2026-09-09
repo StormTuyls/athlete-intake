@@ -15,7 +15,7 @@
     "notion:setup": "tsx scripts/notion-setup.ts",
     "notion:sync": "tsx scripts/notion-sync.ts",
     "db:local-role": "tsx scripts/db-local.ts",
-    "test": "tsx evals/unit/pages.test.ts && tsx evals/unit/jsonb-null.test.ts && tsx evals/unit/merge-correction.test.ts && tsx evals/unit/human-tier.test.ts && tsx evals/unit/carry-forward.test.ts && tsx evals/unit/retention-config.test.ts && tsx evals/unit/section-labels.test.ts && tsx evals/unit/i18n-keys.test.ts && tsx evals/unit/summary-blocks.test.ts && tsx evals/unit/report-snapshot.test.ts && tsx evals/unit/csv-export.test.ts && tsx evals/unit/notion-guard.test.ts && tsx evals/chat.test.ts && tsx evals/conflict.test.ts",
+    "test": "tsx evals/unit/pages.test.ts && tsx evals/unit/jsonb-null.test.ts && tsx evals/unit/merge-correction.test.ts && tsx evals/unit/human-tier.test.ts && tsx evals/unit/carry-forward.test.ts && tsx evals/unit/retention-config.test.ts && tsx evals/unit/section-labels.test.ts && tsx evals/unit/intake-title.test.ts && tsx evals/unit/i18n-keys.test.ts && tsx evals/unit/summary-blocks.test.ts && tsx evals/unit/report-snapshot.test.ts && tsx evals/unit/csv-export.test.ts && tsx evals/unit/notion-guard.test.ts && tsx evals/chat.test.ts && tsx evals/conflict.test.ts",
     "notion:migrate": "tsx scripts/notion-migrate.ts",
     "coach:create": "tsx scripts/create-coach.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",

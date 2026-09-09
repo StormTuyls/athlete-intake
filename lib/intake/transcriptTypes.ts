@@ -1,4 +1,5 @@
 import type { Confidence, FieldDataType, FieldStatus, ProposedBy } from "@/lib/types";
+import type { IntakeTitle } from "@/lib/intake/title";
 
 // Doorgeven, zodat een client component het type kan gebruiken zonder
 // lib/types.ts te importeren en daarmee de serverkant binnen te trekken.
@@ -104,6 +105,11 @@ export interface Completeness {
 export interface TranscriptResponse {
   /** Nodig om naar het rapport van deze intake te kunnen linken. */
   intakeId: string;
+  /**
+   * Waar dit gesprek over gaat, zodra er een blessure of een pijnlocatie is.
+   * Onopgemaakt, want de woorden eromheen hangen aan de taal van de kijker.
+   */
+  title: IntakeTitle;
   transcript: TranscriptItem[];
   collecting: Collecting | null;
   progress: Progress;

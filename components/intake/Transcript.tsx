@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useLocale } from "next-intl";
 import { toLocale } from "@/lib/i18n/locale";
 import { dayKey, dividerLabel } from "@/lib/intake/format";
@@ -22,11 +22,18 @@ import type { TranscriptItem } from "@/lib/intake/transcriptTypes";
 export function Transcript({
   items,
   busy,
+  intro,
   onConfirm,
   onEdit,
 }: {
   items: TranscriptItem[];
   busy: boolean;
+  /**
+   * Staat boven het eerste bericht en scrollt gewoon mee weg. Meegegeven en
+   * niet hier geimporteerd: de lijst rendert wat er in de transcriptie zit, en
+   * de uitleg zit daar juist niet in.
+   */
+  intro?: ReactNode;
   onConfirm?: (fieldKey: string) => Promise<void>;
   onEdit?: (fieldKey: string, value: string) => Promise<void>;
 }) {
@@ -70,6 +77,8 @@ export function Transcript({
       aria-live="polite"
       className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
     >
+      {intro}
+
       {rows.map(({ item, showDivider }) => {
         return (
           <div key={item.id} className="flex flex-col gap-3">

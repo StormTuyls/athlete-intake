@@ -15,22 +15,22 @@ import {
   ImageIcon,
   PdfIcon,
 } from "@/components/athlete/icons";
+import { formatIntakeTitle } from "@/lib/intake/title";
 import type { HomeData, HomeIntake } from "@/lib/intake/home";
 
 /**
  * Scherm 02 uit het ontwerp: het thuisscherm van de atleet.
  *
- * Twee afwijkingen van het ontwerp, beide om dezelfde reden.
+ * De recente intakes dragen sinds kort wel de titel uit het ontwerp
+ * ("Shoulder — right"). Dat stond hier bewust niet, omdat het scherm openstaat
+ * op een telefoon in een kleedkamer, maar drie regels "Intake" onder elkaar
+ * zijn onbruikbaar en dit is je eigen dossier achter je eigen login. Zie
+ * lib/intake/title.ts.
  *
- * De recente intakes staan er zonder omschrijving. Het ontwerp zet er
- * "Shoulder — right" bij, en dat is een diagnose op een overzichtspagina.
- * Dit is het scherm dat openstaat op een telefoon in een kleedkamer; de datum
- * en de status zijn genoeg om te kiezen welke je opent.
- *
- * De voortgangsbalk toont secties, niet "4 / 9". De taxonomie heeft zeven
- * secties en 41 velden, dus negen bestaat niet, en het getal komt uit dezelfde
- * telling als de ring in het gesprek. Twee plekken die hetzelfde anders
- * berekenen is hoe een voortgangsbalk gaat liegen.
+ * Eén afwijking van het ontwerp blijft: de voortgangsbalk toont secties en niet
+ * "4 / 9". De taxonomie heeft zeven secties en 41 velden, dus negen bestaat
+ * niet, en het getal komt uit dezelfde telling als de ring in het gesprek. Twee
+ * plekken die hetzelfde anders berekenen is hoe een voortgangsbalk gaat liegen.
  */
 
 type T = ReturnType<typeof useTranslations<"home">>;
@@ -69,7 +69,17 @@ function shortDate(iso: string | null, locale: Locale): string {
 
 export function HomeScreen({ data }: { data: HomeData }) {
   const t = useTranslations("home");
+  const tTitle = useTranslations("intakeTitle");
   const locale = toLocale(useLocale());
+
+  // Eén keer opbouwen en niet per regel: de woorden hangen aan de taal van de
+  // kijker, niet aan de intake.
+  const titleLabels = {
+    left: tTitle("left"),
+    right: tTitle("right"),
+    bilateral: tTitle("bilateral"),
+    fallback: tTitle("fallback"),
+  };
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -242,8 +252,10 @@ export function HomeScreen({ data }: { data: HomeData }) {
                 >
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
-                    <span className="size-1.5 rounded-chip bg-brand-600" aria-hidden />
-                    {t("intake")}
+                    <span className="size-1.5 shrink-0 rounded-chip bg-brand-600" aria-hidden />
+                    <span className="truncate">
+                      {formatIntakeTitle(intake.title, titleLabels)}
+                    </span>
                   </span>
                   <span className="mt-0.5 block text-xs text-ink-muted">
                     {statusText(intake, t)}
