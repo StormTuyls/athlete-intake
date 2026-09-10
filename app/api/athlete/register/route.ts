@@ -59,9 +59,11 @@ export async function POST(request: Request) {
     });
 
     // Vastleggen wat er is afgesproken, en de bewaartermijn definitief maken.
+    // Dezelfde `locale` als hierboven: dat is de taal waarin het scherm de
+    // consenttekst toonde, en dus de taal die in het register hoort.
     await recordAccountConsent({
       athleteId: athlete.athleteId,
-      context: consentContext(request),
+      context: consentContext(request, locale),
     });
 
     return NextResponse.json({ athleteId: athlete.athleteId, locale: athlete.locale });
