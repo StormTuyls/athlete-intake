@@ -26,6 +26,26 @@ function safeNext(value: string | null): string {
   return value;
 }
 
+/**
+ * Waar iemand heen gaat als de link niet meer werkt.
+ *
+ * Dit was altijd /coach/login, en dat klopte zolang alleen behandelaars een
+ * link kregen. Met een herstelmail komt ook een atleet hier, en die heeft niets
+ * te zoeken op het inlogscherm van de praktijk.
+ *
+ * Bij herstel gaat hij naar het herstelscherm zelf: dat ziet dat er geen sessie
+ * is en zegt dat de link verlopen is, met een knop om een nieuwe aan te vragen.
+ * Dat is een antwoord; een leeg inlogformulier is dat niet.
+ *
+ * Nog steeds geen reden in de URL. Waarom een link niet werkt (verlopen, al
+ * gebruikt, onbekend adres) is informatie over wie hier een account heeft.
+ */
+function failureTarget(next: string): string {
+  if (next.startsWith("/auth/reset")) return "/auth/reset";
+  if (next.startsWith("/coach")) return "/coach/login?error=link";
+  return "/start?error=link";
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const next = safeNext(url.searchParams.get("next"));
@@ -49,7 +69,5 @@ export async function GET(request: Request) {
     console.error("[auth]", error.message);
   }
 
-  // Geen reden meegeven in de URL: waarom een link niet werkt (verlopen, al
-  // gebruikt, onbekend adres) is informatie over wie een account heeft.
-  return NextResponse.redirect(new URL("/coach/login?error=link", url.origin));
+  return NextResponse.redirect(new URL(failureTarget(next), url.origin));
 }

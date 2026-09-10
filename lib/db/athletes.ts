@@ -1,6 +1,7 @@
 import { query } from "@/lib/db/sql";
 import { appDb } from "@/lib/supabase/service";
 import { listIntakesForCoach, type IntakeListRow } from "@/lib/db/review";
+import { formatAddress } from "@/lib/intake/profile";
 
 /**
  * De atleet als geheel, voor de coach.
@@ -94,7 +95,18 @@ export interface AthleteProfile {
   federation: string | null;
   sport: string | null;
   discipline: string | null;
+  /** De eigen trainer van de atleet, uit het dossier. Zie practitioner. */
   coachName: string | null;
+  /** Wat de atleet zelf op zijn profiel invulde, als één regel. */
+  address: string | null;
+  /**
+   * De behandelaar in deze praktijk bij wie de atleet hoort. Iets anders dan
+   * coachName: dit is iemand met een login hier, gekozen door de atleet en zo
+   * nodig gecorrigeerd door de praktijk.
+   */
+  practitioner: { name: string | null; kind: "physio" | "coach" } | null;
+  /** Los van het bovenstaande, want het keuzeveld heeft het id nodig. */
+  practitionerId: string | null;
   /** Heeft deze atleet zelf een inlog, of bestaat hij alleen als dossier. */
   hasAccount: boolean;
   retentionMode: string;
@@ -148,7 +160,7 @@ export async function getAthleteProfile(
   const { data: athlete, error } = await appDb()
     .from("athletes")
     .select(
-      "id, profile_id, full_name, email, phone, club, federation, retention_mode, retention_basis, retention_until",
+      "id, profile_id, full_name, email, phone, club, federation, street, postal_code, city, country, practitioner_id, retention_mode, retention_basis, retention_until",
     )
     .eq("id", athleteId)
     .is("deleted_at", null)
@@ -156,7 +168,13 @@ export async function getAthleteProfile(
 
   if (error || !athlete) return null;
 
-  const [dossier, allIntakes, consent] = await Promise.all([
+  // Een aparte vraag en geen embedded resource: er lopen twee foreign keys van
+  // athletes naar profiles (profile_id en practitioner_id), dus een embed moet
+  // met de naam van de constraint gehint worden. Die naam is dan een string in
+  // deze query die stilletjes stukgaat als iemand de constraint hernoemt.
+  const practitionerId = athlete.practitioner_id as string | null;
+
+  const [dossier, allIntakes, consent, practitioner] = await Promise.all([
     identityFromDossier(athleteId),
     listIntakesForCoach(),
     appDb()
@@ -168,6 +186,13 @@ export async function getAthleteProfile(
       .order("granted_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    practitionerId
+      ? appDb()
+          .from("profiles")
+          .select("full_name, practitioner_kind")
+          .eq("id", practitionerId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const pick = (column: unknown, fieldKey: string): string | null =>
@@ -185,6 +210,19 @@ export async function getAthleteProfile(
     sport: dossier.get("identity.sport") ?? null,
     discipline: dossier.get("identity.discipline") ?? null,
     coachName: dossier.get("identity.coach_name") ?? null,
+    address: formatAddress({
+      street: (athlete.street as string | null) ?? null,
+      postalCode: (athlete.postal_code as string | null) ?? null,
+      city: (athlete.city as string | null) ?? null,
+      country: (athlete.country as string | null) ?? null,
+    }),
+    practitionerId,
+    practitioner: practitioner.data
+      ? {
+          name: (practitioner.data.full_name as string | null) ?? null,
+          kind: practitioner.data.practitioner_kind as "physio" | "coach",
+        }
+      : null,
     hasAccount: athlete.profile_id !== null,
     retentionMode: athlete.retention_mode as string,
     retentionBasis: (athlete.retention_basis as string | null) ?? null,

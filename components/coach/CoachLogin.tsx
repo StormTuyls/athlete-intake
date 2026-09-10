@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { createClient } from "@/lib/supabase/browser";
 import { PRACTICE_NAME } from "@/lib/report/branding";
@@ -57,6 +58,7 @@ export function CoachLogin({ next }: { next: string | null }) {
   }
 
   const t = useTranslations("auth");
+  const tPassword = useTranslations("password");
   const field =
     "mt-1.5 w-full rounded-md border border-hairline bg-surface px-3.5 py-2.5 text-base outline-none focus-visible:border-brand-500";
 
@@ -121,6 +123,13 @@ export function CoachLogin({ next }: { next: string | null }) {
           {busy ? t("signingIn") : t("signIn")}
         </button>
       </form>
+
+      <Link
+        href="/auth/forgot?from=coach"
+        className="mt-4 block text-center text-xs text-ink-muted underline-offset-2 hover:underline"
+      >
+        {tPassword("forgotLink")}
+      </Link>
 
       <p className="mt-6 text-xs text-ink-faint">
         {t("coachFooter")}

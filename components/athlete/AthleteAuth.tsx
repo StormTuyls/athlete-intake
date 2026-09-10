@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { LocaleToggle } from "@/components/LocaleToggle";
@@ -102,6 +103,7 @@ export function AthleteAuth({
   }
 
   const t = useTranslations("auth");
+  const tPassword = useTranslations("password");
   const label = "text-label uppercase text-night-muted";
   const field =
     "mt-1.5 w-full rounded-md border border-night-line bg-night-raised px-3.5 py-2.5 text-base text-night-ink outline-none placeholder:text-night-muted/60 focus-visible:border-brand-500";
@@ -218,6 +220,19 @@ export function AthleteAuth({
             ? t("haveAccount")
             : t("newHere")}
         </button>
+
+        {/* Alleen bij inloggen. Wie zich net aanmeldt heeft nog geen
+            wachtwoord om te vergeten, en een herstellink onder een
+            aanmeldformulier leest als een aanwijzing dat je hier al een
+            account zou moeten hebben. */}
+        {mode === "signin" && (
+          <Link
+            href="/auth/forgot"
+            className="mt-3 text-center text-xs text-night-muted underline-offset-2 hover:underline"
+          >
+            {tPassword("forgotLink")}
+          </Link>
+        )}
 
         <footer className="mt-auto flex items-center justify-center gap-1.5 pt-10 text-xs text-night-muted">
           <LockIcon className="size-3.5" />

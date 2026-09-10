@@ -3,7 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { checkCoach, isIntakeId } from "@/lib/review/access";
 import { getAthleteProfile } from "@/lib/db/athletes";
+import { listTeam } from "@/lib/db/practitioners";
 import { PurgeAthlete } from "@/components/coach/PurgeAthlete";
+import { AssignPractitioner } from "@/components/coach/AssignPractitioner";
 
 export async function generateMetadata() {
   const t = await getTranslations("titles");
@@ -36,6 +38,16 @@ function Row({ label, value }: { label: string; value: string | null }) {
     <div className="flex flex-col gap-0.5 py-1.5 text-sm sm:flex-row sm:gap-3">
       <dt className="text-xs text-ink-muted sm:w-40 sm:shrink-0">{label}</dt>
       <dd className={value ? "min-w-0" : "min-w-0 text-ink-faint"}>{value ?? "-"}</dd>
+    </div>
+  );
+}
+
+/** Zelfde rij, maar met iets bedienbaars erin in plaats van tekst. */
+function ControlRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-center sm:gap-3">
+      <dt className="text-xs text-ink-muted sm:w-40 sm:shrink-0">{label}</dt>
+      <dd className="min-w-0">{children}</dd>
     </div>
   );
 }
@@ -79,8 +91,23 @@ export default async function AthletePage({
   }
   if (access.kind !== "coach") notFound();
 
-  const athlete = await getAthleteProfile(athleteId);
+  const [athlete, team] = await Promise.all([
+    getAthleteProfile(athleteId),
+    listTeam(),
+  ]);
   if (!athlete) notFound();
+
+  // Gearchiveerde behandelaars staan er wel bij, met een label. De atleet ziet
+  // ze niet meer, maar een dossier terugzetten op wie het behandeld heeft is
+  // een correctie die de praktijk moet kunnen maken.
+  const assignable = team
+    .filter((member) => member.kind !== null)
+    .map((member) => ({
+      id: member.id,
+      name: member.fullName,
+      kind: member.kind!,
+      archived: member.archivedAt !== null,
+    }));
 
   const retention =
     athlete.retentionMode === "until_date"
@@ -110,11 +137,23 @@ export default async function AthletePage({
         <dl className="divide-y divide-hairline border-t border-hairline">
           <Row label="Email" value={athlete.email} />
           <Row label="Phone" value={athlete.phone} />
+          <Row label="Address" value={athlete.address} />
+          {/* Twee rijen die op elkaar lijken en dat niet zijn. "Assigned to" is
+              iemand met een login hier; de atleet kiest hem op zijn profiel en
+              de praktijk kan het hier corrigeren. "Own coach" is zijn eigen
+              trainer, een naam uit het dossier. */}
+          <ControlRow label="Assigned to">
+            <AssignPractitioner
+              athleteId={athlete.id}
+              current={athlete.practitionerId}
+              options={assignable}
+            />
+          </ControlRow>
           <Row label="Sport" value={athlete.sport} />
           <Row label="Discipline" value={athlete.discipline} />
           <Row label="Club" value={athlete.club} />
           <Row label="Federation" value={athlete.federation} />
-          <Row label="Coach" value={athlete.coachName} />
+          <Row label="Own coach" value={athlete.coachName} />
         </dl>
         <p className="mt-2 text-xs text-ink-faint">
           Administrative data. Body measurements, medication and the full injury

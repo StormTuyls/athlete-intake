@@ -22,7 +22,19 @@ import { createClient } from "@supabase/supabase-js";
  * werkbare afspraak; voor echt gebruik hoort er een herstelmail bij, en dat
  * staat als openstaand punt in de README.
  *
- * Gebruik: npm run coach:create -- naam@praktijk.be "Volledige Naam" [wachtwoord]
+ * Het vakgebied bepaalt of deze behandelaar in de keuzelijst van een atleet
+ * verschijnt (public.profiles.practitioner_kind). Het staat los van de rol: de
+ * rol zegt wat iemand mag, het vakgebied wat hij doet. Laat je het weg, dan
+ * kan hij wel inloggen en dossiers nakijken, maar kiest niemand hem.
+ *
+ * Sinds er een teamscherm is (/coach/team) is dit script niet meer de enige
+ * weg: een admin maakt daar collega's aan. Het blijft bestaan voor twee dingen
+ * die geen scherm horen te hebben. Het eerste is de bootstrap, want het
+ * teamscherm vraagt een admin en die moet ergens vandaan komen; een pagina die
+ * zichzelf bootstrapt maakt van de eerste bezoeker een beheerder. Het tweede is
+ * een wachtwoord opnieuw zetten voor wie er helemaal niet meer in komt.
+ *
+ * Gebruik: npm run coach:create -- naam@praktijk.be "Volledige Naam" physio|coach [wachtwoord] [--admin]
  */
 function generatePassword(): string {
   // Leesbaar genoeg om over te typen, lang genoeg om niet te raden. Geen
@@ -33,9 +45,17 @@ function generatePassword(): string {
 }
 
 async function main() {
-  const [email, fullName, given] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const asAdmin = args.includes("--admin");
+  const [email, fullName, kind, given] = args.filter((arg) => arg !== "--admin");
   if (!email) {
-    throw new Error('gebruik: npm run coach:create -- e-mail "Volledige Naam" [wachtwoord]');
+    throw new Error(
+      'gebruik: npm run coach:create -- e-mail "Volledige Naam" physio|coach [wachtwoord]',
+    );
+  }
+
+  if (kind !== undefined && kind !== "physio" && kind !== "coach") {
+    throw new Error(`onbekend vakgebied '${kind}': kies physio of coach`);
   }
 
   const password = given ?? generatePassword();
@@ -77,13 +97,28 @@ async function main() {
 
   const { error } = await admin
     .from("profiles")
-    .upsert({ id: userId, role: "coach", full_name: fullName ?? null, locale: "nl" });
+    .upsert({
+      id: userId,
+      role: asAdmin ? "admin" : "coach",
+      full_name: fullName ?? null,
+      locale: "nl",
+      practitioner_kind: kind ?? null,
+    });
 
   if (error) throw new Error(`profiel opslaan mislukt: ${error.message}`);
 
-  console.log(`coach klaar: ${email} (${userId})`);
+  console.log(`${asAdmin ? "admin" : "coach"} klaar: ${email} (${userId})`);
+  console.log(
+    kind
+      ? `vakgebied: ${kind}, dus kiesbaar op het profiel van een atleet`
+      : "geen vakgebied meegegeven: verschijnt niet in de keuzelijst van een atleet",
+  );
   console.log(`wachtwoord: ${password}`);
-  console.log("inloggen via /coach/login. Dit wachtwoord staat hier één keer.");
+  console.log(
+    asAdmin
+      ? "inloggen via /coach/login. Deze mag het team beheren op /coach/team."
+      : "inloggen via /coach/login. Dit wachtwoord staat hier één keer.",
+  );
   process.exit(0);
 }
 
