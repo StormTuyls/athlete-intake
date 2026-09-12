@@ -1,5 +1,6 @@
 import { appDb } from "@/lib/supabase/service";
 import { retentionConfig, retentionUntil } from "@/lib/intake/retention";
+import type { Locale } from "@/lib/i18n/locale";
 
 /**
  * De consentregistratie, op twee niveaus.
@@ -23,12 +24,23 @@ export const INTAKE_PURPOSES = ["share_with_practitioners"] as const;
 export interface ConsentContext {
   ip: string | null;
   userAgent: string | null;
+  /**
+   * De taal waarin de tekst op het scherm stond.
+   *
+   * Uit het cookie, want dat is wat rendert. Niet uit `athletes.locale` of
+   * `intakes.locale`: het eerste is een voorkeur die morgen anders kan staan,
+   * het tweede is de taal van het gesprek en niet van het vinkje. Eén versie
+   * bestaat in twee talen, dus zonder dit kan het register niet zeggen welke
+   * zin iemand gelezen heeft.
+   */
+  locale: Locale;
 }
 
-export function consentContext(request: Request): ConsentContext {
+export function consentContext(request: Request, locale: Locale): ConsentContext {
   return {
     ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
     userAgent: request.headers.get("user-agent"),
+    locale,
   };
 }
 
@@ -60,6 +72,7 @@ export async function recordAccountConsent(input: {
       purposes,
       ip: input.context.ip,
       user_agent: input.context.userAgent,
+      locale: input.context.locale,
     });
 
     // 23505 is de unieke index: iemand anders was net eerder. Dat is het
@@ -123,6 +136,7 @@ export async function recordSharingChoice(input: {
     purposes: { share_with_practitioners: input.share },
     ip: input.context.ip,
     user_agent: input.context.userAgent,
+    locale: input.context.locale,
   });
 
   if (error) throw new Error(`deelkeuze opslaan mislukt: ${error.message}`);

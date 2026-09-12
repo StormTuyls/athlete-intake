@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { checkCoach } from "@/lib/review/access";
 import { listAthletesForCoach } from "@/lib/db/athletes";
 import { PRACTICE_NAME } from "@/lib/report/branding";
@@ -51,6 +52,16 @@ export default async function CoachPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Alleen voor een admin, want alleen die komt er binnen. Een link
+              tonen die op een 404 uitkomt is erger dan geen link. */}
+          {coach.role === "admin" && (
+            <Link
+              href="/coach/team"
+              className="rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
+            >
+              Team
+            </Link>
+          )}
           <LocaleToggle />
           <form action="/auth/signout" method="post">
           <button

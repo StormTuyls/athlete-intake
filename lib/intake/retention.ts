@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { translator } from "@/lib/i18n/translator";
-import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { type Locale } from "@/lib/i18n/locale";
 
 /**
  * De bewaartermijn, op één plek.
@@ -82,8 +82,15 @@ export function preConsentUntil(from: Date = new Date()): string {
  * Het ontwerp zet er "retained for 24 months" bij. Dat mag alleen op het scherm
  * staan als het waar is: bij RETENTION_MODE=indefinite is 24 maanden een
  * onjuiste mededeling in precies de tekst waar iemand toestemming voor geeft.
+ *
+ * De taal is verplicht, en dat is de hele reden dat deze regel er zo uitziet.
+ * Hij had `= DEFAULT_LOCALE`, en app/start/page.tsx gaf niets mee: een
+ * Nederlandstalige bezoeker kreeg een Nederlandse consentzin met een Engelse
+ * bewaartermijn erachter. Een standaardwaarde maakt van een vergeten argument
+ * een stille verkeerde taal in precies de zin waar iemand mee instemt; zonder
+ * standaardwaarde is het een compilefout.
  */
-export function retentionSentence(locale: Locale = DEFAULT_LOCALE): string {
+export function retentionSentence(locale: Locale): string {
   const config = retentionConfig();
   const t = translator(locale, "retention");
 

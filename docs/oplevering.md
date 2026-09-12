@@ -64,6 +64,15 @@ Voor de GDPR-administratie van de klant. Vier partijen, en drie ervan zien medis
 | Anthropic PBC | Extractie uit documenten, klinische samenvatting | Documentinhoud en dossierinhoud, in de API-call zelf | VS |
 | Notion Labs Inc. | Commerciele laag: atleten, facturatie, opvolgacties | Met opzet geen medische velden | VS |
 
+**Er komt een vijfde bij zodra de herstelmail live gaat.** Het wachtwoordherstel (`/auth/forgot`)
+laat Supabase Auth een mail sturen. Lokaal vangt Mailpit die op en gaat er niets de deur uit; in
+productie gebruikt Supabase zonder eigen SMTP-instelling hun ingebouwde mailer, met een harde limiet
+van een handvol mails per uur die niet bedoeld is voor echt gebruik. Wie hier een eigen SMTP zet
+(Postmark, Resend, SES), zet daarmee een subverwerker in de keten: die ziet e-mailadressen en het
+feit dat iemand hier een account heeft. Geen medische inhoud, wel een gegeven over gezondheidszorg
+dat je bij een eliteatleet niet wil laten rondslingeren. Zet de partij in deze tabel voordat de
+eerste herstelmail vertrekt, en kies er een met EU-verwerking.
+
 Drie dingen die bij deze lijst horen en die makkelijk verkeerd opgeschreven worden:
 
 **Bij Anthropic staan geen bestanden.** De Files API is niet gebruikt; elk document gaat als base64
@@ -234,13 +243,22 @@ steeds weigert.
    synthetisch document en ruim hem daarna op via het verwijderpad.
    **`npm run seed:demo` mag nooit tegen productie draaien.**
 
-6. **Er staat nog een testatleet in de databank.** `stormtuyls@icloud.com`, een intake met status
+6. **SMTP instellen voor de herstelmail.** `/auth/forgot` werkt alleen zo goed als de mail die
+   eruit komt. Zonder eigen SMTP valt Supabase terug op hun gedeelde mailer: enkele mails per uur,
+   afzender op hun domein, en een grote kans op de spamfolder. Zet in het Supabase-dashboard onder
+   Auth een eigen SMTP met een afzender op het domein van de praktijk, en zet de partij in de
+   subverwerkerstabel hierboven. Controleer daarna één keer end-to-end dat een herstelmail
+   aankomt en dat de link op `/auth/reset` uitkomt. Tot dat gebeurd is, is de weg voor iemand die
+   niet meer binnen komt: een admin maakt op `/coach/team` geen nieuw account aan (dat weigert op
+   een bestaand adres) maar zet het wachtwoord opnieuw met `npm run coach:create`.
+
+7. **Er staat nog een testatleet in de databank.** `stormtuyls@icloud.com`, een intake met status
    `submitted`. Die is met opzet niet verwijderd, want het is niet mijn data. Ruim hem op via het
    coachscherm voor je aan de klant oplevert, zodat die met een leeg dossier begint.
 
 ### Bekende beperkingen, bewust zo
 
-7. **De CSP staat `'unsafe-inline'` toe voor scripts.** Next zet zijn eigen opstartscript inline in de
+8. **De CSP staat `'unsafe-inline'` toe voor scripts.** Next zet zijn eigen opstartscript inline in de
    pagina, en een statische header in `vercel.json` kan geen nonce per request meegeven. De nette
    oplossing is een nonce in `proxy.ts`, maar dat dwingt elke pagina naar dynamisch renderen en
    `proxy.ts` dekt nu niet alle paden. Zolang dit zo staat, is de CSP wel een echte grens voor
@@ -248,26 +266,29 @@ steeds weigert.
    geinjecteerd inline script. Als er ooit gebruikersinvoer ongeescaped in een pagina belandt, is dit
    het verschil. Opwaarderen naar een nonce is een afgebakende klus.
 
-8. **De root-CA van Supabase zit in de bundel en verloopt op 26 april 2031.** Zie
+9. **De root-CA van Supabase zit in de bundel en verloopt op 26 april 2031.** Zie
    `lib/db/supabaseCa.ts`. Loopt die datum af zonder dat het certificaat vervangen is, dan valt de
    verbinding met het `medical`-schema weg. Dat is geen waarschuwing maar een storing.
 
-9. **`DATABASE_URL` mag geen `sslmode` bevatten.** Staat die parameter er wel in, dan bouwt
+10. **`DATABASE_URL` mag geen `sslmode` bevatten.** Staat die parameter er wel in, dan bouwt
    `pg-connection-string` zijn eigen TLS-configuratie en gooit de CA die de applicatie meegeeft weg.
    `sslmode=require` breekt de verbinding volledig; `sslmode=no-verify` doet iets ergers en verbindt
    zonder te verifieren. `lib/db/sql.ts` strippt de parameter er nu uit, dus het gaat niet stuk, maar
    zet hem er niet in met de gedachte dat het strenger is.
 
-10. **Er is geen wachtwoordherstel voor behandelaars.** Een wachtwoord opnieuw zetten gaat via
-   `npm run coach:create -- <e-mail> "<naam>"`, dat bestaande accounts bijwerkt. Voor een praktijk met
-   een handvol behandelaars werkbaar, maar het hoort een mail te worden.
+11. **Wachtwoordherstel bestaat nu wel, maar staat of valt met SMTP.** Er is een herstelmail
+    (`/auth/forgot` naar `/auth/reset`) en een wijzigscherm op het profiel van de atleet, allebei
+    voor behandelaars en atleten. Wat er nog niet is, is een mailserver die dat betrouwbaar
+    aflevert: zie punt 6 hierboven. Tot dat geregeld is blijft
+    `npm run coach:create -- <e-mail> "<naam>" <vakgebied> [wachtwoord]` de weg voor een behandelaar
+    die er helemaal niet meer in komt.
 
-11. **Notion is niet geconfigureerd.** De vier `NOTION_*`-variabelen staan leeg en de sync slaat
+12. **Notion is niet geconfigureerd.** De vier `NOTION_*`-variabelen staan leeg en de sync slaat
     zichzelf over. Aanzetten gaat via `npm run notion:setup` met een `NOTION_PARENT_PAGE_ID` van een
     pagina die met de integratie gedeeld is; dat script maakt de drie databases aan en geeft de id's
     terug voor `NOTION_ATHLETES_DB`, `NOTION_INVOICES_DB` en `NOTION_TASKS_DB`.
 
-12. **`PRACTICE_LOCALE` bestaat wel, sinds de tweetaligheid.** Dit punt zei eerder dat de variabele
+13. **`PRACTICE_LOCALE` bestaat wel, sinds de tweetaligheid.** Dit punt zei eerder dat de variabele
     door geen enkele regel code gelezen werd, en dat was juist tot de tweetalige uitbreiding. Nu
     bepaalt hij in welke taal de SAMENVATTINGEN geschreven worden, en alleen die. Standaard `nl`;
     zet hem op `en` als de praktijk Engels leest. Zie `lib/report/branding.ts`.
@@ -280,7 +301,7 @@ steeds weigert.
 
     Niet gezet in Vercel betekent `nl`, dus er gaat niets stuk, maar de naam hoort weer in de lijst.
 
-13. **Er is geen favicon.** `/favicon.ico` geeft een 404 en dat is de enige melding in de
+14. **Er is geen favicon.** `/favicon.ico` geeft een 404 en dat is de enige melding in de
     browserconsole op productie. Cosmetisch.
 
 ## Talen

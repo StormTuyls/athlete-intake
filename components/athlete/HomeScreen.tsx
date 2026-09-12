@@ -155,12 +155,17 @@ export function HomeScreen({ data }: { data: HomeData }) {
               {t("signOut")}
             </button>
           </form>
-          <span
-            className="flex size-8 shrink-0 items-center justify-center rounded-chip bg-brand-600 text-xs font-semibold text-white"
-            aria-hidden
+          {/* De avatar is de ingang naar het profiel. Een link en geen knop:
+              het is navigatie, dus cmd-klik en "openen in nieuw tabblad" horen
+              te werken, en het werkt ook voordat het JavaScript binnen is. De
+              initialen zeggen een screenreader niets, vandaar het label. */}
+          <Link
+            href="/profile"
+            aria-label={t("openProfile")}
+            className="flex size-8 shrink-0 items-center justify-center rounded-chip bg-brand-600 text-xs font-semibold text-white transition-opacity hover:opacity-90"
           >
-            {data.initials}
-          </span>
+            <span aria-hidden>{data.initials}</span>
+          </Link>
         </div>
       </header>
 

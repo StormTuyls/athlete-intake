@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiMessages } from "@/lib/i18n/server";
+import { apiMessages, requestLocale } from "@/lib/i18n/server";
 import { appDb } from "@/lib/supabase/service";
 import { requireIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
@@ -61,11 +61,14 @@ export async function POST(request: Request) {
     // Eerst vastleggen, dan pas het rapport bevriezen: de deelkeuze bepaalt of
     // de samenvatting klinisch of zakelijk mag zijn, en die staat in het
     // snapshot. Andersom zou versie 1 de verkeerde soort tekst dragen.
+    // De taal van het scherm en niet die van de intake: het vinkje stond op de
+    // pagina die de bezoeker voor zich had, en dat kan een andere taal zijn dan
+    // waarin het gesprek gevoerd is.
     await recordSharingChoice({
       athleteId: session.athleteId,
       intakeId: session.intakeId,
       share: body.share,
-      context: consentContext(request),
+      context: consentContext(request, await requestLocale()),
     });
 
     await addProposals(session.intakeId, [
