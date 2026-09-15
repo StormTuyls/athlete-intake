@@ -12,7 +12,7 @@
     "intro": {
       "title": "Waarvoor dit gesprek dient",
       "body": "Ik stel je vragen over je sport, je voorgeschiedenis en je klachten, en maak daar een gestructureerd dossier van voor je coach.",
-      "point1": "Je hoeft niets voor te bereiden. Weet je iets niet, dan sla je het over en kom je er later op terug.",
+      "point1": "Begin met één verhaal in je eigen woorden: wat er speelt, sinds wanneer, en wat je wil bereiken. Hoe meer je in één keer vertelt, hoe minder ik daarna hoef te vragen. Weet je iets niet, sla het over. Heeft je toetsenbord een microfoonknop, dan kun je het ook inspreken.",
       "point2": "Je kan verslagen, scans, screenshots of een WhatsApp-export toevoegen. Ik lees er pas iets uit als jij dat vraagt.",
       "point3": "Niets komt in je dossier zonder dat jij het bevestigt, en je coach kijkt alles na voordat het meetelt."
     },
@@ -37,7 +37,11 @@
     "progressLabel": "{sectionsDone} van {sectionsTotal} onderdelen klaar, {required} van {requiredTotal} verplichte velden ingevuld",
     "panelTitle": "Je dossier",
     "panelEmpty": "Zodra je iets vertelt of een document laat lezen, verschijnt het hier.",
-    "panelConflicts": "{count, plural, one {1 tegenstrijdigheid} other {# tegenstrijdigheden}}"
+    "panelConflicts": "{count, plural, one {1 tegenstrijdigheid} other {# tegenstrijdigheden}}",
+    "skip": {
+      "unknown": "{field} overgeslagen. Je coach ziet dat je dit niet wist; je kan er later op terugkomen.",
+      "declined": "{field} overgeslagen omdat je het liever niet zei. Je coach ziet dat het een keuze was."
+    }
   },
   "errors": {
     "generic": "Er ging iets mis",
@@ -200,7 +204,16 @@
     "statusInReview": "Bij je coach",
     "statusComplete": "Volledig · naar je coach gestuurd",
     "inProgress": "Intake bezig",
-    "openProfile": "Profiel openen"
+    "openProfile": "Profiel openen",
+    "discard": {
+      "start": "Opnieuw beginnen",
+      "warning": "Dit gooit dit concept helemaal weg: het gesprek, je antwoorden en de bestanden die je hebt toegevoegd. Dat kan niet ongedaan gemaakt worden. Eerder ingediende intakes blijven staan.",
+      "restart": "Weggooien en opnieuw beginnen",
+      "deleteOnly": "Alleen weggooien",
+      "cancel": "Laat maar",
+      "busy": "Bezig...",
+      "failed": "Weggooien is niet gelukt. Probeer het zo nog eens."
+    }
   },
   "profile": {
     "back": "Terug",
@@ -227,7 +240,17 @@
     "save": "Opslaan",
     "saving": "Opslaan…",
     "saved": "Opgeslagen",
-    "saveFailed": "Opslaan is niet gelukt. Probeer het opnieuw."
+    "saveFailed": "Opslaan is niet gelukt. Probeer het opnieuw.",
+    "dateOfBirth": "Geboortedatum",
+    "phone": "Telefoonnummer",
+    "sportTitle": "Sport",
+    "sport": "Sport",
+    "sportEmpty": "Kies je sport",
+    "discipline": "Discipline of positie",
+    "disciplineHint": "bv. 100m en 200m",
+    "club": "Club",
+    "federation": "Federatie",
+    "coachName": "Je eigen coach"
   },
   "password": {
     "changeTitle": "Wachtwoord",
@@ -330,7 +353,10 @@
     "hintList": "Vul een of meer waarden in, gescheiden door komma's.",
     "hintText": "Dit veld mag niet leeg zijn.",
     "unreadable": "Dit bestand kon niet gelezen worden. Probeer een PDF, JPEG of PNG.",
-    "unsupportedImage": "Dit beeldformaat kan niet gelezen worden. Upload een JPEG of PNG."
+    "unsupportedImage": "Dit beeldformaat kan niet gelezen worden. Upload een JPEG of PNG.",
+    "discardOnlyDraft": "Deze intake is al ingediend en kan niet meer weggegooid worden. Vraag de praktijk als hij weg moet.",
+    "profileIncomplete": "Vul eerst je profiel aan. Naam, geboortedatum en sport zijn nodig voor we kunnen beginnen.",
+    "requiredGapsOpen": "{count, plural, one {1 verplicht veld is overgeslagen} other {# verplichte velden zijn overgeslagen}} en nog niet ingevuld. Vul ze aan, of bevestig dat je zonder goedkeurt."
   },
   "review": {
     "loading": "Dossier laden",
@@ -379,6 +405,7 @@
     "page": "p{page}",
     "documentsTitle": "Aangeleverde documenten",
     "pageCount": "{count, plural, one {1 pagina} other {# pagina's}}",
+    "documentSummaryLabel": "Beschrijving gegenereerd bij het lezen. Geen beoordeling van de inhoud.",
     "documentsNote": "De ruwe bestanden blijven permanent bewaard naast de gegevens die eruit gehaald zijn.",
     "approveTitle": "Goedkeuren",
     "approveBlocked": "Los eerst de tegenstrijdigheden hierboven op.",
@@ -386,7 +413,16 @@
     "approveBody": "Legt een rapportversie vast met jouw naam eronder. Daarna staat het dossier vast en kan de atleet er niets meer aan wijzigen.",
     "approveButton": "Goedkeuren",
     "approveBusy": "Bezig",
-    "approveFailed": "goedkeuren mislukt"
+    "approveFailed": "goedkeuren mislukt",
+    "notAskedTitle": "{count, plural, one {1 vraag niet gesteld} other {# vragen niet gesteld}}",
+    "notAskedBody": "Deze velden zijn leeg omdat er niet naar gevraagd is, niet omdat ze niet van toepassing zijn.",
+    "notAskedRequired": "verplicht",
+    "notAskedSkipped": "atleet wist het niet",
+    "notAskedPractitioner": "voor jou om te vragen",
+    "notAskedDeclined": "atleet wou dit niet zeggen",
+    "badgeFromProfile": "uit het profiel",
+    "approveGapsTitle": "{count, plural, one {1 verplicht veld is overgeslagen} other {# verplichte velden zijn overgeslagen}} en nog leeg",
+    "approveGapsAccept": "Ik keur goed zonder deze gegevens. Dat wordt vastgelegd bij deze goedkeuring."
   },
   "report": {
     "title": "Intakerapport",

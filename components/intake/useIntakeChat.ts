@@ -37,6 +37,7 @@ interface ChatTurnResponse {
   captured: CaptureCard[];
   collecting: Collecting | null;
   progress: Progress;
+  skipped: Array<{ fieldKey: string; label: string; reason: "unknown" | "declined" }>;
   done: boolean;
   completeness: Completeness;
   openGaps: number;
@@ -253,6 +254,16 @@ export function useIntakeChat() {
             id: `local-cap-${Date.now()}-${index}`,
             at: new Date().toISOString(),
             card,
+          })),
+          // Voor het antwoord van de assistent, want de skip gaat over de vraag
+          // die hij ZOJUIST stelde en niet over de volgende.
+          ...(turn.skipped ?? []).map((skip, index) => ({
+            kind: "skip" as const,
+            id: `local-skip-${Date.now()}-${index}`,
+            at: new Date().toISOString(),
+            fieldKey: skip.fieldKey,
+            label: skip.label,
+            reason: skip.reason,
           })),
           {
             kind: "assistant" as const,

@@ -49,7 +49,11 @@ export async function POST(
       return badRequest(t("notThisIntake"));
     }
 
-    const result = await readDocument({ intakeId: session.intakeId, documentId });
+    const result = await readDocument({
+      intakeId: session.intakeId,
+      documentId,
+      locale: session.locale,
+    });
 
     // Het gesprek toont het resultaat meteen als kaarten. Die hier meegeven
     // scheelt een tweede ronde, en belangrijker: ze komen uit dezelfde bouwer

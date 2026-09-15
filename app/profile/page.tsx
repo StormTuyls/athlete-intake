@@ -31,6 +31,7 @@ export default async function ProfilePage() {
   const data = await loadProfile({
     athleteId: athlete.athleteId,
     email: athlete.email,
+    locale: athlete.locale,
   });
 
   return (

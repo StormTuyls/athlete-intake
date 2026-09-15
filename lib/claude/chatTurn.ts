@@ -1,7 +1,7 @@
 import { anthropic, MODEL } from "@/lib/claude/client";
 import type { Gap } from "@/lib/dossier/completeness";
 import type { FieldDefinition } from "@/lib/types";
-import type { CarriedValue } from "@/lib/intake/carryForward";
+import type { CarriedValue, EarlierIntake } from "@/lib/intake/carryForward";
 import {
   GAP_MARKERS,
   OPENING_NUDGE,
@@ -34,9 +34,16 @@ export interface CapturedField {
   quote: string;
 }
 
+export interface SkippedField {
+  fieldKey: string;
+  reason: "unknown" | "declined";
+}
+
 export interface ChatTurnResult {
   reply: string;
   captured: CapturedField[];
+  /** Waar de atleet zei dat hij het niet weet of niet wil zeggen. */
+  skipped: SkippedField[];
   /** Het veld waar deze vraag over gaat, voor chat_messages.about_field_key. */
   aboutFieldKey: string | null;
   modelId: string;
@@ -46,7 +53,7 @@ export interface ChatTurnResult {
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reply", "captured", "aboutFieldKey", "done"],
+  required: ["reply", "captured", "skipped", "aboutFieldKey", "done"],
   properties: {
     reply: {
       type: "string",
@@ -73,6 +80,24 @@ const SCHEMA = {
         },
       },
     },
+    skipped: {
+      type: "array",
+      description:
+        "Velden waarvan de atleet zegt dat hij ze niet weet of niet wil zeggen. Alleen als hij dat expliciet over een gevraagd veld zegt.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["fieldKey", "reason"],
+        properties: {
+          fieldKey: { type: "string" },
+          reason: {
+            type: "string",
+            enum: ["unknown", "declined"],
+            description: "unknown: hij weet het niet. declined: hij wil het niet zeggen.",
+          },
+        },
+      },
+    },
     aboutFieldKey: {
       type: ["string", "null"],
       description: "Het veld waar je vraag over gaat. Null als je afsluit.",
@@ -89,6 +114,7 @@ function systemPrompt(
   definitions: FieldDefinition[],
   locale: "nl" | "en",
   carried: CarriedValue[],
+  earlier: EarlierIntake[],
 ): string {
   const byKey = new Map(definitions.map((d) => [d.key, d]));
   const markers = GAP_MARKERS[locale];
@@ -143,11 +169,34 @@ function systemPrompt(
     })
     .join("\n");
 
+  // Waar het eerder over ging: een regel per eerdere intake, met de blessures
+  // die er toen vastgelegd zijn. Kort gehouden, want dit is context om een
+  // betere openingsvraag mee te stellen en geen dossier om voor te lezen.
+  const history = earlier
+    .map((intake) => {
+      const injuries = intake.injuries
+        .map((injury) => {
+          const side = injury.side === "unknown" ? "" : ` ${injury.side}`;
+          const what = injury.diagnosis ?? injury.bodyRegion;
+          return injury.diagnosis ? `${what} (${injury.bodyRegion}${side})` : `${what}${side}`;
+        })
+        .join("; ");
+
+      const parts = [injuries, intake.complaint].filter(Boolean).join(" - ");
+      const when = intake.date ?? "?";
+      return `- ${when}: ${parts || (locale === "nl" ? "geen klacht vastgelegd" : "no complaint recorded")}`;
+    })
+    .join("\n");
+
   return chatSystemPrompt(locale, {
     gapList: gapList || markers.nothingOpen,
     capturable: capturable || markers.nothingOpen,
     carryRule: carried.length ? "yes" : "",
     carrySection: carried.length ? `\n\n${layout.knownFromEarlier}\n\n${known}` : "",
+    historyRule: earlier.length ? "yes" : "",
+    historySection: earlier.length
+      ? `\n\n${layout.earlierComplaints}\n\n${history}`
+      : "",
   });
 }
 
@@ -158,6 +207,11 @@ export async function runChatTurn(input: {
   locale: "nl" | "en";
   /** Wat deze atleet in een eerdere intake al gaf, om te laten bevestigen. */
   carried?: CarriedValue[];
+  /**
+   * Waar deze atleet eerder voor kwam. Puur context voor een betere
+   * openingsvraag; hier komt nooit een dossierveld uit.
+   */
+  earlier?: EarlierIntake[];
   /**
    * Aanleiding voor een beurt zonder nieuw antwoord van de atleet. Wordt als
    * user-bericht meegestuurd maar NIET opgeslagen: de atleet heeft dit niet
@@ -189,7 +243,14 @@ export async function runChatTurn(input: {
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    // Was 4096, en dat was ruim zolang een beurt een antwoord op een losse
+    // vraag verwerkte: een handvol velden met een kort citaat. Sinds de
+    // openingsbeurt om een heel verhaal vraagt kan een enkele beurt tien tot
+    // vijftien velden opleveren, elk met een citaat uit dat verhaal, en dan komt
+    // 4096 in zicht. De kosten volgen het werkelijke verbruik, dus een hogere
+    // limiet kost niets zolang hij niet gehaald wordt; een gehaalde limiet kost
+    // het hele antwoord.
+    max_tokens: 8192,
     output_config: {
       effort: "medium",
       format: { type: "json_schema", schema: SCHEMA },
@@ -202,6 +263,7 @@ export async function runChatTurn(input: {
           input.definitions,
           input.locale,
           input.carried ?? [],
+          input.earlier ?? [],
         ),
         cache_control: { type: "ephemeral" },
       },
@@ -213,6 +275,17 @@ export async function runChatTurn(input: {
     throw new Error("Model weigerde deze beurt");
   }
 
+  // Afgekapt op de tokenlimiet levert onvolledige JSON op, en die klapt een
+  // paar regels verderop op JSON.parse met "Unexpected end of JSON input". Dat
+  // is een raadsel in de logs terwijl de oorzaak precies bekend is, dus zeg hem
+  // hier. De atleet ziet hoe dan ook de algemene foutmelding uit lib/http.ts;
+  // dit is voor wie het onderzoekt.
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(
+      `Beurt afgekapt op de tokenlimiet (${response.usage.output_tokens} tokens); het antwoord is onvolledig`,
+    );
+  }
+
   const text = response.content
     .filter((block) => block.type === "text")
     .map((block) => (block as { text: string }).text)
@@ -221,6 +294,7 @@ export async function runChatTurn(input: {
   const parsed = JSON.parse(text) as {
     reply: string;
     captured: CapturedField[];
+    skipped?: SkippedField[];
     aboutFieldKey: string | null;
     done: boolean;
   };
@@ -231,6 +305,7 @@ export async function runChatTurn(input: {
     reply: parsed.reply,
     // Een fieldKey die niet bestaat zou de foreign key laten klappen.
     captured: (parsed.captured ?? []).filter((c) => known.has(c.fieldKey)),
+    skipped: (parsed.skipped ?? []).filter((s) => known.has(s.fieldKey)),
     aboutFieldKey:
       parsed.aboutFieldKey && known.has(parsed.aboutFieldKey)
         ? parsed.aboutFieldKey

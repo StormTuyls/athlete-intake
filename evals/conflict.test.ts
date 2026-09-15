@@ -69,7 +69,11 @@ async function main() {
       originalFilename: file,
       mimeType,
     });
-    const result = await readDocument({ intakeId, documentId: registered.documentId });
+    const result = await readDocument({
+      intakeId,
+      documentId: registered.documentId,
+      locale: "nl",
+    });
     console.log(`${file}: ${result.fieldsProposed} velden, ${result.quotesVerified} citaten geverifieerd`);
   }
 

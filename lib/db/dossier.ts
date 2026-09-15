@@ -6,8 +6,11 @@ import {
   computeGaps,
   type Completeness,
   type Gap,
+  type OutOfScope,
 } from "@/lib/dossier/completeness";
-import type { FieldDefinition, ResolvedField } from "@/lib/types";
+import { parseAskWhen, validateConditions } from "@/lib/dossier/askWhen";
+import { getSkippedFields } from "@/lib/db/medical";
+import type { FieldDefinition, FieldTier, ResolvedField } from "@/lib/types";
 
 export { addProposals, getProposals } from "@/lib/db/medical";
 
@@ -24,7 +27,7 @@ export async function getFieldDefinitions(): Promise<FieldDefinition[]> {
 
   if (error) throw new Error(`velddefinities lezen mislukt: ${error.message}`);
 
-  return (data ?? []).map((row) => ({
+  const definitions: FieldDefinition[] = (data ?? []).map((row) => ({
     key: row.key,
     section: row.section,
     sortOrder: row.sort_order,
@@ -36,13 +39,29 @@ export async function getFieldDefinitions(): Promise<FieldDefinition[]> {
     enumOptions: row.enum_options,
     questionNl: row.question_nl,
     questionEn: row.question_en,
+    tier: (row.tier ?? "standard") as FieldTier,
+    askWhen: parseAskWhen(row.ask_when, row.key),
+    fromProfile: Boolean(row.from_profile),
   }));
+
+  // Eenmaal luid stuk bij het laden, in plaats van bij elke intake stil minder.
+  //
+  // Een voorwaarde die naar een niet-bestaand veld verwijst is voor altijd
+  // onbekend, en onbekend is geen gat. Zonder deze controle verdwijnen de
+  // afhankelijke vragen uit de intake van elke atleet zonder een enkele
+  // foutmelding: er komt gewoon minder, en niemand merkt het. Zie
+  // lib/dossier/askWhen.ts.
+  validateConditions(definitions);
+
+  return definitions;
 }
 
 export interface DossierState {
   definitions: FieldDefinition[];
   resolved: Map<string, ResolvedField>;
   gaps: Gap[];
+  /** Wat deze intake niet vraagt, en waarom. Voor het scherm van de behandelaar. */
+  outOfScope: OutOfScope[];
   completeness: Completeness;
 }
 
@@ -61,18 +80,26 @@ export async function syncDossier(
   intakeId: string,
   locale: "nl" | "en" = "nl",
 ): Promise<DossierState> {
-  const [definitions, proposals] = await Promise.all([
+  const [definitions, proposals, skipped] = await Promise.all([
     getFieldDefinitions(),
     getProposals(intakeId),
+    getSkippedFields(intakeId),
   ]);
 
   const resolved = resolveDossier(definitions, proposals);
   await saveDossier(intakeId, [...resolved.values()]);
 
+  // De gaten eerst, want daar komt uit wat buiten bereik valt, en de
+  // volledigheid moet dat weten: een verplicht veld dat de bot nooit stelt kan
+  // de atleet nooit vullen, en zou het indienen voor altijd blokkeren.
+  const { gaps, outOfScope } = computeGaps(definitions, resolved, locale, skipped);
+  const outOfScopeKeys = new Set(outOfScope.map((entry) => entry.fieldKey));
+
   return {
     definitions,
     resolved,
-    gaps: computeGaps(definitions, resolved, locale),
-    completeness: computeCompleteness(definitions, resolved),
+    gaps,
+    outOfScope,
+    completeness: computeCompleteness(definitions, resolved, outOfScopeKeys),
   };
 }

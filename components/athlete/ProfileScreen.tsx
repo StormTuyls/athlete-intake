@@ -43,6 +43,7 @@ function Field({
   inputMode,
   placeholder,
   className,
+  type = "text",
 }: {
   id: string;
   labelText: string;
@@ -50,15 +51,17 @@ function Field({
   onChange: (value: string) => void;
   autoComplete?: string;
   maxLength?: number;
-  inputMode?: "text" | "numeric";
+  inputMode?: "text" | "numeric" | "tel";
   placeholder?: string;
   className?: string;
+  type?: "text" | "date";
 }) {
   return (
     <label htmlFor={id} className={cn("block", className)}>
       <span className={label}>{labelText}</span>
       <input
         id={id}
+        type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         autoComplete={autoComplete}
@@ -136,6 +139,13 @@ function Choice({
 
 type Draft = {
   fullName: string;
+  dateOfBirth: string;
+  phone: string;
+  sport: string;
+  discipline: string;
+  club: string;
+  federation: string;
+  coachName: string;
   street: string;
   postalCode: string;
   city: string;
@@ -146,6 +156,13 @@ type Draft = {
 function toDraft(values: AthleteProfileValues): Draft {
   return {
     fullName: values.fullName ?? "",
+    dateOfBirth: values.dateOfBirth ?? "",
+    phone: values.phone ?? "",
+    sport: values.sport ?? "",
+    discipline: values.discipline ?? "",
+    club: values.club ?? "",
+    federation: values.federation ?? "",
+    coachName: values.coachName ?? "",
     street: values.street ?? "",
     postalCode: values.postalCode ?? "",
     city: values.city ?? "",
@@ -235,11 +252,94 @@ export function ProfileScreen({ data }: { data: ProfileData }) {
               maxLength={120}
             />
 
+            <Field
+              id="profile-dob"
+              labelText={t("dateOfBirth")}
+              value={draft.dateOfBirth}
+              onChange={(value) => set("dateOfBirth", value)}
+              type="date"
+              autoComplete="bday"
+              className="mt-4"
+            />
+
             <div className="mt-4">
               <span className={label}>{t("email")}</span>
               <p className="mt-1.5 truncate text-base text-ink">{data.email ?? "—"}</p>
               <p className="mt-1 text-xs text-ink-faint">{t("emailNote")}</p>
             </div>
+
+            <Field
+              id="profile-phone"
+              labelText={t("phone")}
+              value={draft.phone}
+              onChange={(value) => set("phone", value)}
+              autoComplete="tel"
+              inputMode="tel"
+              maxLength={40}
+              className="mt-4"
+            />
+          </div>
+        </section>
+
+        {/* Sport en club staan apart van de persoonsgegevens: het zijn andere
+            dingen, ze veranderen op andere momenten (een clubwissel is geen
+            adreswijziging), en apart gezet is het formulier te overzien in
+            plaats van een muur van tien vakjes. */}
+        <section className="mt-6">
+          <SectionLabel>{t("sportTitle")}</SectionLabel>
+          <div className="mt-2 rounded-card bg-surface p-4 shadow-card ring-1 ring-hairline ring-inset">
+            {/* De sportenlijst komt uit de taxonomie en staat niet hier: er
+                hoort er precies een te bestaan, en dat is field_definitions. */}
+            <label htmlFor="profile-sport" className="block">
+              <span className={label}>{t("sport")}</span>
+              <select
+                id="profile-sport"
+                value={draft.sport}
+                onChange={(event) => set("sport", event.target.value)}
+                className={field}
+              >
+                <option value="">{t("sportEmpty")}</option>
+                {data.sportOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <Field
+              id="profile-discipline"
+              labelText={t("discipline")}
+              value={draft.discipline}
+              onChange={(value) => set("discipline", value)}
+              placeholder={t("disciplineHint")}
+              maxLength={120}
+              className="mt-4"
+            />
+            <Field
+              id="profile-club"
+              labelText={t("club")}
+              value={draft.club}
+              onChange={(value) => set("club", value)}
+              maxLength={120}
+              className="mt-4"
+            />
+            <Field
+              id="profile-federation"
+              labelText={t("federation")}
+              value={draft.federation}
+              onChange={(value) => set("federation", value)}
+              maxLength={120}
+              className="mt-4"
+            />
+            <Field
+              id="profile-coach"
+              labelText={t("coachName")}
+              value={draft.coachName}
+              onChange={(value) => set("coachName", value)}
+              maxLength={120}
+              className="mt-4"
+            />
           </div>
         </section>
 

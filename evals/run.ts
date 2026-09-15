@@ -120,7 +120,11 @@ async function main() {
       originalFilename: file,
       mimeType,
     });
-    const result = await readDocument({ intakeId, documentId: registered.documentId });
+    const result = await readDocument({
+      intakeId,
+      documentId: registered.documentId,
+      locale: "nl",
+    });
     const seconds = ((Date.now() - started) / 1000).toFixed(1);
 
     console.log(

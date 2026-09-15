@@ -99,3 +99,33 @@ update public.field_definitions
    'biometrics.height_cm',
    'biometrics.dominant_side'
  );
+
+-- Welke velden uit het atleetprofiel komen in plaats van uit het gesprek.
+-- Dezelfde lijst als in
+-- supabase/migrations/20260915100000_identity_from_profile.sql, en om dezelfde
+-- reden hier herhaald: de migraties draaien voor deze seed, dus de update daar
+-- raakt bij een verse databank nul rijen. Zonder deze regels vraagt het gesprek
+-- na een reset weer de hele identiteitssectie uit, en dat is stil: er is geen
+-- foutmelding, er komen alleen negen beurten bij.
+--
+-- identity.medical_network staat er met opzet niet bij; zie de migratie.
+update public.field_definitions
+   set from_profile = true
+ where key in (
+   'identity.full_name',
+   'identity.date_of_birth',
+   'identity.email',
+   'identity.phone',
+   'identity.sport',
+   'identity.discipline',
+   'identity.club',
+   'identity.federation',
+   'identity.coach_name'
+ );
+
+-- En carry-forward weer uit voor precies die velden: ze komen uit het profiel,
+-- dus er valt niets ter bevestiging voor te leggen. Deze regel staat NA het
+-- blok hierboven, want dat zet hem voor dezelfde sleutels juist aan.
+update public.field_definitions
+   set carry_forward = false
+ where from_profile;

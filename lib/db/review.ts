@@ -357,6 +357,16 @@ export interface ReviewData {
   }>;
   injuries: TimelineEntry[];
   documents: DocumentSummary[];
+  /** Velden waar niet naar gevraagd is: overgeslagen, of voor de behandelaar. */
+  notAsked: Array<{
+    fieldKey: string;
+    section: string;
+    label: string;
+    required: boolean;
+    reason: "skipped" | "practitioner";
+    /** Alleen bij een skip: wist hij het niet, of wilde hij het niet zeggen. */
+    skipReason: "unknown" | "declined" | null;
+  }>;
   completeness: {
     total: number;
     filled: number;
@@ -461,6 +471,11 @@ export async function getReviewData(
       dataType: definition.dataType,
       required: definition.required,
       isMedical: definition.isMedical,
+      // Waar de waarde vandaan komt hoort bij de waarde. "Door atleet
+      // opgegeven" en "uit het profiel" zijn allebei waar, maar het tweede is
+      // preciezer: het eerste is vandaag gezegd, het tweede staat er misschien
+      // al een jaar en is sindsdien niet meer bekeken.
+      fromProfile: definition.fromProfile,
       enumOptions: definition.enumOptions,
       value: field?.value ?? null,
       status: field?.status ?? ("missing" as const),
@@ -488,6 +503,34 @@ export async function getReviewData(
     sections: [...bySection.entries()].map(([section, fields]) => ({ section, fields })),
     injuries,
     documents,
+    // Wat de bot NIET gevraagd heeft, en waarom.
+    //
+    // Zonder dit leest een leeg veld op dit scherm als "niet van toepassing",
+    // terwijl het net zo goed "de atleet wist het niet" kan betekenen. Dat zijn
+    // twee verschillende dingen in een medisch dossier, en het verschil is
+    // precies wat de behandelaar moet weten voor hij aftekent.
+    //
+    // Alleen wat een mens kan gebruiken: velden die de voorwaarde nog niet
+    // geopend had zijn ruis (die staan er bij honderden), overgeslagen velden
+    // en vragen voor de behandelaar zijn dat niet.
+    notAsked: state.outOfScope
+      .filter(
+        (entry): entry is typeof entry & { reason: "skipped" | "practitioner" } =>
+          entry.reason === "skipped" || entry.reason === "practitioner",
+      )
+      .map((entry) => {
+        const definition = state.definitions.find((d) => d.key === entry.fieldKey);
+        return {
+          fieldKey: entry.fieldKey,
+          section: entry.section,
+          label:
+            (intake.locale === "nl" ? definition?.labelNl : definition?.labelEn) ??
+            entry.fieldKey,
+          required: definition?.required ?? false,
+          reason: entry.reason,
+          skipReason: entry.skipReason ?? null,
+        };
+      }),
     completeness: state.completeness,
   };
 }

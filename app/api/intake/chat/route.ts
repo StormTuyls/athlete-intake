@@ -5,8 +5,9 @@ import { appDb } from "@/lib/supabase/service";
 import { requireEditableIntake } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { addProposals, getProposals, syncDossier } from "@/lib/db/dossier";
+import { skipFields } from "@/lib/db/medical";
 import { intakeTitle } from "@/lib/db/intakeTitle";
-import { carriedValues } from "@/lib/intake/carryForward";
+import { carriedValues, earlierIntakes } from "@/lib/intake/carryForward";
 import { runChatTurn, type ChatMessage } from "@/lib/claude/chatTurn";
 import {
   buildCard,
@@ -100,11 +101,21 @@ export async function POST(request: Request) {
 
     // Wat deze atleet bij een eerdere intake al gaf. Alleen om te laten
     // bevestigen; er staat niets van in het dossier tot hij dat doet.
-    const carried = await carriedValues({
-      athleteId: session.athleteId,
-      intakeId: session.intakeId,
-      locale: session.locale,
-    });
+    //
+    // En daarnaast: waar het toen over ging. Dat tweede is context en geen
+    // waarde, dus het loopt langs een ander pad en er komt geen voorstel uit.
+    // Zie lib/intake/carryForward.ts voor waarom dat twee dingen zijn.
+    const [carried, earlier] = await Promise.all([
+      carriedValues({
+        athleteId: session.athleteId,
+        intakeId: session.intakeId,
+        locale: session.locale,
+      }),
+      earlierIntakes({
+        athleteId: session.athleteId,
+        intakeId: session.intakeId,
+      }),
+    ]);
 
     const turn = await runChatTurn({
       history: (history ?? []) as ChatMessage[],
@@ -116,12 +127,22 @@ export async function POST(request: Request) {
       carried: carried.filter((item) =>
         state.gaps.some((gap) => gap.fieldKey === item.fieldKey),
       ),
+      earlier,
       nudge: body.nudge ? NUDGES[session.locale][body.nudge] : undefined,
     });
 
     // Tweede slot op hetzelfde: ook als het model een consentveld zou teruggeven
     // omdat de atleet er zelf over begint, wordt het niet weggeschreven.
     const captured = turn.captured.filter((item) => !isConsentField(item.fieldKey));
+
+    // "Weet ik niet" is een geldig eindpunt, en het sluit het gat. Zonder dit
+    // blijft het veld gevraagd worden en stopt het gesprek nooit. Consent is ook
+    // hier uitgesloten: die velden worden op het toestemmingsscherm gezet, niet
+    // in een gesprek, en dus ook niet overgeslagen in een gesprek.
+    const skipped = turn.skipped.filter((item) => !isConsentField(item.fieldKey));
+    if (skipped.length > 0) {
+      await skipFields(session.intakeId, skipped);
+    }
 
     if (captured.length > 0) {
       await addProposals(
@@ -167,9 +188,25 @@ export async function POST(request: Request) {
       );
     }
 
+    // De skips gaan mee terug zodat het gesprek ze meteen toont. Ze komen ook
+    // uit de transcriptie na een herlaadbeurt; dit scheelt een ronde en zorgt
+    // dat de atleet het ziet op het moment dat het gebeurt.
+    const definitionFor = (fieldKey: string) => definitionByKey.get(fieldKey);
+
     return NextResponse.json({
       reply: turn.reply,
       captured: cards,
+      skipped: skipped.flatMap((item) => {
+        const definition = definitionFor(item.fieldKey);
+        if (!definition) return [];
+        return [
+          {
+            fieldKey: item.fieldKey,
+            label: session.locale === "nl" ? definition.labelNl : definition.labelEn,
+            reason: item.reason,
+          },
+        ];
+      }),
       // Meegestuurd en niet pas bij de volgende keer laden opgehaald: een beurt
       // waarin de pijnlocatie wordt opgepikt hoort de kop meteen te veranderen.
       // Eén kleine query naast een modelcall van seconden.

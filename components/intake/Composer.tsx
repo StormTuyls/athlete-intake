@@ -42,7 +42,13 @@ export function Composer({
     const element = textarea.current;
     if (!element) return;
     element.style.height = "auto";
-    setRowsHeight(Math.min(element.scrollHeight, 140));
+    // Was 140px, ongeveer vier regels. Dat paste bij een gesprek van korte
+    // antwoorden op losse vragen. De openingsbeurt vraagt nu om een heel
+    // verhaal, en wie dat intypt of inspreekt hoort te kunnen nalezen wat hij
+    // zegt in plaats van door een kiertje van vier regels te scrollen. Boven
+    // deze hoogte scrollt het veld alsnog, zodat de invoerbalk het toetsenbord
+    // op een telefoon niet van het scherm duwt.
+    setRowsHeight(Math.min(element.scrollHeight, 220));
   }, [value]);
 
   const canSend = value.trim().length > 0 && !disabled;

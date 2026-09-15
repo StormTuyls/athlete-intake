@@ -60,13 +60,9 @@ const athleteSaid = (fieldKey: string, value: unknown) => ({
   quoteVerified: false,
 });
 
-await addProposals(older, [
-  athleteSaid("identity.club", "AC Oud"),
-  athleteSaid("identity.sport", "football"),
-]);
+await addProposals(older, [athleteSaid("biometrics.height_cm", 178)]);
 
 await addProposals(newer, [
-  athleteSaid("identity.club", "AC Nieuw"),
   athleteSaid("biometrics.height_cm", 182),
   // Gewicht is met opzet geen carry-forward-veld: het verandert, en het is
   // klinisch juist op het moment van de intake relevant.
@@ -95,26 +91,27 @@ const documentId = await upsertDocument({
 
 await addProposals(newer, [
   {
-    ...athleteSaid("identity.date_of_birth", "1992-03-14"),
+    ...athleteSaid("biometrics.dominant_side", "right"),
     proposedBy: "model",
     sourceDocumentId: documentId,
     sourcePage: 1,
-    sourceQuote: "geboren 14-03-1992",
+    sourceQuote: "rechts dominant",
     modelId: "test",
   },
   {
-    ...athleteSaid("identity.date_of_birth", "1992-03-04"),
+    ...athleteSaid("biometrics.dominant_side", "left"),
     proposedBy: "model",
     sourceDocumentId: documentId,
     sourcePage: 1,
-    sourceQuote: "geboren 04-03-1992",
+    sourceQuote: "links dominant",
     modelId: "test",
   },
 ]);
 
 // De lopende intake heeft zelf al een antwoord: dat hoeft niet bevestigd te
 // worden en mag dus niet als "bekend van vorige keer" terugkomen.
-await addProposals(current, [athleteSaid("identity.coach_name", "Sofie")]);
+// Leeg: alles wat deze intake zelf al weet valt buiten de lijst, en dat wordt
+// verderop apart getoetst.
 
 for (const id of [older, newer, current]) await syncDossier(id, "nl");
 
@@ -122,47 +119,59 @@ const carried = await carriedValues({ athleteId, intakeId: current, locale: "nl"
 const byKey = new Map(carried.map((item) => [item.fieldKey, item]));
 
 assert.equal(
-  byKey.get("identity.club")?.value,
-  "AC Nieuw",
-  "bij twee eerdere intakes wint de meest recente",
-);
-assert.equal(
-  byKey.get("identity.sport")?.value,
-  "football",
-  "een veld dat alleen in de oudste intake staat gaat wel mee",
-);
-assert.equal(byKey.get("biometrics.height_cm")?.value, 182);
-
-assert.equal(
   byKey.has("biometrics.body_mass_kg"),
   false,
   "gewicht is geen carry-forward-veld en mag niet voorgelegd worden",
 );
 assert.equal(
-  byKey.has("identity.date_of_birth"),
+  byKey.has("biometrics.dominant_side"),
   false,
   "een tegenstrijdig veld uit de vorige intake mag niet voorgelegd worden",
 );
 assert.equal(
-  byKey.has("identity.coach_name"),
-  false,
-  "wat de atleet in DEZE intake al zei komt niet uit een eerdere terug",
+  byKey.get("biometrics.height_cm")?.value,
+  182,
+  "bij twee eerdere intakes wint de meest recente",
 );
+
+// Identiteit draagt sinds 20260915100000_identity_from_profile niet meer over.
+// Die velden komen uit public.athletes en gelden voor elke intake, dus er valt
+// niets ter bevestiging voor te leggen. Stond de vlag er nog op, dan opende het
+// gesprek alsnog met "ik heb nog naam, geboortedatum, sport, club - klopt dat?",
+// precies het administratieve rondje dat eruit moest.
+for (const key of [
+  "identity.full_name",
+  "identity.date_of_birth",
+  "identity.sport",
+  "identity.club",
+  "identity.federation",
+]) {
+  assert.equal(
+    byKey.has(key),
+    false,
+    `${key} komt uit het profiel en hoort niet meer ter bevestiging voorgelegd te worden`,
+  );
+}
 
 // Vanuit de oudste intake gezien bestaat er geen eerdere: dan is er niets te
 // bevestigen en valt de hele opening weg.
 const first = await carriedValues({ athleteId, intakeId: older, locale: "nl" });
 assert.equal(
-  first.some((item) => item.fieldKey === "identity.club" && item.value === "AC Oud"),
+  first.some((item) => item.fieldKey === "biometrics.height_cm" && item.value === 178),
   false,
   "een intake legt zijn eigen waarden niet aan zichzelf voor",
 );
 
 assert.equal(
-  byKey.get("identity.club")?.label,
-  "Club",
+  byKey.get("biometrics.height_cm")?.label,
+  "Lengte (cm)",
   "het label komt in de taal van de intake mee, want het gaat het gesprek in",
 );
+
+// Wat de lopende intake zelf al weet komt hier WEL uit: carriedValues sluit
+// alleen de eigen rijen van deze intake uit als BRON. Het wegfilteren van
+// velden die deze keer al beantwoord zijn gebeurt in app/api/intake/chat, tegen
+// de gatenlijst. Dat onderscheid stond hier eerder verkeerd beschreven.
 
 // Opruimen via het verwijderpad, want een gewone delete op public.athletes
 // bestaat niet meer: de statement-trigger op medical.field_proposals weigert

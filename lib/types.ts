@@ -1,3 +1,5 @@
+import type { AskWhen } from "@/lib/dossier/askWhen";
+
 /**
  * Kerndomeintypes. Dit is het contract waar de hele pijplijn op rust.
  *
@@ -100,7 +102,21 @@ export interface FieldDefinition {
   enumOptions: string[] | null;
   questionNl: string | null;
   questionEn: string | null;
+  /**
+   * core: de bot vraagt altijd. standard: alleen als askWhen waar is.
+   * deep: de bot vraagt nooit; dit komt op het scherm van de behandelaar.
+   */
+  tier: FieldTier;
+  /** Wanneer dit veld in bereik is. Null is altijd. Zie lib/dossier/askWhen.ts. */
+  askWhen: AskWhen | null;
+  /**
+   * Dit veld komt uit het atleetprofiel en wordt nooit in het gesprek gevraagd.
+   * Zie lib/intake/profileFields.ts voor uit welke kolom.
+   */
+  fromProfile: boolean;
 }
+
+export type FieldTier = "core" | "standard" | "deep";
 
 /**
  * Een voorstel uit medical.field_proposals. Append-only: elk voorstel blijft
