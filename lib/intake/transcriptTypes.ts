@@ -94,6 +94,22 @@ export type TranscriptItem =
       state: DocumentState;
       error: string | null;
     }
+  /**
+   * Een vraag die gesteld is en geen antwoord kreeg.
+   *
+   * Zonder dit verdwijnt de vraag gewoon uit het gesprek zodra de atleet "dat
+   * weet ik niet" zegt, en dan lijkt het alsof er niets mee gebeurd is. Het
+   * hoort te blijven staan: er is iets vastgelegd, namelijk dat hierover niets
+   * bekend is, en de behandelaar ziet dat straks ook.
+   */
+  | {
+      kind: "skip";
+      id: string;
+      at: string;
+      fieldKey: string;
+      label: string;
+      reason: "unknown" | "declined";
+    }
   | {
       kind: "extraction";
       id: string;

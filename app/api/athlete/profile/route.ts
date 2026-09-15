@@ -3,7 +3,12 @@ import { badRequest, handleError } from "@/lib/http";
 import { apiMessages } from "@/lib/i18n/server";
 import { logAudit } from "@/lib/audit";
 import { currentAthlete } from "@/lib/intake/athlete";
-import { listPractitioners, parseProfileInput, saveProfile } from "@/lib/intake/profile";
+import {
+  listPractitioners,
+  parseProfileInput,
+  saveProfile,
+  syncProfileToOpenIntakes,
+} from "@/lib/intake/profile";
 
 /**
  * De atleet werkt zijn eigen profiel bij.
@@ -48,6 +53,13 @@ export async function POST(request: Request) {
       userId: athlete.userId,
       values: parsed.values,
     });
+
+    // Identiteit komt uit het profiel, dus een wijziging hier moet doorwerken in
+    // het dossier van een concept dat nog openstaat. Doet ze dat niet, dan leest
+    // de behandelaar straks de club van vorig jaar terwijl de atleet hem net
+    // gecorrigeerd heeft. Ingediende intakes blijven staan: die zijn een
+    // momentopname, en een rapportversie die achteraf verschuift is er geen.
+    await syncProfileToOpenIntakes(athlete.athleteId);
 
     await logAudit({
       action: "update",

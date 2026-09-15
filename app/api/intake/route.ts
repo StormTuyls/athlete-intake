@@ -5,7 +5,9 @@ import { newToken, setSessionCookie } from "@/lib/intake/session";
 import { badRequest, handleError } from "@/lib/http";
 import { currentAthlete } from "@/lib/intake/athlete";
 import { ACCOUNT_PURPOSES, hasAccountConsent } from "@/lib/intake/consent";
-import { addProposals } from "@/lib/db/dossier";
+import { addProposals, getFieldDefinitions } from "@/lib/db/dossier";
+import { loadProfile, syncProfileToDossier } from "@/lib/intake/profile";
+import { missingRequiredProfileFields } from "@/lib/intake/profileFields";
 
 /**
  * Start een intake voor de ingelogde atleet.
@@ -45,6 +47,42 @@ export async function POST(request: Request) {
       );
     }
 
+    // Het profiel is de bron van identiteit, dus het moet er zijn voor er een
+    // intake begint.
+    //
+    // Naam, geboortedatum, sport: dat verandert zo goed als nooit, en het in
+    // een gesprek uitvragen kost negen beurten voor gegevens die de praktijk na
+    // de eerste keer al heeft. Acht invulvakjes in een formulier zijn daar het
+    // juiste gereedschap voor. Wie hier strandt gaat naar /profile en komt
+    // daarna terug; de client leest `missing` om te weten wat er ontbreekt.
+    //
+    // Welke velden verplicht zijn komt uit de taxonomie en staat niet hier:
+    // beslist de praktijk morgen dat de federatie verplicht is, dan beweegt
+    // deze poort mee zonder dat iemand aan deze route denkt.
+    const [definitions, profile] = await Promise.all([
+      getFieldDefinitions(),
+      loadProfile({ athleteId: athlete.athleteId, email: athlete.email }),
+    ]);
+
+    const missing = missingRequiredProfileFields(definitions, {
+      full_name: profile.values.fullName,
+      date_of_birth: profile.values.dateOfBirth,
+      email: profile.email,
+      phone: profile.values.phone,
+      sport: profile.values.sport,
+      discipline: profile.values.discipline,
+      club: profile.values.club,
+      federation: profile.values.federation,
+      coach_name: profile.values.coachName,
+    });
+
+    if (missing.length > 0) {
+      return NextResponse.json(
+        { error: t("profileIncomplete"), missing, profileUrl: "/profile" },
+        { status: 409 },
+      );
+    }
+
     // De taal van de atleet, niet die van de client. Stond hier omgekeerd: de
     // body kreeg voorrang, en HomeScreen stuurde altijd "en" mee.
     const locale = athlete.locale;
@@ -73,6 +111,10 @@ export async function POST(request: Request) {
         .update({ access_token_hash: hash })
         .eq("id", open.id);
       if (error) throw new Error(`intake hervatten mislukt: ${error.message}`);
+
+      // Ook bij hervatten, want het profiel kan sinds de vorige keer gewijzigd
+      // zijn en dit concept is nog niet ingediend.
+      await syncProfileToDossier({ intakeId: open.id as string, athleteId: athlete.athleteId });
 
       await setSessionCookie(token);
       return NextResponse.json({ intakeId: open.id, locale, resumed: true });
@@ -107,6 +149,13 @@ export async function POST(request: Request) {
         proposedBy: "athlete" as const,
       })),
     );
+
+    // Identiteit komt uit het profiel en wordt niet meer gevraagd, dus ze moet
+    // hier het dossier in. Gebeurt dit niet, dan is het een dossier zonder naam.
+    await syncProfileToDossier({
+      intakeId: intake.id as string,
+      athleteId: athlete.athleteId,
+    });
 
     await setSessionCookie(token);
 

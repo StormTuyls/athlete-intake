@@ -27,6 +27,13 @@ const emptied = parseProfileInput(
 assert.ok(emptied.ok, "een leeg formulier hoort geldig te zijn");
 assert.deepEqual(emptied.values, {
   fullName: null,
+  dateOfBirth: null,
+  phone: null,
+  sport: null,
+  discipline: null,
+  club: null,
+  federation: null,
+  coachName: null,
   street: null,
   postalCode: null,
   city: null,
@@ -46,6 +53,13 @@ assert.deepEqual(omitted.values, emptied.values);
 const trimmed = parseProfileInput(
   {
     fullName: "  Lotte Vermeulen ",
+    dateOfBirth: "1998-05-12",
+    phone: " 0470 11 22 33 ",
+    sport: "sprint",
+    discipline: " 100m en 200m ",
+    club: " AC Herentals ",
+    federation: " Atletiek Vlaanderen ",
+    coachName: " Jan Peeters ",
     street: " Kerkstraat 12 ",
     postalCode: " 9000 ",
     city: " Gent ",
@@ -58,12 +72,31 @@ const trimmed = parseProfileInput(
 assert.ok(trimmed.ok, "een normaal ingevuld formulier hoort geldig te zijn");
 assert.deepEqual(trimmed.values, {
   fullName: "Lotte Vermeulen",
+  dateOfBirth: "1998-05-12",
+  phone: "0470 11 22 33",
+  sport: "sprint",
+  discipline: "100m en 200m",
+  club: "AC Herentals",
+  federation: "Atletiek Vlaanderen",
+  coachName: "Jan Peeters",
   street: "Kerkstraat 12",
   postalCode: "9000",
   city: "Gent",
   country: "BE",
   practitionerId: PHYSIO,
 });
+
+// ── De geboortedatum is ISO, of hij wordt geweigerd ───────────────────────────
+
+for (const dateOfBirth of ["12-05-1998", "12/05/1998", "1998-5-12", "gisteren"]) {
+  const result = parseProfileInput({ dateOfBirth }, known);
+  assert.equal(
+    result.ok,
+    false,
+    `'${dateOfBirth}' hoort geweigerd te worden: raden welke helft de maand is kost een maand`,
+  );
+}
+assert.ok(parseProfileInput({ dateOfBirth: "1998-05-12" }, known).ok);
 
 // ── Het land is een landcode ──────────────────────────────────────────────────
 

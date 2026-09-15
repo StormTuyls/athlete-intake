@@ -7,6 +7,7 @@ import { documentError } from "@/lib/intake/format";
 import { sectionLabel } from "@/lib/intake/sections";
 import { toLocale, type Locale } from "@/lib/i18n/locale";
 import { enumLabel } from "@/lib/dossier/enumLabels";
+import { toSummaryBlocks } from "@/lib/report/summaryBlocks";
 import { ExportBar } from "@/components/review/ExportBar";
 import { FieldEditor } from "@/components/review/FieldEditor";
 
@@ -47,7 +48,13 @@ function badge(field: Field, t: T): { text: string; style: string } {
     return { text: t("badgeCoachConfirmed"), style: CONFIDENCE_STYLE.high };
   }
   if (field.proposedBy === "athlete") {
-    return { text: t("badgeAthleteReported"), style: CONFIDENCE_STYLE.medium };
+    // Uit het profiel is ook "door de atleet", maar het is niet vandaag gezegd:
+    // het staat in zijn profiel en is sindsdien misschien niet meer bekeken.
+    // Voor een behandelaar die beoordeelt of een gegeven actueel is, is dat het
+    // verschil dat telt.
+    return field.fromProfile
+      ? { text: t("badgeFromProfile"), style: CONFIDENCE_STYLE.medium }
+      : { text: t("badgeAthleteReported"), style: CONFIDENCE_STYLE.medium };
   }
   if (field.confidence === "high") {
     return { text: t("badgeQuoteVerified"), style: CONFIDENCE_STYLE.high };
@@ -71,6 +78,7 @@ interface Field {
   dataType: string;
   required: boolean;
   isMedical: boolean;
+  fromProfile: boolean;
   enumOptions: string[] | null;
   value: unknown;
   status: string;
@@ -107,12 +115,21 @@ interface ReviewData {
     fromEarlierIntake: boolean;
     recordedAt: string | null;
   }>;
+  notAsked: Array<{
+    fieldKey: string;
+    section: string;
+    label: string;
+    required: boolean;
+    reason: "skipped" | "practitioner";
+    skipReason: "unknown" | "declined" | null;
+  }>;
   documents: Array<{
     id: string;
     originalFilename: string;
     kind: string;
     pageCount: number | null;
     processingError: string | null;
+    summary: string | null;
   }>;
   completeness: {
     total: number;
@@ -162,6 +179,10 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
+  // De coach heeft gezien dat er verplichte velden ontbreken en keurt toch goed.
+  // Bewust geen harde blokkade: een veld dat niemand kan invullen zou het
+  // dossier voorgoed vastzetten. Wel een handeling, en die belandt in het spoor.
+  const [acceptGaps, setAcceptGaps] = useState(false);
 
   // Het hele dossier opnieuw ophalen na een correctie, in plaats van de ene rij
   // bijwerken die de coach net wijzigde. Dat is opzet: een correctie kan een
@@ -246,7 +267,11 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
     setApproving(true);
     setApproveError(null);
     try {
-      const response = await fetch(`/api/review/${intakeId}/approve`, { method: "POST" });
+      const response = await fetch(`/api/review/${intakeId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ acknowledgeGaps: acceptGaps }),
+      });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? t("approveFailed"));
       setData(await load());
@@ -290,6 +315,13 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
   // weigert het ook, maar een knop aanbieden die daarna een foutmelding geeft is
   // een slechtere uitleg dan geen knop.
   const locked = data.status === "approved";
+
+  // Verplichte velden die gevraagd zijn en geen antwoord kregen. Niet de velden
+  // die voor de behandelaar bedoeld zijn: die zijn met opzet aan hem gelaten en
+  // zijn geen gat dat iemand over het hoofd zag.
+  const skippedRequired = (data.notAsked ?? []).filter(
+    (entry) => entry.reason === "skipped" && entry.required,
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
@@ -380,7 +412,25 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
 
         {summary ? (
           <>
-            <div className="mt-3 space-y-2 text-sm whitespace-pre-wrap">{summary}</div>
+            {/* Dezelfde parser als het rapport, want het is dezelfde tekst uit
+                dezelfde prompt. Zonder dit las een behandelaar op zijn scherm
+                `**Wat er staat**` met sterretjes, terwijl de PDF van hetzelfde
+                dossier het wel als kop toonde. */}
+            <div className="mt-3 space-y-2 text-sm">
+              {toSummaryBlocks(summary).map((block, index) =>
+                block.kind === "heading" ? (
+                  <p key={index} className="mt-4 font-semibold first:mt-0">
+                    {block.text}
+                  </p>
+                ) : block.kind === "item" ? (
+                  <p key={index} className="pl-4 -indent-4 before:mr-1.5 before:content-['·']">
+                    {block.text}
+                  </p>
+                ) : (
+                  <p key={index}>{block.text}</p>
+                ),
+              )}
+            </div>
             <p className="mt-3 text-xs opacity-50">
               {t("summaryDisclaimer")}
             </p>
@@ -439,6 +489,9 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
             {section.fields.map((field) => {
               const isOpen = open.has(field.key);
               const missing = field.status === "missing";
+              // Vrije tekst krijgt een eigen regel; korte waarden blijven in de
+              // kolom staan, want daar leest een rij per veld het snelst.
+              const longValue = field.dataType === "long_text" && !missing;
               return (
                 <li key={field.key} className="py-2 text-sm">
                   {/* Op een telefoon staan label, waarde en knoppen onder
@@ -452,9 +505,20 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                       {field.label}
                       {field.required && <span className="text-red-600"> *</span>}
                     </span>
-                    <span className={missing ? "opacity-40 sm:flex-1" : "sm:flex-1"}>
-                      {show(field.value, locale, field.dataType, field.key)}
-                    </span>
+                    {/* Een long_text-waarde past niet in de waardekolom. Die
+                        kolom is zo breed als wat ernaast staat toelaat, en een
+                        trainingsschema van vijfhonderd tekens werd daar over
+                        vijfentwintig regels uitgesmeerd, een handvol woorden per
+                        regel. Onleesbaar, en het duwde de rest van het dossier
+                        van het scherm. Zulke velden krijgen daarom hun eigen
+                        regel onder de kop, uitgelijnd met de andere waarden. */}
+                    {longValue ? (
+                      <span className="sm:flex-1" aria-hidden />
+                    ) : (
+                      <span className={missing ? "opacity-40 sm:flex-1" : "sm:flex-1"}>
+                        {show(field.value, locale, field.dataType, field.key)}
+                      </span>
+                    )}
                     <span className="flex flex-wrap items-baseline gap-3">
                     {!missing &&
                       (() => {
@@ -505,6 +569,12 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
                     </span>
                   </div>
 
+                  {longValue && (
+                    <p className="mt-1.5 text-sm whitespace-pre-wrap sm:ml-52">
+                      {show(field.value, locale, field.dataType, field.key)}
+                    </p>
+                  )}
+
                   {editing === field.key && (
                     <FieldEditor
                       field={field}
@@ -548,18 +618,69 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
         </section>
       ))}
 
+      {data.notAsked?.length > 0 && (
+        <section className="mt-8 border-t border-black/10 pt-6 dark:border-white/15">
+          <h2 className="mb-1 text-sm font-medium">
+            {t("notAskedTitle", { count: data.notAsked.length })}
+          </h2>
+          <p className="mb-3 text-xs opacity-60">{t("notAskedBody")}</p>
+          <ul className="space-y-1.5 text-sm">
+            {data.notAsked.map((entry) => (
+              <li key={entry.fieldKey} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span>{entry.label}</span>
+                {entry.required && (
+                  <span className="text-xs text-red-700 dark:text-red-400">
+                    {t("notAskedRequired")}
+                  </span>
+                )}
+                {/* Overgeslagen en "voor jou" zijn verschillende dingen, en het
+                    verschil bepaalt wat de behandelaar ermee moet. Het eerste is
+                    een vraag die gesteld is en geen antwoord kreeg; het tweede
+                    is een vraag die met opzet aan hem overgelaten is. */}
+                <span className="rounded bg-black/5 px-1.5 py-0.5 text-[10px] opacity-70 dark:bg-white/10">
+                  {entry.reason === "practitioner"
+                    ? t("notAskedPractitioner")
+                    : entry.skipReason === "declined"
+                      ? t("notAskedDeclined")
+                      : t("notAskedSkipped")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="mt-8 border-t border-black/10 pt-6 dark:border-white/15">
         <h2 className="mb-2 text-sm font-medium">{t("documentsTitle")}</h2>
-        <ul className="space-y-1 text-xs opacity-70">
+        {/* Was een regel per bestand op xs met 70 procent dekking: een
+            bijlagenlijst om te controleren dat er iets binnengekomen is. Sinds
+            er een beschrijving bij zit is dat te klein. Een trainingsschema
+            levert nauwelijks velden op, dus voor zo'n document IS deze alinea
+            wat de coach ervan te zien krijgt. De bestandsnaam blijft klein,
+            want die is nog steeds alleen een label. */}
+        <ul className="space-y-4">
           {data.documents.map((document) => (
             <li key={document.id}>
-              {document.originalFilename} · {document.kind}
-              {document.pageCount && ` · ${t("pageCount", { count: document.pageCount })}`}
-              {document.processingError && (
-                <span className="text-red-700 dark:text-red-400">
-                  {" "}
-                  · {documentError(document.processingError, locale)}
-                </span>
+              <p className="text-xs opacity-70">
+                {document.originalFilename} · {document.kind}
+                {document.pageCount && ` · ${t("pageCount", { count: document.pageCount })}`}
+                {document.processingError && (
+                  <span className="text-red-700 dark:text-red-400">
+                    {" "}
+                    · {documentError(document.processingError, locale)}
+                  </span>
+                )}
+              </p>
+              {document.summary && (
+                <div className="mt-1.5">
+                  <p className="text-sm">{document.summary}</p>
+                  {/* Hetzelfde label als boven de klinische samenvatting, en om
+                      dezelfde reden: het verschil tussen wat er staat en wat
+                      een model eruit maakt hoort zichtbaar te blijven. Per
+                      document en niet een keer onder de lijst, want bij drie
+                      bijlagen heeft niet elke bijlage er een. */}
+                  <p className="mt-1 text-xs opacity-50">{t("documentSummaryLabel")}</p>
+                </div>
               )}
             </li>
           ))}
@@ -584,12 +705,51 @@ export function ReviewScreen({ intakeId }: { intakeId: string }) {
             </div>
             <button
               onClick={approve}
-              disabled={approving || conflicting.length > 0 || !data.submittedAt}
+              disabled={
+                approving ||
+                conflicting.length > 0 ||
+                !data.submittedAt ||
+                (skippedRequired.length > 0 && !acceptGaps)
+              }
               className="shrink-0 rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40 dark:bg-white dark:text-black"
             >
               {approving ? t("approveBusy") : t("approveButton")}
             </button>
           </div>
+
+          {/* Een overgeslagen verplicht veld mag niet stilzwijgend meeglijden,
+              maar het hard blokkeren zou het dossier voorgoed vastzetten: de
+              atleet wist het niet, en soms weet de coach het ook niet. Dus een
+              vinkje. Wat er ontbrak en dat de coach het wist, staat daarna in
+              het auditspoor onder approvedWithGaps. */}
+          {skippedRequired.length > 0 && (
+            <div className="mt-3 rounded-md bg-amber-500/10 p-3">
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                {t("approveGapsTitle", { count: skippedRequired.length })}
+              </p>
+              <ul className="mt-1.5 space-y-0.5 text-xs opacity-80">
+                {skippedRequired.map((entry) => (
+                  <li key={entry.fieldKey}>
+                    {entry.label}
+                    {" · "}
+                    {entry.skipReason === "declined"
+                      ? t("notAskedDeclined")
+                      : t("notAskedSkipped")}
+                  </li>
+                ))}
+              </ul>
+              <label className="mt-2.5 flex items-start gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={acceptGaps}
+                  onChange={(event) => setAcceptGaps(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>{t("approveGapsAccept")}</span>
+              </label>
+            </div>
+          )}
+
           {approveError && (
             <p className="mt-2 text-xs text-red-700 dark:text-red-400">{approveError}</p>
           )}

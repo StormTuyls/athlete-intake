@@ -1,3 +1,6 @@
+import { addProposals, getFieldDefinitions } from "@/lib/db/dossier";
+import { enumLabel } from "@/lib/dossier/enumLabels";
+import { PROFILE_COLUMNS, PROFILE_FIELDS } from "@/lib/intake/profileFields";
 import { z } from "zod";
 import { appDb } from "@/lib/supabase/service";
 
@@ -27,6 +30,16 @@ export interface PractitionerOption {
 
 export interface AthleteProfileValues {
   fullName: string | null;
+  /** YYYY-MM-DD. */
+  dateOfBirth: string | null;
+  phone: string | null;
+  /** Een sleutel uit enum_options van identity.sport in de taxonomie. */
+  sport: string | null;
+  discipline: string | null;
+  club: string | null;
+  federation: string | null;
+  /** De eigen trainer. Niet de behandelaar in deze praktijk, zie practitionerId. */
+  coachName: string | null;
   street: string | null;
   postalCode: string | null;
   city: string | null;
@@ -39,6 +52,14 @@ export interface ProfileData {
   email: string | null;
   values: AthleteProfileValues;
   practitioners: PractitionerOption[];
+  /**
+   * De sportenlijst, uit enum_options van identity.sport in de taxonomie.
+   *
+   * Niet hardgeschreven in het scherm: er hoort precies een lijst met sporten
+   * te bestaan, en dat is field_definitions. Zet de praktijk er morgen "judo"
+   * bij, dan staat hij hier zonder dat iemand dit bestand opent.
+   */
+  sportOptions: Array<{ value: string; label: string }>;
 }
 
 function initialsOf(name: string): string {
@@ -92,15 +113,21 @@ export async function listPractitioners(): Promise<PractitionerOption[]> {
 export async function loadProfile(input: {
   athleteId: string;
   email: string | null;
+  /** De taal van de sportlabels. De waarden zelf zijn taalonafhankelijke sleutels. */
+  locale?: "nl" | "en";
 }): Promise<ProfileData> {
-  const [athlete, practitioners] = await Promise.all([
+  const locale = input.locale ?? "nl";
+  const [athlete, practitioners, definitions] = await Promise.all([
     appDb()
       .from("athletes")
-      .select("full_name, email, street, postal_code, city, country, practitioner_id")
+      .select(
+        "full_name, email, phone, date_of_birth, sport, discipline, club, federation, coach_name, street, postal_code, city, country, practitioner_id",
+      )
       .eq("id", input.athleteId)
       .is("deleted_at", null)
       .maybeSingle(),
     listPractitioners(),
+    getFieldDefinitions(),
   ]);
 
   if (athlete.error) {
@@ -113,6 +140,13 @@ export async function loadProfile(input: {
     email: (row?.email as string | null) ?? input.email,
     values: {
       fullName: (row?.full_name as string | null) ?? null,
+      dateOfBirth: (row?.date_of_birth as string | null) ?? null,
+      phone: (row?.phone as string | null) ?? null,
+      sport: (row?.sport as string | null) ?? null,
+      discipline: (row?.discipline as string | null) ?? null,
+      club: (row?.club as string | null) ?? null,
+      federation: (row?.federation as string | null) ?? null,
+      coachName: (row?.coach_name as string | null) ?? null,
       street: (row?.street as string | null) ?? null,
       postalCode: (row?.postal_code as string | null) ?? null,
       city: (row?.city as string | null) ?? null,
@@ -120,6 +154,10 @@ export async function loadProfile(input: {
       practitionerId: (row?.practitioner_id as string | null) ?? null,
     },
     practitioners,
+    sportOptions: (
+      definitions.find((definition) => definition.key === "identity.sport")
+        ?.enumOptions ?? []
+    ).map((option) => ({ value: option, label: enumLabel("identity.sport", option, locale) })),
   };
 }
 
@@ -161,6 +199,23 @@ export function formatAddress(values: {
  */
 const inputSchema = z.object({
   fullName: z.string().trim().max(120).optional(),
+  // Datums komen als YYYY-MM-DD uit een <input type="date">. Een andere notatie
+  // weigeren we hier in plaats van hem te raden: 03/04 is in Belgie 3 april en
+  // elders 4 maart, en een geboortedatum die er een maand naast zit is erger
+  // dan een geweigerd formulier.
+  dateOfBirth: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || /^\d{4}-\d{2}-\d{2}$/.test(value), {
+      message: "date of birth must be YYYY-MM-DD",
+    })
+    .optional(),
+  phone: z.string().trim().max(40).optional(),
+  sport: z.string().trim().max(60).optional(),
+  discipline: z.string().trim().max(120).optional(),
+  club: z.string().trim().max(120).optional(),
+  federation: z.string().trim().max(120).optional(),
+  coachName: z.string().trim().max(120).optional(),
   street: z.string().trim().max(200).optional(),
   postalCode: z.string().trim().max(20).optional(),
   city: z.string().trim().max(120).optional(),
@@ -214,6 +269,13 @@ export function parseProfileInput(body: unknown, known: Set<string>): ParseResul
     ok: true,
     values: {
       fullName: blankToNull(value.fullName),
+      dateOfBirth: blankToNull(value.dateOfBirth),
+      phone: blankToNull(value.phone),
+      sport: blankToNull(value.sport),
+      discipline: blankToNull(value.discipline),
+      club: blankToNull(value.club),
+      federation: blankToNull(value.federation),
+      coachName: blankToNull(value.coachName),
       street: blankToNull(value.street),
       postalCode: blankToNull(value.postalCode),
       city: blankToNull(value.city),
@@ -247,6 +309,13 @@ export async function saveProfile(input: {
     .from("athletes")
     .update({
       full_name: input.values.fullName,
+      date_of_birth: input.values.dateOfBirth,
+      phone: input.values.phone,
+      sport: input.values.sport,
+      discipline: input.values.discipline,
+      club: input.values.club,
+      federation: input.values.federation,
+      coach_name: input.values.coachName,
       street: input.values.street,
       postal_code: input.values.postalCode,
       city: input.values.city,
@@ -265,5 +334,81 @@ export async function saveProfile(input: {
 
   if (profileError) {
     throw new Error(`naam in profiel opslaan mislukt: ${profileError.message}`);
+  }
+}
+
+/**
+ * De profielwaarden als dossiervoorstellen wegschrijven.
+ *
+ * Dit is de brug: het profiel is de bron, het dossier is wat de behandelaar
+ * leest en wat in het rapport belandt. Zonder deze stap staat identiteit wel in
+ * het profiel maar nergens in het dossier, en dan is een intake een dossier
+ * zonder naam.
+ *
+ * `proposedBy: 'athlete'`, want dat is waar: de atleet heeft het zelf ingevuld.
+ * Niet 'model', dus de constraint die herkomst eist voor modelvoorstellen komt
+ * er niet aan te pas, en de voorrangsregel in lib/dossier/merge.ts klopt
+ * vanzelf: een correctie van de coach wint hier nog steeds van.
+ *
+ * Idempotent in effect, niet in rijen. field_proposals is append-only, dus twee
+ * keer synchroniseren levert twee voorstellen met dezelfde waarde op en het
+ * dossier verandert niet. Alleen schrijven wat er echt staat scheelt die ruis,
+ * vandaar de filter op lege waarden.
+ */
+export async function syncProfileToDossier(input: {
+  intakeId: string;
+  athleteId: string;
+}): Promise<number> {
+  const { data, error } = await appDb()
+    .from("athletes")
+    .select(PROFILE_COLUMNS.join(", "))
+    .eq("id", input.athleteId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) throw new Error(`profiel lezen mislukt: ${error.message}`);
+  if (!data) return 0;
+
+  const row = data as unknown as Record<string, unknown>;
+
+  const proposals = Object.entries(PROFILE_FIELDS)
+    .map(([fieldKey, column]) => ({ fieldKey, value: row[column] }))
+    .filter(
+      (entry) =>
+        entry.value !== null &&
+        entry.value !== undefined &&
+        String(entry.value).trim() !== "",
+    )
+    .map((entry) => ({
+      fieldKey: entry.fieldKey,
+      value: entry.value,
+      proposedBy: "athlete" as const,
+    }));
+
+  if (proposals.length === 0) return 0;
+
+  await addProposals(input.intakeId, proposals);
+  return proposals.length;
+}
+
+/**
+ * Elk lopend concept van deze atleet bijwerken na een profielwijziging.
+ *
+ * Wie zijn club corrigeert terwijl er een concept openstaat, hoort dat terug te
+ * zien in het dossier dat straks naar de behandelaar gaat. Een ingediende of
+ * goedgekeurde intake blijft staan zoals ze was: die is een momentopname, en
+ * een rapportversie die achteraf verschuift is geen rapportversie.
+ */
+export async function syncProfileToOpenIntakes(athleteId: string): Promise<void> {
+  const { data, error } = await appDb()
+    .from("intakes")
+    .select("id")
+    .eq("athlete_id", athleteId)
+    .eq("status", "draft");
+
+  if (error) throw new Error(`concepten zoeken mislukt: ${error.message}`);
+
+  for (const intake of data ?? []) {
+    await syncProfileToDossier({ intakeId: intake.id as string, athleteId });
   }
 }

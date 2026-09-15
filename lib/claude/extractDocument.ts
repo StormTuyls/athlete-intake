@@ -1,4 +1,6 @@
 import { anthropic, MODEL } from "@/lib/claude/client";
+import { EXTRACT_PROMPTS, extractSystemPrompt } from "@/lib/claude/prompts/extract";
+import type { Locale } from "@/lib/i18n/locale";
 import type { FieldDefinition } from "@/lib/types";
 
 /**
@@ -38,6 +40,11 @@ export interface ExtractedInjury {
 export interface ExtractionResult {
   fields: ExtractedField[];
   injuries: ExtractedInjury[];
+  /**
+   * Wat dit document bevat, in een paar zinnen. Leeg als het model niets te
+   * beschrijven vond; dat is een geldig antwoord en geen mislukking.
+   */
+  summary: string;
   modelId: string;
   usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number };
 }
@@ -47,12 +54,17 @@ export type ExtractionInput =
   | { kind: "image"; bytes: Uint8Array; mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" }
   | { kind: "text"; text: string };
 
-function schemaFor(definitions: FieldDefinition[]) {
+/** Geexporteerd zodat evals/unit/document-summary.test.ts de vorm kan vastleggen. */
+export function schemaFor(locale: Locale, definitions: FieldDefinition[]) {
   return {
     type: "object",
     additionalProperties: false,
-    required: ["fields", "injuries"],
+    required: ["summary", "fields", "injuries"],
     properties: {
+      summary: {
+        type: "string",
+        description: EXTRACT_PROMPTS[locale].summaryDescription,
+      },
       fields: {
         type: "array",
         description:
@@ -102,35 +114,10 @@ function schemaFor(definitions: FieldDefinition[]) {
   } as const;
 }
 
-function systemPrompt(definitions: FieldDefinition[]): string {
-  const fieldList = definitions
-    .map((d) => {
-      const type =
-        d.dataType === "enum"
-          ? `enum(${d.enumOptions?.join("|")})`
-          : d.dataType;
-      return `- ${d.key} [${type}] ${d.labelNl} / ${d.labelEn}`;
-    })
-    .join("\n");
-
-  return `Je leest documenten uit een intake voor de begeleiding van eliteatleten en haalt daar gestructureerde gegevens uit.
-
-Harde regels:
-
-1. Geef alleen een veld terug als de waarde letterlijk uit dit document blijkt. Niets afleiden, niets aanvullen uit algemene kennis, niets gokken.
-2. Elk veld heeft een sourceQuote: een letterlijk overgetypt fragment uit het document. Niet samenvatten en niet parafraseren, want het fragment wordt server-side tegen de brontekst geverifieerd. Een verzonnen citaat wordt gedetecteerd.
-3. Staat er niets relevants in het document, geef dan een lege lijst terug. Dat is een correct antwoord, geen mislukking.
-4. Bij twijfel tussen twee lezingen: laat het veld weg. Een menselijke reviewer vult het aan. Een fout gevuld veld kost meer dan een leeg veld.
-5. Medische interpretatie is niet aan jou. Neem diagnoses over zoals ze er staan, ook als je ze onwaarschijnlijk vindt.
-
-Beschikbare velden:
-
-${fieldList}`;
-}
-
 export async function extractDocument(
   input: ExtractionInput,
   definitions: FieldDefinition[],
+  locale: Locale,
 ): Promise<ExtractionResult> {
   const client = anthropic();
 
@@ -166,12 +153,12 @@ export async function extractDocument(
     max_tokens: 16000,
     output_config: {
       effort: "high",
-      format: { type: "json_schema", schema: schemaFor(definitions) },
+      format: { type: "json_schema", schema: schemaFor(locale, definitions) },
     },
     system: [
       {
         type: "text",
-        text: systemPrompt(definitions),
+        text: extractSystemPrompt(locale, definitions),
         cache_control: { type: "ephemeral" },
       },
     ],
@@ -182,7 +169,7 @@ export async function extractDocument(
           documentBlock,
           {
             type: "text",
-            text: "Haal uit dit document de velden die er letterlijk in staan, met per veld een letterlijk citaat.",
+            text: EXTRACT_PROMPTS[locale].instruction,
           },
         ],
       },
@@ -202,7 +189,11 @@ export async function extractDocument(
     .map((block) => block.text)
     .join("");
 
-  let parsed: { fields?: ExtractedField[]; injuries?: ExtractedInjury[] };
+  let parsed: {
+    summary?: string;
+    fields?: ExtractedField[];
+    injuries?: ExtractedInjury[];
+  };
   try {
     parsed = JSON.parse(text);
   } catch {
@@ -210,6 +201,7 @@ export async function extractDocument(
   }
 
   return {
+    summary: (parsed.summary ?? "").trim(),
     // Een veld zonder citaat halen we hier al weg; de databank zou het anders weigeren.
     fields: (parsed.fields ?? []).filter(
       (field) => field.sourceQuote && field.sourceQuote.trim() !== "",

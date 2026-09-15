@@ -12,7 +12,7 @@
     "intro": {
       "title": "What this conversation is for",
       "body": "I will ask you about your sport, your history and your complaints, and turn that into a structured record for your coach.",
-      "point1": "Nothing to prepare. If you do not know something, skip it and come back to it later.",
+      "point1": "Start with one account in your own words: what is going on, since when, and what you want to achieve. The more you tell me at once, the less I have to ask afterwards. If you do not know something, skip it. If your keyboard has a microphone key, you can dictate it instead of typing.",
       "point2": "You can add reports, scans, screenshots or a WhatsApp export. I only read them once you ask me to.",
       "point3": "Nothing enters your record without your confirmation, and your coach reviews all of it before it counts."
     },
@@ -37,7 +37,11 @@
     "progressLabel": "{sectionsDone} of {sectionsTotal} sections done, {required} of {requiredTotal} required fields complete",
     "panelTitle": "Your record",
     "panelEmpty": "As soon as you tell me something or have a document read, it appears here.",
-    "panelConflicts": "{count, plural, one {1 contradiction} other {# contradictions}}"
+    "panelConflicts": "{count, plural, one {1 contradiction} other {# contradictions}}",
+    "skip": {
+      "unknown": "{field} skipped. Your coach sees that you did not know this; you can come back to it later.",
+      "declined": "{field} skipped because you preferred not to say. Your coach sees that this was a choice."
+    }
   },
   "errors": {
     "generic": "Something went wrong",
@@ -200,7 +204,16 @@
     "statusInReview": "With your coach",
     "statusComplete": "Complete · sent to coach",
     "inProgress": "Intake in progress",
-    "openProfile": "Open profile"
+    "openProfile": "Open profile",
+    "discard": {
+      "start": "Start over",
+      "warning": "This discards the draft entirely: the conversation, your answers and the files you added. It cannot be undone. Intakes you already submitted are not affected.",
+      "restart": "Discard and start over",
+      "deleteOnly": "Just discard",
+      "cancel": "Never mind",
+      "busy": "Working...",
+      "failed": "Discarding did not work. Try again in a moment."
+    }
   },
   "profile": {
     "back": "Back",
@@ -227,7 +240,17 @@
     "save": "Save",
     "saving": "Saving…",
     "saved": "Saved",
-    "saveFailed": "Could not save. Please try again."
+    "saveFailed": "Could not save. Please try again.",
+    "dateOfBirth": "Date of birth",
+    "phone": "Phone number",
+    "sportTitle": "Sport",
+    "sport": "Sport",
+    "sportEmpty": "Pick your sport",
+    "discipline": "Discipline or position",
+    "disciplineHint": "e.g. 100m and 200m",
+    "club": "Club",
+    "federation": "Federation",
+    "coachName": "Your own coach"
   },
   "password": {
     "changeTitle": "Password",
@@ -330,7 +353,10 @@
     "hintList": "Enter one or more values, separated by commas.",
     "hintText": "This field cannot be empty.",
     "unreadable": "This file could not be read. Try a PDF, JPEG or PNG.",
-    "unsupportedImage": "This image format cannot be read. Please upload a JPEG or PNG."
+    "unsupportedImage": "This image format cannot be read. Please upload a JPEG or PNG.",
+    "discardOnlyDraft": "This intake has already been submitted and can no longer be discarded. Ask the practice if it needs to go.",
+    "profileIncomplete": "Complete your profile first. Name, date of birth and sport are needed before we can start.",
+    "requiredGapsOpen": "{count, plural, one {1 required field was skipped} other {# required fields were skipped}} and is still empty. Fill them in, or confirm you are approving without them."
   },
   "review": {
     "loading": "Loading file",
@@ -379,6 +405,7 @@
     "page": "p{page}",
     "documentsTitle": "Documents provided",
     "pageCount": "{count, plural, one {1 page} other {# pages}}",
+    "documentSummaryLabel": "Description generated on reading. Not an assessment of the content.",
     "documentsNote": "The raw files are kept permanently alongside the data taken from them.",
     "approveTitle": "Approve",
     "approveBlocked": "Resolve the contradictions above first.",
@@ -386,7 +413,16 @@
     "approveBody": "Records a report version with your name on it. After that the file is fixed and the athlete can no longer change it.",
     "approveButton": "Approve",
     "approveBusy": "Working",
-    "approveFailed": "could not approve"
+    "approveFailed": "could not approve",
+    "notAskedTitle": "{count, plural, one {1 question not asked} other {# questions not asked}}",
+    "notAskedBody": "These fields are empty because they were not asked, not because they do not apply.",
+    "notAskedRequired": "required",
+    "notAskedSkipped": "athlete did not know",
+    "notAskedPractitioner": "for you to ask",
+    "notAskedDeclined": "athlete preferred not to say",
+    "badgeFromProfile": "from the profile",
+    "approveGapsTitle": "{count, plural, one {1 required field was skipped} other {# required fields were skipped}} and is still empty",
+    "approveGapsAccept": "I am approving without this data. That is recorded with this approval."
   },
   "report": {
     "title": "Intake report",

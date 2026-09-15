@@ -93,6 +93,7 @@ interface DemoAthlete {
   email: string;
   phone: string;
   club: string;
+  coach: string;
   federation: string;
   sport: string;
   discipline: string;
@@ -118,6 +119,7 @@ const ATHLETES: DemoAthlete[] = [
     email: "sofie.dujardin@example.com",
     phone: "0470 11 22 33",
     club: "AC Herentals",
+    coach: "Tom Verschueren",
     federation: "Atletiek Vlaanderen",
     sport: "sprint",
     discipline: "100m en 200m",
@@ -143,6 +145,7 @@ const ATHLETES: DemoAthlete[] = [
     email: "jonas.peeters@example.com",
     phone: "0470 12 34 56",
     club: "AC Herentals",
+    coach: "An De Ridder",
     federation: "Atletiek Vlaanderen",
     sport: "sprint",
     discipline: "100m",
@@ -166,6 +169,7 @@ const ATHLETES: DemoAthlete[] = [
     email: "marieke.v@example.com",
     phone: "0489 55 66 77",
     club: "KAA Gent Atletiek",
+    coach: "Pieter Mols",
     federation: "Atletiek Vlaanderen",
     sport: "rowing",
     discipline: "skiff",
@@ -189,6 +193,7 @@ const ATHLETES: DemoAthlete[] = [
     email: "bram.coppens@example.com",
     phone: "0475 98 76 54",
     club: "Excelsior Brugge",
+    coach: "Katrien Segers",
     federation: "Atletiek Vlaanderen",
     sport: "hurdles",
     discipline: "110m horden",
@@ -212,6 +217,7 @@ const ATHLETES: DemoAthlete[] = [
     email: "lotte.verhoeven@example.com",
     phone: "0468 33 44 55",
     club: "Sprint Leuven",
+    coach: "Wim Dhondt",
     federation: "Atletiek Vlaanderen",
     sport: "speed_skating",
     discipline: "1500m",
@@ -521,6 +527,13 @@ async function main(): Promise<void> {
         full_name: athlete.fullName,
         email: athlete.email,
         phone: athlete.phone,
+        // Sinds identiteit uit het profiel komt (en niet meer uit het gesprek)
+        // moeten deze kolommen gevuld zijn, anders strandt elke demoatleet op de
+        // profielpoort voordat hij een intake kan starten.
+        date_of_birth: athlete.dob,
+        sport: athlete.sport,
+        discipline: athlete.discipline,
+        coach_name: athlete.coach,
         club: athlete.club,
         federation: athlete.federation,
         locale: "nl",

@@ -35,7 +35,7 @@ export const maxDuration = 300;
  * was het dossier al eens vastgelegd.
  */
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ intakeId: string }> },
 ) {
   try {
@@ -85,6 +85,43 @@ export async function POST(
       );
     }
 
+    // Verplichte velden die nooit beantwoord zijn.
+    //
+    // Dit zijn er twee soorten en ze voelen hetzelfde maar zijn het niet: een
+    // veld dat de atleet niet WIST, en een veld dat hij niet wilde zeggen. In
+    // beide gevallen kan de coach het zelf invullen op het reviewscherm, en als
+    // dat niet kan mag hij alsnog goedkeuren.
+    //
+    // Bewust geen harde blokkade. Een verplicht veld dat niemand kan invullen
+    // zou het dossier voorgoed vastzetten, en dat is precies de doodlopende weg
+    // waar de atleet eerder in het gesprek in bleef hangen, een niveau hoger.
+    // Wel een bewuste handeling: de coach moet `acknowledgeGaps` meesturen, en
+    // dat belandt in het auditspoor en in de rapportversie. Stilzwijgend
+    // goedkeuren met gaten kan dus niet, goedkeuren met gaten wel.
+    const missingRequired = state.outOfScope
+      .filter((entry) => entry.reason === "skipped")
+      .map((entry) => ({
+        fieldKey: entry.fieldKey,
+        skipReason: entry.skipReason ?? "unknown",
+        required:
+          state.definitions.find((d) => d.key === entry.fieldKey)?.required ?? false,
+      }))
+      .filter((entry) => entry.required);
+
+    const body = (await request.json().catch(() => ({}))) as {
+      acknowledgeGaps?: boolean;
+    };
+
+    if (missingRequired.length > 0 && body.acknowledgeGaps !== true) {
+      return NextResponse.json(
+        {
+          error: t("requiredGapsOpen", { count: missingRequired.length }),
+          missingRequired,
+        },
+        { status: 409 },
+      );
+    }
+
     const approvedAt = new Date().toISOString();
 
     // .eq op de oude status en de rij terugvragen: zonder die twee is een
@@ -119,7 +156,17 @@ export async function POST(
       entitySchema: "public",
       entityTable: "intakes",
       entityId: intakeId,
-      detail: { transition: "approved" },
+      detail: {
+        transition: "approved",
+        // Wat er ontbrak op het moment van aftekenen, en dat de coach dat wist.
+        // Zonder deze regel is achteraf niet te zien of een leeg verplicht veld
+        // over het hoofd gezien is of bewust geaccepteerd.
+        ...(missingRequired.length > 0
+          ? {
+              approvedWithGaps: missingRequired.map((entry) => entry.fieldKey),
+            }
+          : {}),
+      },
     });
 
     const report = await freezeReport(intakeId, "approval", coach.id);

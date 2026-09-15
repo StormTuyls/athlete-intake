@@ -26,6 +26,9 @@ const longText: FieldDefinition = {
   enumOptions: null,
   questionNl: null,
   questionEn: null,
+  tier: "standard",
+  askWhen: null,
+      fromProfile: false,
 };
 
 function proposal(input: Partial<Proposal> & { id: number; value: unknown }): Proposal {

@@ -68,6 +68,9 @@ function definition(key: string, isMedical: boolean): FieldDefinition {
     enumOptions: null,
     questionNl: null,
     questionEn: null,
+    tier: "standard",
+    askWhen: null,
+    fromProfile: false,
   };
 }
 

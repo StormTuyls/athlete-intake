@@ -16,6 +16,7 @@ import {
   PdfIcon,
 } from "@/components/athlete/icons";
 import { formatIntakeTitle } from "@/lib/intake/title";
+import { DiscardIntake } from "@/components/athlete/DiscardIntake";
 import { ACCEPT_BY_TILE } from "@/lib/intake/uploads";
 import { stashFiles } from "@/lib/intake/handoff";
 import type { HomeData, HomeIntake } from "@/lib/intake/home";
@@ -119,7 +120,17 @@ export function HomeScreen({ data }: { data: HomeData }) {
       // intake.
       const response = await fetch("/api/intake", { method: "POST" });
       if (!response.ok) {
-        throw new Error((await response.json()).error ?? t("couldNotStart"));
+        const payload = await response.json();
+
+        // Onvolledig profiel is geen fout maar een volgende stap. Identiteit
+        // komt uit het profiel en wordt niet meer in het gesprek gevraagd, dus
+        // wie hier strandt hoort naar het formulier gestuurd te worden en niet
+        // naar een rode balk te kijken zonder te weten waarheen.
+        if (response.status === 409 && typeof payload.profileUrl === "string") {
+          router.push(payload.profileUrl);
+          return;
+        }
+        throw new Error(payload.error ?? t("couldNotStart"));
       }
       // Pas nadat de intake er is. Klapt de aanroep hierboven, dan blijft de
       // atleet hier staan en mogen er geen bestanden klaarstaan voor een
@@ -244,6 +255,24 @@ export function HomeScreen({ data }: { data: HomeData }) {
               {t("continue")}
             </button>
           </div>
+
+          {/* Een eigen blok onder de regel en niet ernaast. De uitgevouwen
+              bevestiging is een alinea met drie knoppen; in de flexrij naast
+              "Verder" liep die buiten de kaart. Verdergaan blijft de actie in
+              de regel, dit staat er rustig onder. */}
+          <DiscardIntake
+            disabled={busy}
+            onDone={async (restart) => {
+              if (restart) {
+                await open();
+                return;
+              }
+              // Geen lokale state bijwerken maar opnieuw ophalen: het concept
+              // is weg, dus de voortgang, de titel en de kaart erboven
+              // veranderen allemaal mee. De server weet het.
+              router.refresh();
+            }}
+          />
         </section>
       )}
 

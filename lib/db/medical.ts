@@ -91,9 +91,10 @@ export async function findDocumentBySha(
     uploaded_at: Date;
     processed_at: Date | null;
     processing_error: string | null;
+    summary: string | null;
   }>(
     `select id, original_filename, mime_type, byte_size, kind, page_count,
-            uploaded_at, processed_at, processing_error
+            uploaded_at, processed_at, processing_error, summary
      from medical.documents
      where intake_id = $1 and sha256 = $2
      limit 1`,
@@ -113,6 +114,7 @@ export async function findDocumentBySha(
     uploadedAt: row.uploaded_at.toISOString(),
     processedAt: row.processed_at?.toISOString() ?? null,
     processingError: row.processing_error,
+    summary: row.summary,
   };
 }
 
@@ -197,16 +199,31 @@ export async function getPages(documentId: string): Promise<DocumentPage[]> {
   return rows.map((row) => ({ pageNumber: row.page_number, text: row.text }));
 }
 
+/**
+ * De samenvatting gaat mee in deze update en niet in een tweede.
+ *
+ * Ze komt uit dezelfde modelcall als de velden, dus "gelezen" en "beschreven"
+ * zijn een gebeurtenis. Twee updates zouden een toestand mogelijk maken waarin
+ * processed_at gezet is en de samenvatting nog niet, en dan staat er op het
+ * coachscherm een document dat gelezen heet en niets zegt.
+ *
+ * Bij een fout gaat er geen samenvatting mee: de aanroeper geeft dan null.
+ */
 export async function markProcessed(
   documentId: string,
   error: string | null,
+  summary: string | null = null,
 ): Promise<void> {
   await query(
     `update medical.documents
      set processed_at = case when $2::text is null then now() else processed_at end,
-         processing_error = $2
+         processing_error = $2,
+         summary = $3
      where id = $1`,
-    [documentId, error],
+    // Lege tekst is geen samenvatting. Het model mag niets te beschrijven
+    // hebben, en dan hoort de kolom null te zijn en niet "", zodat het scherm
+    // geen leeg kopje toont.
+    [documentId, error, summary && summary.trim() !== "" ? summary.trim() : null],
   );
 }
 
@@ -221,6 +238,8 @@ export interface DocumentSummary {
   uploadedAt: string;
   processedAt: string | null;
   processingError: string | null;
+  /** Wat er in dit document staat, gegenereerd bij het lezen. Null tot het gelezen is. */
+  summary: string | null;
 }
 
 export async function listDocuments(intakeId: string): Promise<DocumentSummary[]> {
@@ -234,9 +253,10 @@ export async function listDocuments(intakeId: string): Promise<DocumentSummary[]
     uploaded_at: Date;
     processed_at: Date | null;
     processing_error: string | null;
+    summary: string | null;
   }>(
     `select id, original_filename, mime_type, byte_size, kind, page_count,
-            uploaded_at, processed_at, processing_error
+            uploaded_at, processed_at, processing_error, summary
      from medical.documents where intake_id = $1 order by uploaded_at`,
     [intakeId],
   );
@@ -252,6 +272,7 @@ export async function listDocuments(intakeId: string): Promise<DocumentSummary[]
     uploadedAt: row.uploaded_at.toISOString(),
     processedAt: row.processed_at?.toISOString() ?? null,
     processingError: row.processing_error,
+    summary: row.summary,
   }));
 }
 
@@ -580,4 +601,74 @@ export async function athleteIdForIntake(intakeId: string): Promise<string> {
   );
   if (!row) throw new Error(`intake ${intakeId} niet gevonden`);
   return row.athlete_id;
+}
+
+/**
+ * Velden waar deze intake niet meer naar vraagt.
+ *
+ * "Weet ik niet" is een geldig eindpunt. Zonder dit blijft een veld dat de
+ * atleet niet kan beantwoorden voor altijd een gat, en dan stopt het gesprek
+ * nooit. Zie de migratie 20260915090000_field_scope.sql voor waarom dit een
+ * eigen tabel is en geen status op dossier_fields.
+ */
+export async function getSkippedFields(
+  intakeId: string,
+): Promise<Map<string, "unknown" | "declined">> {
+  const rows = await query<{ field_key: string; reason: "unknown" | "declined" }>(
+    `select field_key, reason from medical.field_skips where intake_id = $1`,
+    [intakeId],
+  );
+  return new Map(rows.map((row) => [row.field_key, row.reason]));
+}
+
+/**
+ * Een veld overslaan. Twee keer overslaan is dezelfde gebeurtenis, geen tweede;
+ * de unieke index vangt dat en `do nothing` maakt er geen fout van.
+ */
+export async function skipFields(
+  intakeId: string,
+  fields: Array<{ fieldKey: string; reason: "unknown" | "declined" }>,
+): Promise<void> {
+  if (fields.length === 0) return;
+
+  await transaction(async (run) => {
+    for (const field of fields) {
+      await run(
+        `insert into medical.field_skips (intake_id, field_key, reason)
+         values ($1, $2, $3)
+         on conflict (intake_id, field_key) do nothing`,
+        [intakeId, field.fieldKey, field.reason],
+      );
+    }
+  });
+}
+
+/**
+ * De overgeslagen vragen van deze intake, met tijdstip en volgnummer.
+ *
+ * Los van getSkippedFields, dat alleen de sleutels teruggeeft om gaten mee te
+ * filteren. De transcriptie heeft meer nodig: wanneer het gebeurde, om het op
+ * de juiste plek in het gesprek te zetten, en een stabiel volgnummer voor twee
+ * skips met dezelfde tijdstempel.
+ */
+export async function listSkips(intakeId: string): Promise<
+  Array<{ id: number; fieldKey: string; reason: "unknown" | "declined"; at: string }>
+> {
+  const rows = await query<{
+    id: string;
+    field_key: string;
+    reason: "unknown" | "declined";
+    at: Date;
+  }>(
+    `select id, field_key, reason, at from medical.field_skips
+     where intake_id = $1 order by id`,
+    [intakeId],
+  );
+
+  return rows.map((row) => ({
+    id: Number(row.id),
+    fieldKey: row.field_key,
+    reason: row.reason,
+    at: row.at.toISOString(),
+  }));
 }

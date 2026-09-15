@@ -1,5 +1,5 @@
 import { appDb } from "@/lib/supabase/service";
-import { listDocuments } from "@/lib/db/medical";
+import { listDocuments, listSkips } from "@/lib/db/medical";
 import { getProposals, syncDossier } from "@/lib/db/dossier";
 import { intakeTitle } from "@/lib/db/intakeTitle";
 import { formatValue } from "@/lib/intake/format";
@@ -235,7 +235,13 @@ export function collectingFrom(
     : null;
 }
 
-const SOURCE_RANK = { message: 0, capture: 1, document: 2, extraction: 3 } as const;
+const SOURCE_RANK = {
+  message: 0,
+  capture: 1,
+  skip: 2,
+  document: 3,
+  extraction: 4,
+} as const;
 
 interface Sortable {
   item: TranscriptItem;
@@ -274,10 +280,11 @@ export async function buildTranscript(
 ): Promise<TranscriptResponse> {
   const state = await syncDossier(intakeId, locale);
 
-  const [messages, documents, proposals, title] = await Promise.all([
+  const [messages, documents, proposals, skips, title] = await Promise.all([
     readMessages(intakeId),
     listDocuments(intakeId),
     getProposals(intakeId),
+    listSkips(intakeId),
     intakeTitle(intakeId),
   ]);
 
@@ -298,6 +305,27 @@ export async function buildTranscript(
         id: `msg-${message.id}`,
         at: new Date(message.created_at).toISOString(),
         text: message.content,
+      },
+    });
+  }
+
+  // Overgeslagen vragen. Ze staan in het gesprek op de plek waar ze gebeurd
+  // zijn, zodat de atleet bij het teruglezen ziet welke vragen open bleven en
+  // niet het idee krijgt dat er iets zoekgeraakt is.
+  for (const skip of skips) {
+    const definition = byKey.get(skip.fieldKey);
+    if (!definition) continue;
+
+    entries.push({
+      source: "skip",
+      seq: skip.id,
+      item: {
+        kind: "skip",
+        id: `skip-${skip.id}`,
+        at: skip.at,
+        fieldKey: skip.fieldKey,
+        label: locale === "nl" ? definition.labelNl : definition.labelEn,
+        reason: skip.reason,
       },
     });
   }

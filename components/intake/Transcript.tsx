@@ -9,6 +9,7 @@ import { MessageBubble } from "@/components/intake/MessageBubble";
 import { CaptureCardView } from "@/components/intake/CaptureCard";
 import { ExtractionCard } from "@/components/intake/ExtractionCard";
 import { FileBubble } from "@/components/intake/FileBubble";
+import { SkipNote } from "@/components/intake/SkipNote";
 import { TypingIndicator } from "@/components/intake/TypingIndicator";
 import type { TranscriptItem } from "@/lib/intake/transcriptTypes";
 
@@ -101,6 +102,10 @@ export function Transcript({
                 onConfirm={onConfirm}
                 onEdit={onEdit}
               />
+            )}
+
+            {item.kind === "skip" && (
+              <SkipNote label={item.label} reason={item.reason} />
             )}
 
             {item.kind === "document" && (

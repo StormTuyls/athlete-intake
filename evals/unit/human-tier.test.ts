@@ -27,6 +27,9 @@ const birthDate: FieldDefinition = {
   enumOptions: null,
   questionNl: "Wat is je geboortedatum?",
   questionEn: "What is your date of birth?",
+  tier: "standard",
+  askWhen: null,
+      fromProfile: false,
 };
 
 function proposal(input: Partial<Proposal> & { id: number; value: unknown }): Proposal {

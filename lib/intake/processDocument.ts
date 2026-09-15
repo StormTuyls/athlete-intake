@@ -17,6 +17,7 @@ import {
   upsertDocument,
 } from "@/lib/db/medical";
 import { getFieldDefinitions, syncDossier } from "@/lib/db/dossier";
+import type { Locale } from "@/lib/i18n/locale";
 import type { DocumentKind } from "@/lib/types";
 
 /**
@@ -203,6 +204,12 @@ export async function registerDocument(input: {
 export async function readDocument(input: {
   intakeId: string;
   documentId: string;
+  /**
+   * De taal van de samenvatting. De velden en citaten staan in de taal van het
+   * document; de beschrijving eromheen is proza en hoort in de taal van de
+   * intake, want die is ook de taal van het scherm waar hij op belandt.
+   */
+  locale: Locale;
 }): Promise<ReadResult> {
   const document = await documentForReading(input.intakeId, input.documentId);
   if (!document) throw new Error("document niet gevonden");
@@ -230,7 +237,7 @@ export async function readDocument(input: {
 
   let extraction: Awaited<ReturnType<typeof extractDocument>>;
   try {
-    extraction = await extractDocument(extractionInput, definitions);
+    extraction = await extractDocument(extractionInput, definitions, input.locale);
   } catch (error) {
     // De echte fout gaat naar de log, niet in de databank.
     //
@@ -304,7 +311,7 @@ export async function readDocument(input: {
     );
   }
 
-  await markProcessed(document.id, null);
+  await markProcessed(document.id, null, extraction.summary);
   await syncDossier(input.intakeId);
 
   return {
