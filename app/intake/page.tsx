@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { currentAthlete } from "@/lib/intake/athlete";
 import { currentIntake } from "@/lib/intake/session";
+import { hasAccountConsent } from "@/lib/intake/consent";
 import { IntakeFlow } from "@/components/IntakeFlow";
 
 export async function generateMetadata() {
@@ -39,6 +40,11 @@ export const dynamic = "force-dynamic";
 export default async function IntakePage() {
   const athlete = await currentAthlete();
   if (!athlete) redirect("/start?next=/home");
+
+  // Dezelfde poort als op het thuisscherm, en niet alleen daar. Een intakecookie
+  // uit een eerdere sessie zou anders langs de toestemming heen komen, en dit is
+  // precies het scherm waar gezondheidsgegevens binnenkomen.
+  if (!(await hasAccountConsent(athlete.athleteId))) redirect("/consent");
 
   const session = await currentIntake();
   if (!session) redirect("/home");

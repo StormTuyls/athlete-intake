@@ -15,10 +15,35 @@ import { preConsentUntil } from "@/lib/intake/retention";
  * `public.profiles`, en de RLS-policies athletes_select en intakes_select
  * gebruiken hem al. Er was alleen nog niets dat hem vulde.
  *
- * De rol blijft 'athlete'. Dat is niet hetzelfde als de coach-rol, en
- * requireCoach() laat er dus niets door: dezelfde inlogmachinerie, twee
- * verschillende autorisaties.
+ * Een nieuwe aanmelding krijgt de rol 'athlete'. Dat is niet hetzelfde als de
+ * coach-rol, en requireCoach() laat er dus niets door: dezelfde inlogmachinerie,
+ * twee verschillende autorisaties.
+ *
+ * Wat de rol NIET doet is bepalen of iemand een atleet is. Dat zegt public.
+ * athletes, via profile_id. Een behandelaar die zelf bij deze praktijk in
+ * behandeling is, is allebei: staf in zijn rol, atleet in zijn dossier. Zie
+ * roleAfterSignup() voor waarom een aanmelding die rol niet mag platwalsen.
  */
+
+/**
+ * Welke rol er na een aanmelding in het profiel hoort te staan.
+ *
+ * Bijna altijd 'athlete', en daarom stond hier eerst gewoon die waarde. Dat
+ * klopte zolang staf en atleten twee gescheiden groepen mensen waren. Sinds een
+ * behandelaar die zelf in behandeling is allebei kan zijn, is een vaste waarde
+ * hier een stille degradatie: één aanroep en een kinesist is zijn rechten kwijt,
+ * zonder fout en zonder spoor buiten het audit-log.
+ *
+ * De atleetkant heeft die rol niet nodig. currentAthlete() zoekt op profile_id
+ * en de policies athletes_select en intakes_select geven toegang op
+ * `profile_id = auth.uid()` óf `is_staff()`. Staf laten staan kost dus niets aan
+ * de atleetkant en bewaart wel wat er anders verdwijnt.
+ */
+export function roleAfterSignup(
+  existing: string | null | undefined,
+): "athlete" | "coach" | "admin" {
+  return existing === "coach" || existing === "admin" ? existing : "athlete";
+}
 
 export interface AthleteIdentity {
   /** auth.users.id, tevens profiles.id. */
@@ -63,7 +88,7 @@ export async function currentAthlete(): Promise<AthleteIdentity | null> {
  * Wordt aangeroepen na signUp. De client kan dit niet zelf: er is geen
  * insert-policy op `profiles` en `athletes_write` is alleen voor staf, dus dit
  * moet met de service role. Dat is ook waar het hoort, want de rol wordt hier
- * vastgezet op 'athlete' en niet door de client meegegeven.
+ * bepaald en niet door de client meegegeven.
  *
  * Idempotent: twee keer aanroepen levert geen tweede atleet op.
  */
@@ -75,10 +100,19 @@ export async function ensureAthleteForUser(input: {
 }): Promise<AthleteIdentity> {
   const db = appDb();
 
+  // Eerst kijken wat er staat. Een upsert die de rol meeschrijft overschrijft
+  // hem ook, en bij een behandelaar met een eigen dossier is dat het verschil
+  // tussen een profiel bijwerken en iemand buitensluiten. Zie roleAfterSignup().
+  const { data: current } = await db
+    .from("profiles")
+    .select("role")
+    .eq("id", input.userId)
+    .maybeSingle();
+
   const { error: profileError } = await db.from("profiles").upsert(
     {
       id: input.userId,
-      role: "athlete",
+      role: roleAfterSignup(current?.role as string | undefined),
       full_name: input.fullName,
       locale: input.locale,
     },

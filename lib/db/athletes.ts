@@ -27,6 +27,16 @@ export interface AthleteListRow {
   waiting: number;
   conflicts: number;
   lastActivity: string | null;
+  /**
+   * Uitgenodigd door de praktijk en nog niet binnengekomen.
+   *
+   * Afgeleid en geen kolom: een account met een profiel maar zonder
+   * accountconsent kan alleen een uitnodiging zijn, want wie zich zelf aanmeldt
+   * geeft die consent in dezelfde aanvraag. Een kolom erbij zou hetzelfde zeggen
+   * en zou kunnen gaan afwijken van het consentregister, en dat register is het
+   * antwoord dat telt.
+   */
+  invited: boolean;
 }
 
 function isWaiting(intake: IntakeListRow): boolean {
@@ -40,27 +50,74 @@ function activityOf(intake: IntakeListRow): string | null {
 /**
  * Eén regel per atleet, nieuwste activiteit boven.
  *
- * Gebouwd op listIntakesForCoach en niet op een tweede query: die rekent de
- * standen al in SQL uit en is getest. Met een handvol atleten is groeperen in
- * TypeScript goedkoper dan een tweede versie van dezelfde telling, die uit de
- * pas kan gaan lopen.
+ * De tellingen komen uit listIntakesForCoach en worden hier niet overgedaan: die
+ * rekent de standen al in SQL uit en is getest. Een tweede versie van dezelfde
+ * telling is een tweede antwoord dat uit de pas kan gaan lopen.
+ *
+ * De namenlijst komt er wél apart bij, want die twee vragen zijn niet dezelfde
+ * vraag. "Welke dossiers liggen er" is iets anders dan "wie zijn onze atleten",
+ * en sinds er uitgenodigd kan worden zijn dat aantoonbaar verschillende
+ * verzamelingen.
  */
 export async function listAthletesForCoach(): Promise<AthleteListRow[]> {
-  const intakes = await listIntakesForCoach();
+  const db = appDb();
+
+  const [intakes, athletes, consents] = await Promise.all([
+    listIntakesForCoach(),
+    // De lijst begon bij de intakes, en dat betekende dat een atleet zonder
+    // intake niet bestond. Dat viel niet op zolang een atleet alleen kon
+    // ontstaan door zichzelf aan te melden en meteen te beginnen. Sinds de
+    // praktijk iemand kan uitnodigen, is het eerste wat er na het uitnodigen
+    // hoort te gebeuren dat hij in deze lijst staat, en juist dan had hij nog
+    // niets ingevuld.
+    db
+      .from("athletes")
+      .select("id, full_name, profile_id, created_at")
+      .is("deleted_at", null),
+    db
+      .from("consents")
+      .select("athlete_id")
+      .is("intake_id", null)
+      .is("withdrawn_at", null),
+  ]);
+
+  const consented = new Set(
+    (consents.data ?? []).map((row) => row.athlete_id as string),
+  );
+
   const byAthlete = new Map<string, AthleteListRow>();
+  // De aanmaakdatum apart, want hij is een terugval en geen activiteit. Hem
+  // meteen in lastActivity zetten leek korter en was fout: de seed maakt oude
+  // dossiers met een verse rij, en dan verdringt "account aangemaakt" de datum
+  // van de laatste intake in een kolom die over activiteit gaat.
+  const createdAt = new Map<string, string | null>();
+
+  const blank = (id: string): AthleteListRow => ({
+    id,
+    name: null,
+    intakeCount: 0,
+    waiting: 0,
+    conflicts: 0,
+    lastActivity: null,
+    invited: false,
+  });
+
+  for (const row of athletes.data ?? []) {
+    const id = row.id as string;
+    createdAt.set(id, (row.created_at as string | null) ?? null);
+    byAthlete.set(id, {
+      ...blank(id),
+      name: (row.full_name as string | null) ?? null,
+      invited: row.profile_id !== null && !consented.has(id),
+    });
+  }
 
   for (const intake of intakes) {
     const existing = byAthlete.get(intake.athleteId);
-    const row =
-      existing ??
-      {
-        id: intake.athleteId,
-        name: null,
-        intakeCount: 0,
-        waiting: 0,
-        conflicts: 0,
-        lastActivity: null as string | null,
-      };
+    // Een intake zonder atleetrij hoort niet te bestaan, maar als hij bestaat is
+    // hem niet tonen de verkeerde reactie: dan verdwijnt een dossier uit de
+    // werklijst en merkt niemand het.
+    const row = existing ?? blank(intake.athleteId);
 
     row.intakeCount += 1;
     if (isWaiting(intake)) row.waiting += 1;
@@ -75,7 +132,19 @@ export async function listAthletesForCoach(): Promise<AthleteListRow[]> {
       row.lastActivity = activity;
     }
 
+    // Wie een intake heeft, is binnengekomen. Dat kan alleen achter de
+    // consentpoort langs, dus de afleiding hierboven is hier overbodig; hij
+    // staat er voor het geval oude dossiers van voor die poort anders rekenen.
+    row.invited = false;
+
     if (!existing) byAthlete.set(intake.athleteId, row);
+  }
+
+  // Pas nu de terugval. Wie geen intake heeft, heeft de aanmaakdatum als enige
+  // datum, en daarmee staat een verse uitnodiging bovenaan in plaats van in het
+  // niets onderaan. Wie er wel een heeft, houdt de datum van zijn dossier.
+  for (const row of byAthlete.values()) {
+    if (row.intakeCount === 0) row.lastActivity = createdAt.get(row.id) ?? null;
   }
 
   return [...byAthlete.values()].sort((a, b) => {
