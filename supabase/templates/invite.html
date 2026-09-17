@@ -1,0 +1,39 @@
+<!--
+  De uitnodigingsmail voor een atleet.
+
+  Waarom dit bestand bestaat en niet de standaardtemplate volstaat: die gebruikt
+  {{ .ConfirmationURL }}, en dat adres wijst naar /auth/v1/verify van Supabase.
+  Dat endpoint zet de tokens in de fragment van de URL (#access_token=...), en
+  een fragment stuurt de browser nooit naar de server. /auth/callback is een
+  serverroute, dus die ziet niets en stuurt de atleet naar het inlogscherm van
+  een account dat hij nog niet heeft. Gemeten, niet bedacht.
+
+  {{ .TokenHash }} is wel serverzijdig in te wisselen met verifyOtp, en dat is
+  precies de variant die app/auth/callback/route.ts al ondersteunt.
+
+  Tweetalig, want op het moment dat deze mail verstuurd wordt weet de template
+  niet welke taal de atleet spreekt. Het scherm erachter kiest wel.
+-->
+<h2>Je intake staat klaar</h2>
+
+<p>
+  Je praktijk heeft een account voor je klaargezet. Via de knop hieronder kom je
+  binnen. Je beslist daarna zelf of je gezondheidsgegevens verwerkt mogen worden;
+  tot dat moment staat er niets in je dossier.
+</p>
+
+<p>
+  <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=invite&next=/home">
+    Openen
+  </a>
+</p>
+
+<hr />
+
+<h2>Your intake is ready</h2>
+
+<p>
+  Your practice has set up an account for you. Use the link above to sign in. You
+  decide for yourself whether your health data may be processed; nothing is
+  recorded before you do.
+</p>

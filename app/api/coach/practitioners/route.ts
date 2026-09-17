@@ -16,6 +16,11 @@ import { createPractitioner, updatePractitioner } from "@/lib/db/practitioners";
  * De eerste admin komt uit scripts/create-coach.ts. Een scherm dat zichzelf
  * bootstrapt zou betekenen dat de eerste bezoeker admin wordt, en dat is precies
  * het formulier dat niemand hoort te kunnen vinden.
+ *
+ * Een admin kan hier nu ook een tweede admin aanstellen. Dat is bewust geen
+ * ruimere toegang dan hiervoor: dezelfde rol beslist erover, en wie al admin is
+ * kon met het script sowieso alles. Wat het weghaalt is de afhankelijkheid van
+ * één persoon met databanktoegang.
  */
 class NotAdminError extends Error {
   constructor() {
@@ -38,11 +43,15 @@ const createSchema = z.object({
   email: z.string().trim().email().max(200),
   fullName: z.string().trim().min(1).max(120),
   kind: z.enum(["physio", "coach"]),
+  // Standaard een gewone behandelaar. Een veld dat ontbreekt hoort de minste
+  // rechten op te leveren, niet de meeste.
+  role: z.enum(["coach", "admin"]).default("coach"),
 });
 
 const updateSchema = z.object({
   id: z.string().uuid(),
   kind: z.enum(["physio", "coach"]).optional(),
+  role: z.enum(["coach", "admin"]).optional(),
   archived: z.boolean().optional(),
 });
 
@@ -56,7 +65,20 @@ export async function POST(request: Request) {
     }
 
     const result = await createPractitioner(parsed.data);
-    if (!result.ok) return badRequest(result.error);
+    if (!result.ok) {
+      // Het adres heeft al een account. Geen 400 met de tekst van Supabase
+      // erin, want dat leest als een fout terwijl het een ander geval is: dit
+      // kan een atleet zijn die hier ook komt werken. 409 met wie het is, zodat
+      // het scherm kan vragen of die toegang erbij mag. Promoveren gebeurt op
+      // /promote, en dus pas na een tweede, bewuste klik.
+      if (result.taken) {
+        return NextResponse.json(
+          { error: "That email address already has an account.", taken: result.taken },
+          { status: 409 },
+        );
+      }
+      return badRequest(result.error);
+    }
 
     await logAudit({
       action: "insert",
@@ -65,7 +87,7 @@ export async function POST(request: Request) {
       entitySchema: "public",
       entityTable: "profiles",
       entityId: result.id,
-      detail: { kind: parsed.data.kind },
+      detail: { kind: parsed.data.kind, role: parsed.data.role },
     });
 
     // Het wachtwoord gaat één keer over de lijn en wordt nergens bewaard. De
@@ -86,7 +108,10 @@ export async function PATCH(request: Request) {
       return badRequest(parsed.error.issues[0]?.message ?? "invalid input");
     }
 
-    await updatePractitioner(parsed.data);
+    // De grendel zit in updatePractitioner en niet hier: die weigering gaat over
+    // de toestand van het team, en die hoort bij de data te blijven staan.
+    const result = await updatePractitioner({ ...parsed.data, actorId: admin.id });
+    if (!result.ok) return badRequest(result.error);
 
     await logAudit({
       action: "update",
@@ -97,6 +122,7 @@ export async function PATCH(request: Request) {
       entityId: parsed.data.id,
       detail: {
         ...(parsed.data.kind !== undefined ? { kind: parsed.data.kind } : {}),
+        ...(parsed.data.role !== undefined ? { role: parsed.data.role } : {}),
         ...(parsed.data.archived !== undefined ? { archived: parsed.data.archived } : {}),
       },
     });

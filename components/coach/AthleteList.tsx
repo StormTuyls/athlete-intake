@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { AthleteListRow } from "@/lib/db/athletes";
+import { InviteAthlete } from "@/components/coach/InviteAthlete";
 
 /**
  * De werklijst: namen, en verder niets.
@@ -19,6 +20,7 @@ import type { AthleteListRow } from "@/lib/db/athletes";
  */
 
 export function AthleteList({ athletes }: { athletes: AthleteListRow[] }) {
+  const [inviting, setInviting] = useState(false);
   const [search, setSearch] = useState("");
   const [onlyWaiting, setOnlyWaiting] = useState(false);
 
@@ -56,7 +58,19 @@ export function AthleteList({ athletes }: { athletes: AthleteListRow[] }) {
         >
           Waiting for review{waitingTotal > 0 && ` (${waitingTotal})`}
         </button>
+        <button
+          type="button"
+          onClick={() => setInviting((current) => !current)}
+          aria-expanded={inviting}
+          className="shrink-0 rounded-md px-3 py-2 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
+        >
+          {inviting ? "Cancel" : "Invite athlete"}
+        </button>
       </div>
+
+      {/* Dichtgeklapt tenzij ernaar gevraagd. Dit scherm is een werklijst en geen
+          invoerformulier: uitnodigen gebeurt af en toe, zoeken de hele dag. */}
+      {inviting && <InviteAthlete onDone={() => setInviting(false)} />}
 
       {shown.length === 0 ? (
         <p className="text-sm text-ink-faint">
@@ -75,9 +89,14 @@ export function AthleteList({ athletes }: { athletes: AthleteListRow[] }) {
                     {athlete.name ?? "Name unknown"}
                   </span>
                   <span className="block text-xs text-ink-muted">
-                    {athlete.intakeCount === 1
-                      ? "1 intake"
-                      : `${athlete.intakeCount} intakes`}
+                    {/* Een uitnodiging die nog niet is aangenomen heeft geen
+                        intakes om te tellen, en "0 intakes" zegt niet waarom.
+                        Dat hij nog niet binnen is geweest, wel. */}
+                    {athlete.invited
+                      ? "invited, not signed in yet"
+                      : athlete.intakeCount === 1
+                        ? "1 intake"
+                        : `${athlete.intakeCount} intakes`}
                     {athlete.lastActivity && ` · ${athlete.lastActivity.slice(0, 10)}`}
                   </span>
                 </span>

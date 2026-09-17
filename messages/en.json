@@ -479,6 +479,16 @@
     "dossier": "File",
     "report": "Intake report",
     "profile": "Profile",
-    "password": "Password"
+    "password": "Password",
+    "consent": "Consent"
+  },
+  "consentGate": {
+    "title": "One thing before we start",
+    "body": "{practice} set up this account for you. Nothing is recorded until you decide whether your health data may be processed.",
+    "who": "Signed in as {email}.",
+    "continue": "Agree and continue",
+    "busy": "Working",
+    "failed": "Your consent could not be saved.",
+    "signOut": "Not you? Sign out"
   }
 }

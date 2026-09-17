@@ -2,13 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PractitionerKind, TeamMember } from "@/lib/db/practitioners";
+import type {
+  ExistingAccount,
+  PractitionerKind,
+  PractitionerRole,
+  TeamMember,
+} from "@/lib/db/practitioners";
 
 /**
  * Het team van de praktijk beheren.
  *
- * Drie handelingen, en bewust niet meer: iemand toevoegen, zijn vakgebied
- * wijzigen, en hem archiveren als hij weggaat. Verwijderen staat er niet bij.
+ * Vier handelingen, en bewust niet meer: iemand toevoegen, zijn vakgebied
+ * wijzigen, zijn rol wijzigen, en hem archiveren als hij weggaat. Verwijderen
+ * staat er niet bij.
  * Een behandelaar staat op dossiers die hij behandeld heeft, en die naam moet
  * blijven kloppen; het echte verwijderpad loopt via het atleetdossier en niet
  * via een personeelslijst.
@@ -24,26 +30,51 @@ export function TeamManager({ team }: { team: TeamMember[] }) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [kind, setKind] = useState<PractitionerKind>("physio");
+  const [role, setRole] = useState<PractitionerRole>("coach");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Een eigen melding voor de lijst, want een weigering op een rij hoort bij die
+  // rij te verschijnen en niet onder een formulier verderop. Sinds een wijziging
+  // geweigerd kan worden ("dit is de laatste beheerder") is dat het verschil
+  // tussen een uitleg en een knop die niets lijkt te doen.
+  const [rowError, setRowError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ name: string; password: string } | null>(null);
+  // Het adres heeft al een account. Geen fout maar een tweede vraag, en die
+  // vraag staat hier tot ze beantwoord is. Zie de uitleg bij promote().
+  const [taken, setTaken] = useState<ExistingAccount | null>(null);
 
   async function add() {
     setBusy(true);
     setError(null);
     setCreated(null);
+    setTaken(null);
     try {
       const response = await fetch("/api/coach/practitioners", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), fullName: fullName.trim(), kind }),
+        body: JSON.stringify({
+          email: email.trim(),
+          fullName: fullName.trim(),
+          kind,
+          role,
+        }),
       });
       const body = await response.json();
+      if (response.status === 409 && body.taken) {
+        // Niet als fout tonen. Dit is precies het geval van een kinesist die
+        // hier zelf in behandeling is, en dan hoort het scherm te vragen of die
+        // toegang erbij mag in plaats van te zeggen dat het niet kan.
+        setTaken(body.taken as ExistingAccount);
+        return;
+      }
       if (!response.ok) throw new Error(body.error ?? "could not create");
 
       setCreated({ name: fullName.trim(), password: body.password });
       setEmail("");
       setFullName("");
+      // De rol niet: wie twee beheerders aanmaakt doet dat meestal achter
+      // elkaar, en het formulier terugzetten op "practitioner" zou de volgende
+      // stilletjes de verkeerde rol geven.
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "could not create");
@@ -52,9 +83,46 @@ export function TeamManager({ team }: { team: TeamMember[] }) {
     }
   }
 
-  async function patch(id: string, change: { kind?: PractitionerKind; archived?: boolean }) {
+  /**
+   * Een bestaand account stafrechten geven.
+   *
+   * Aparte route en aparte klik, want het is een andere handeling dan aanmaken:
+   * hier bestaat de persoon al en kan hij iemand anders zijn dan de admin voor
+   * zich ziet. Vandaar dat de kaart hierboven eerst zegt wie het is.
+   *
+   * Vakgebied en rol komen uit hetzelfde formulier: de admin heeft ze net
+   * ingevuld voor deze persoon, en ze opnieuw laten kiezen zou alleen maar
+   * uitnodigen om iets anders te kiezen dan bedoeld.
+   */
+  async function promote(id: string) {
     setBusy(true);
     setError(null);
+    try {
+      const response = await fetch("/api/coach/practitioners/promote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, kind, role }),
+      });
+      if (!response.ok) {
+        throw new Error((await response.json()).error ?? "could not save");
+      }
+      setTaken(null);
+      setEmail("");
+      setFullName("");
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "could not save");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function patch(
+    id: string,
+    change: { kind?: PractitionerKind; role?: PractitionerRole; archived?: boolean },
+  ) {
+    setBusy(true);
+    setRowError(null);
     try {
       const response = await fetch("/api/coach/practitioners", {
         method: "PATCH",
@@ -66,7 +134,7 @@ export function TeamManager({ team }: { team: TeamMember[] }) {
       }
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "could not save");
+      setRowError(caught instanceof Error ? caught.message : "could not save");
     } finally {
       setBusy(false);
     }
@@ -92,11 +160,6 @@ export function TeamManager({ team }: { team: TeamMember[] }) {
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">
                     {member.fullName ?? "Name unknown"}
-                    {member.role === "admin" && (
-                      <span className="ml-2 rounded bg-canvas px-1.5 py-0.5 text-[10px] text-ink-muted">
-                        admin
-                      </span>
-                    )}
                     {member.archivedAt && (
                       <span className="ml-2 rounded bg-canvas px-1.5 py-0.5 text-[10px] text-ink-muted">
                         archived
@@ -129,6 +192,25 @@ export function TeamManager({ team }: { team: TeamMember[] }) {
                     <option value="coach">coach</option>
                   </select>
 
+                  {/* De rol, en niet het vakgebied: wat iemand mag, niet wat hij
+                      doet. Ook hier geen bevestigingsvraag, want de server
+                      weigert de wijzigingen die een praktijk zouden buitensluiten
+                      en zegt waarom. Zie blockedTeamChange(). */}
+                  <select
+                    value={member.role}
+                    disabled={busy}
+                    onChange={(event) =>
+                      void patch(member.id, {
+                        role: event.target.value as PractitionerRole,
+                      })
+                    }
+                    aria-label={`Role for ${member.fullName ?? "this person"}`}
+                    className="rounded-md border border-hairline bg-surface px-2 py-1 text-xs text-ink disabled:opacity-50"
+                  >
+                    <option value="coach">practitioner</option>
+                    <option value="admin">administrator</option>
+                  </select>
+
                   <button
                     type="button"
                     disabled={busy}
@@ -144,6 +226,13 @@ export function TeamManager({ team }: { team: TeamMember[] }) {
             ))}
           </ul>
         )}
+        {rowError && <p className="mt-3 text-sm text-danger">{rowError}</p>}
+
+        <p className="mt-2 text-xs text-ink-faint">
+          An administrator can manage this screen; a practitioner only sees the
+          files. The practice keeps at least one administrator, so the change
+          that would remove the last one is refused.
+        </p>
         <p className="mt-2 text-xs text-ink-faint">
           Archiving takes someone out of the list athletes choose from. Athletes
           already assigned to them keep that assignment, and their discipline
@@ -197,6 +286,17 @@ export function TeamManager({ team }: { team: TeamMember[] }) {
                 <option value="coach">coach</option>
               </select>
             </label>
+            <label className="shrink-0">
+              <span className="text-xs text-ink-muted">Role</span>
+              <select
+                value={role}
+                onChange={(event) => setRole(event.target.value as PractitionerRole)}
+                className={field}
+              >
+                <option value="coach">practitioner</option>
+                <option value="admin">administrator</option>
+              </select>
+            </label>
           </div>
 
           <button
@@ -209,6 +309,41 @@ export function TeamManager({ team }: { team: TeamMember[] }) {
         </form>
 
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
+
+        {taken && (
+          <div className="mt-3 rounded-card border border-hairline bg-canvas p-4">
+            <p className="text-sm font-medium">
+              {taken.fullName ?? "This person"} already has an account here.
+            </p>
+            <p className="mt-1 text-xs text-ink-muted">
+              {taken.athlete
+                ? "They are registered as an athlete at this practice. Being an athlete and working here are separate things, so their own record stays exactly as it is."
+                : "The address is already in use by an account without a file."}
+            </p>
+            <p className="mt-2 text-xs text-ink-muted">
+              Giving access does not create a second account and does not set a
+              password. They sign in the way they already do.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void promote(taken.id)}
+                className="rounded-md bg-brand-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
+              >
+                {busy ? "Working…" : `Give ${role === "admin" ? "administrator" : "practitioner"} access`}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setTaken(null)}
+                className="rounded-md px-3 py-2 text-sm font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-surface disabled:opacity-40"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {created && (
           <div className="mt-3 rounded-card border border-ok/30 bg-ok/5 p-4">

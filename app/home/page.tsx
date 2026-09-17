@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import { toLocale } from "@/lib/i18n/locale";
 import { currentAthlete } from "@/lib/intake/athlete";
+import { hasAccountConsent } from "@/lib/intake/consent";
 import { loadHome } from "@/lib/intake/home";
 import { HomeScreen } from "@/components/athlete/HomeScreen";
 
@@ -27,6 +28,12 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const athlete = await currentAthlete();
   if (!athlete) redirect("/start?next=/home");
+
+  // Een account zonder accountconsent bestaat sinds de praktijk iemand kan
+  // uitnodigen: dan is het aangemaakt door iemand anders dan degene die hier
+  // inlogt. Achter dit scherm begint het vastleggen, dus de toestemming hoort
+  // ervoor te staan en niet erna.
+  if (!(await hasAccountConsent(athlete.athleteId))) redirect("/consent");
 
   // De taal van het scherm, niet die van de atleetrij: de bezoeker kan net op
   // de taalknop hebben gedrukt, en dan hoort dit scherm mee te gaan.

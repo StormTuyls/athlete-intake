@@ -479,6 +479,16 @@
     "dossier": "Dossier",
     "report": "Intakerapport",
     "profile": "Profiel",
-    "password": "Wachtwoord"
+    "password": "Wachtwoord",
+    "consent": "Toestemming"
+  },
+  "consentGate": {
+    "title": "Eén ding voordat we beginnen",
+    "body": "{practice} heeft dit account voor je klaargezet. Er wordt niets vastgelegd tot jij beslist of je gezondheidsgegevens verwerkt mogen worden.",
+    "who": "Aangemeld als {email}.",
+    "continue": "Akkoord, ga verder",
+    "busy": "Bezig",
+    "failed": "Je toestemming kon niet worden opgeslagen.",
+    "signOut": "Ben jij dit niet? Afmelden"
   }
 }
