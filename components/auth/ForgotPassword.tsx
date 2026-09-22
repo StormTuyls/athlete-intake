@@ -4,8 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/browser";
-import { LocaleToggle } from "@/components/LocaleToggle";
-import { PRACTICE_NAME } from "@/lib/report/branding";
 import { AuthShell } from "@/components/auth/AuthShell";
 
 /**
@@ -55,14 +53,8 @@ export function ForgotPassword({ backTo }: { backTo: string }) {
     "mt-1.5 w-full rounded-md border border-hairline bg-surface px-3.5 py-2.5 text-base outline-none focus-visible:border-brand-600";
 
   return (
-    <AuthShell>
-      <div className="flex items-baseline justify-between gap-2">
-        <h1 className="text-xl font-semibold tracking-tight">{PRACTICE_NAME}</h1>
-        <LocaleToggle />
-      </div>
-
-      <h2 className="mt-6 text-lg font-semibold tracking-tight">{t("forgotTitle")}</h2>
-      <p className="mt-1 text-sm text-ink-muted">{t("forgotIntro")}</p>
+    <AuthShell intro={t("forgotIntro")}>
+      <h2 className="text-lg font-semibold tracking-tight">{t("forgotTitle")}</h2>
 
       {sent ? (
         <p className="mt-6 rounded-card bg-surface p-4 text-sm text-ink ring-1 ring-hairline ring-inset">

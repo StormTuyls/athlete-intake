@@ -3,14 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LocaleToggle } from "@/components/LocaleToggle";
 import { PRACTICE_NAME } from "@/lib/report/branding";
-import {
-  ArrowRightIcon,
-  BrandMark,
-  CheckIcon,
-  LockIcon,
-} from "@/components/athlete/icons";
+import { NightShell } from "@/components/athlete/NightShell";
+import { ArrowRightIcon, CheckIcon } from "@/components/athlete/icons";
 
 /**
  * De poort voor een uitgenodigde atleet.
@@ -68,29 +63,16 @@ export function ConsentGate({
   }
 
   return (
-    <main className="flex min-h-dvh flex-col bg-night px-6 py-8 text-night-ink lg:justify-center lg:py-16">
-      {/* Zie AthleteAuth: vanaf lg natuurlijke hoogte, kolom gecentreerd. */}
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col lg:flex-none">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BrandMark className="size-5 text-brand-500" />
-            <span className="text-base font-semibold tracking-tight">{PRACTICE_NAME}</span>
-          </div>
-          {/* Bovenaan, om dezelfde reden als op het aanmeldscherm: de taalkeuze
-              hoort te staan voordat iemand de tekst leest waar hij mee instemt. */}
-          <LocaleToggle className="ring-night-line" />
-        </div>
-
-        <h1 className="mt-8 text-2xl leading-tight font-semibold tracking-tight">
-          {t("title")}
-        </h1>
-        <p className="mt-2.5 text-sm text-night-muted">
-          {t("body", { practice: PRACTICE_NAME })}
-        </p>
-        {email && (
-          <p className="mt-1.5 text-xs text-night-muted">{t("who", { email })}</p>
-        )}
-
+    <NightShell
+      headline={t("title")}
+      intro={
+        <>
+          <p>{t("body", { practice: PRACTICE_NAME })}</p>
+          {email && <p className="mt-2 text-xs">{t("who", { email })}</p>}
+        </>
+      }
+      footer={tAuth("footer")}
+    >
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -137,12 +119,6 @@ export function ConsentGate({
             {t("signOut")}
           </button>
         </form>
-
-        <footer className="mt-auto flex items-center justify-center gap-1.5 pt-10 text-xs text-night-muted">
-          <LockIcon className="size-3.5" />
-          <span>{tAuth("footer")}</span>
-        </footer>
-      </div>
-    </main>
+    </NightShell>
   );
 }

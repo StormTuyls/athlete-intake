@@ -148,7 +148,7 @@ export function HomeScreen({ data }: { data: HomeData }) {
   const progress = data.inProgress;
 
   return (
-    <main className="mx-auto min-h-dvh max-w-[30rem] bg-canvas px-4 pt-6 pb-10 lg:shadow-card lg:ring-1 lg:ring-hairline">
+    <main className="mx-auto min-h-dvh max-w-[30rem] bg-canvas px-4 pt-6 pb-10 lg:max-w-6xl lg:px-8 lg:pt-8">
       <header className="flex items-start justify-between px-1">
         <div>
           <SectionLabel>{greeting(t)}</SectionLabel>
@@ -180,180 +180,196 @@ export function HomeScreen({ data }: { data: HomeData }) {
         </div>
       </header>
 
-      {/* De teal kaart uit het ontwerp: de enige echte actie op dit scherm. */}
-      <section className="mt-6 rounded-card bg-brand-600 p-4 text-white">
-        <SectionLabel className="text-white/70">{t("assistant")}</SectionLabel>
-        <h2 className="mt-1.5 text-lg font-semibold tracking-tight">
-          {progress ? t("continueTitle") : t("startTitle")}
-        </h2>
-        <p className="mt-1.5 text-sm text-white/85">
-          {t("startBody")}
-        </p>
-        <button
-          type="button"
-          onClick={() => void open()}
-          disabled={busy}
-          className="mt-3.5 flex items-center gap-1.5 rounded-md bg-white/15 px-3.5 py-2 text-sm font-medium ring-1 ring-white/25 ring-inset transition-colors hover:bg-white/25 disabled:opacity-50"
-        >
-          {busy ? t("opening") : progress ? t("continue") : t("begin")}
-          {!busy && <ArrowRightIcon className="size-4" />}
-        </button>
-      </section>
+      {/* Vanaf lg twee kolommen. Links de intake zelf: de kaart die hem
+          opent en de voortgang eronder. Rechts wat eromheen hangt: iets
+          toevoegen, en wat er al ligt.
 
-      {error && (
-        <p className="mt-3 rounded-card border border-danger/30 bg-danger-soft p-3 text-sm text-danger">
-          {error}
-        </p>
-      )}
-
-      {progress && (
-        <section className="mt-3 rounded-card bg-surface p-4 shadow-card ring-1 ring-hairline ring-inset">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
-              <span className="size-1.5 rounded-chip bg-warn" aria-hidden />
-              {t("inProgress")}
-            </span>
-            <span className="text-xs tabular-nums text-ink-muted">
-              {progress.sectionsDone} / {progress.sectionsTotal}
-            </span>
-          </div>
-
-          {/* Segmenten, geen doorlopende balk: het ontwerp toont per sectie een
-              blokje, en dat leest als "zoveel hoofdstukken af" in plaats van
-              een percentage dat niets betekent. */}
-          <div
-            className="mt-2.5 flex gap-1"
-            role="progressbar"
-            aria-valuenow={progress.sectionsDone}
-            aria-valuemin={0}
-            aria-valuemax={progress.sectionsTotal}
-            aria-label={`${progress.requiredFilled} of ${progress.requiredTotal} required fields complete`}
-          >
-            {Array.from({ length: progress.sectionsTotal }, (_, index) => (
-              <span
-                key={index}
-                className={cn(
-                  "h-1.5 flex-1 rounded-chip",
-                  index < progress.sectionsDone ? "bg-brand-600" : "bg-hairline",
-                )}
-              />
-            ))}
-          </div>
-
-          <div className="mt-2.5 flex items-baseline justify-between gap-2">
-            <span className="truncate text-xs text-ink-muted">
-              {progress.nextSection
-                ? t("next", { section: progress.nextSection.toLowerCase() })
-                : t("allAnswered")}
-            </span>
-            <button
-              type="button"
-              onClick={() => void open()}
-              disabled={busy}
-              className="shrink-0 text-xs font-medium text-brand-600 disabled:opacity-50"
-            >
-              {t("continue")}
-            </button>
-          </div>
-
-          {/* Een eigen blok onder de regel en niet ernaast. De uitgevouwen
-              bevestiging is een alinea met drie knoppen; in de flexrij naast
-              "Verder" liep die buiten de kaart. Verdergaan blijft de actie in
-              de regel, dit staat er rustig onder. */}
-          <DiscardIntake
+          Waarom die verdeling: op een telefoon scrolt de atleet langs alles
+          en staat de belangrijkste kaart bovenaan. Op een laptop scrolt hij
+          niet, en dan is 'recent' geen vierde blok onderaan maar iets wat
+          naast de actie hoort te staan. De kolommen zijn in bronvolgorde
+          geschreven, dus onder lg valt alles terug in dezelfde volgorde als
+          hiervoor. */}
+      <div className="lg:mt-2 lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
+        <div className="min-w-0">
+        {/* De teal kaart uit het ontwerp: de enige echte actie op dit scherm. */}
+        <section className="mt-6 rounded-card bg-brand-600 p-4 text-white">
+          <SectionLabel className="text-white/70">{t("assistant")}</SectionLabel>
+          <h2 className="mt-1.5 text-lg font-semibold tracking-tight">
+            {progress ? t("continueTitle") : t("startTitle")}
+          </h2>
+          <p className="mt-1.5 text-sm text-white/85">
+            {t("startBody")}
+          </p>
+          <button
+            type="button"
+            onClick={() => void open()}
             disabled={busy}
-            onDone={async (restart) => {
-              if (restart) {
-                await open();
-                return;
-              }
-              // Geen lokale state bijwerken maar opnieuw ophalen: het concept
-              // is weg, dus de voortgang, de titel en de kaart erboven
-              // veranderen allemaal mee. De server weet het.
-              router.refresh();
-            }}
-          />
+            className="mt-3.5 flex items-center gap-1.5 rounded-md bg-white/15 px-3.5 py-2 text-sm font-medium ring-1 ring-white/25 ring-inset transition-colors hover:bg-white/25 disabled:opacity-50"
+          >
+            {busy ? t("opening") : progress ? t("continue") : t("begin")}
+            {!busy && <ArrowRightIcon className="size-4" />}
+          </button>
         </section>
-      )}
 
-      {/* Quick add: een echte bestandskiezer per tegel, en dan door naar het
-          gesprek. De upload zelf gebeurt daar, langs hetzelfde pad als de + in
-          de invoerbalk: een tweede uploadpad naast het eerste zou zijn eigen
-          fouten kunnen maken. Wat er NIET gebeurt is lezen. Het bestand ligt
-          straks klaar in het gesprek met een knop erbij; tot die knop
-          ingedrukt wordt komt er niets in het dossier. */}
-      <section className="mt-6">
-        <SectionLabel>{t("quickAdd")}</SectionLabel>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {TILES.map(({ key, Icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => pickers.current[key]?.click()}
-              disabled={busy}
-              className="flex flex-col items-center gap-1.5 rounded-card bg-surface px-2 py-3 shadow-card ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas disabled:opacity-50"
+        {error && (
+          <p className="mt-3 rounded-card border border-danger/30 bg-danger-soft p-3 text-sm text-danger">
+            {error}
+          </p>
+        )}
+
+        {progress && (
+          <section className="mt-3 rounded-card bg-surface p-4 shadow-card ring-1 ring-hairline ring-inset">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                <span className="size-1.5 rounded-chip bg-warn" aria-hidden />
+                {t("inProgress")}
+              </span>
+              <span className="text-xs tabular-nums text-ink-muted">
+                {progress.sectionsDone} / {progress.sectionsTotal}
+              </span>
+            </div>
+
+            {/* Segmenten, geen doorlopende balk: het ontwerp toont per sectie een
+                blokje, en dat leest als "zoveel hoofdstukken af" in plaats van
+                een percentage dat niets betekent. */}
+            <div
+              className="mt-2.5 flex gap-1"
+              role="progressbar"
+              aria-valuenow={progress.sectionsDone}
+              aria-valuemin={0}
+              aria-valuemax={progress.sectionsTotal}
+              aria-label={`${progress.requiredFilled} of ${progress.requiredTotal} required fields complete`}
             >
-              <Icon className="size-5 text-ink-muted" />
-              <span className="text-xs text-ink">{t(key)}</span>
-            </button>
-          ))}
+              {Array.from({ length: progress.sectionsTotal }, (_, index) => (
+                <span
+                  key={index}
+                  className={cn(
+                    "h-1.5 flex-1 rounded-chip",
+                    index < progress.sectionsDone ? "bg-brand-600" : "bg-hairline",
+                  )}
+                />
+              ))}
+            </div>
+
+            <div className="mt-2.5 flex items-baseline justify-between gap-2">
+              <span className="truncate text-xs text-ink-muted">
+                {progress.nextSection
+                  ? t("next", { section: progress.nextSection.toLowerCase() })
+                  : t("allAnswered")}
+              </span>
+              <button
+                type="button"
+                onClick={() => void open()}
+                disabled={busy}
+                className="shrink-0 text-xs font-medium text-brand-600 disabled:opacity-50"
+              >
+                {t("continue")}
+              </button>
+            </div>
+
+            {/* Een eigen blok onder de regel en niet ernaast. De uitgevouwen
+                bevestiging is een alinea met drie knoppen; in de flexrij naast
+                "Verder" liep die buiten de kaart. Verdergaan blijft de actie in
+                de regel, dit staat er rustig onder. */}
+            <DiscardIntake
+              disabled={busy}
+              onDone={async (restart) => {
+                if (restart) {
+                  await open();
+                  return;
+                }
+                // Geen lokale state bijwerken maar opnieuw ophalen: het concept
+                // is weg, dus de voortgang, de titel en de kaart erboven
+                // veranderen allemaal mee. De server weet het.
+                router.refresh();
+              }}
+            />
+          </section>
+        )}
         </div>
 
-        {TILES.map(({ key }) => (
-          <input
-            key={key}
-            ref={(element) => {
-              pickers.current[key] = element;
-            }}
-            type="file"
-            multiple
-            accept={ACCEPT_BY_TILE[key]}
-            className="hidden"
-            onChange={(event) => {
-              const files = Array.from(event.target.files ?? []);
-              // Leegmaken, anders vuurt hetzelfde bestand twee keer kiezen geen
-              // change meer.
-              event.target.value = "";
-              if (files.length > 0) void openWith(files);
-            }}
-          />
-        ))}
-      </section>
+        <div className="min-w-0 lg:mt-0">
+        {/* Quick add: een echte bestandskiezer per tegel, en dan door naar het
+            gesprek. De upload zelf gebeurt daar, langs hetzelfde pad als de + in
+            de invoerbalk: een tweede uploadpad naast het eerste zou zijn eigen
+            fouten kunnen maken. Wat er NIET gebeurt is lezen. Het bestand ligt
+            straks klaar in het gesprek met een knop erbij; tot die knop
+            ingedrukt wordt komt er niets in het dossier. */}
+        <section className="mt-6">
+          <SectionLabel>{t("quickAdd")}</SectionLabel>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {TILES.map(({ key, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => pickers.current[key]?.click()}
+                disabled={busy}
+                className="flex flex-col items-center gap-1.5 rounded-card bg-surface px-2 py-3 shadow-card ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas disabled:opacity-50"
+              >
+                <Icon className="size-5 text-ink-muted" />
+                <span className="text-xs text-ink">{t(key)}</span>
+              </button>
+            ))}
+          </div>
 
-      <section className="mt-6">
-        <SectionLabel>{t("recent")}</SectionLabel>
-        {data.recent.length === 0 ? (
-          <p className="mt-2 text-sm text-ink-faint">
-            Nothing here yet. Your finished intakes will appear in this list.
-          </p>
-        ) : (
-          <ul className="mt-2 divide-y divide-hairline rounded-card bg-surface shadow-card ring-1 ring-hairline ring-inset">
-            {data.recent.map((intake) => (
-              <li key={intake.id}>
-                <Link
-                  href={`/report/${intake.id}`}
-                  className="flex items-baseline justify-between gap-3 px-4 py-3 transition-colors hover:bg-canvas"
-                >
-                <span className="min-w-0">
-                  <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
-                    <span className="size-1.5 shrink-0 rounded-chip bg-brand-600" aria-hidden />
-                    <span className="truncate">
-                      {formatIntakeTitle(intake.title, titleLabels)}
+          {TILES.map(({ key }) => (
+            <input
+              key={key}
+              ref={(element) => {
+                pickers.current[key] = element;
+              }}
+              type="file"
+              multiple
+              accept={ACCEPT_BY_TILE[key]}
+              className="hidden"
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                // Leegmaken, anders vuurt hetzelfde bestand twee keer kiezen geen
+                // change meer.
+                event.target.value = "";
+                if (files.length > 0) void openWith(files);
+              }}
+            />
+          ))}
+        </section>
+
+        <section className="mt-6">
+          <SectionLabel>{t("recent")}</SectionLabel>
+          {data.recent.length === 0 ? (
+            <p className="mt-2 text-sm text-ink-faint">
+              Nothing here yet. Your finished intakes will appear in this list.
+            </p>
+          ) : (
+            <ul className="mt-2 divide-y divide-hairline rounded-card bg-surface shadow-card ring-1 ring-hairline ring-inset">
+              {data.recent.map((intake) => (
+                <li key={intake.id}>
+                  <Link
+                    href={`/report/${intake.id}`}
+                    className="flex items-baseline justify-between gap-3 px-4 py-3 transition-colors hover:bg-canvas"
+                  >
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                      <span className="size-1.5 shrink-0 rounded-chip bg-brand-600" aria-hidden />
+                      <span className="truncate">
+                        {formatIntakeTitle(intake.title, titleLabels)}
+                      </span>
+                    </span>
+                    <span className="mt-0.5 block text-xs text-ink-muted">
+                      {statusText(intake, t)}
                     </span>
                   </span>
-                  <span className="mt-0.5 block text-xs text-ink-muted">
-                    {statusText(intake, t)}
+                  <span className="shrink-0 text-xs text-ink-faint">
+                    {shortDate(intake.submittedAt ?? intake.startedAt, locale)}
                   </span>
-                </span>
-                <span className="shrink-0 text-xs text-ink-faint">
-                  {shortDate(intake.submittedAt ?? intake.startedAt, locale)}
-                </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        </div>
+      </div>
     </main>
   );
 }

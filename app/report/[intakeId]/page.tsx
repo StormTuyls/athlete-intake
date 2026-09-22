@@ -44,7 +44,7 @@ export default async function AthleteReportPage({
   // Zelfde omhulling als /home en /profile: vanaf lg ligt het scherm als
   // kaart op de backdrop in plaats van als kolom tegen een witte pagina.
   return (
-    <div className="lg:min-h-dvh lg:bg-backdrop">
+    <div className="lg:min-h-dvh lg:bg-canvas">
       <AthleteReportView
         report={report}
         backTo={report.status === "draft" ? "/intake" : "/home"}

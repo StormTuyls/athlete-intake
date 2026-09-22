@@ -35,7 +35,7 @@ export default async function ProfilePage() {
   });
 
   return (
-    <div className="lg:min-h-dvh lg:bg-backdrop">
+    <div className="lg:min-h-dvh lg:bg-canvas">
       <ProfileScreen data={data} />
     </div>
   );

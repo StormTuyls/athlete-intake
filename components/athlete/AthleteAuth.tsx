@@ -4,15 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LocaleToggle } from "@/components/LocaleToggle";
 import { createClient } from "@/lib/supabase/browser";
-import { PRACTICE_NAME } from "@/lib/report/branding";
-import {
-  ArrowRightIcon,
-  BrandMark,
-  CheckIcon,
-  LockIcon,
-} from "@/components/athlete/icons";
+import { NightShell } from "@/components/athlete/NightShell";
+import { ArrowRightIcon, CheckIcon } from "@/components/athlete/icons";
 
 /**
  * Scherm 01 uit het ontwerp: aanmelden of inloggen, donker.
@@ -109,32 +103,17 @@ export function AthleteAuth({
     "mt-1.5 w-full rounded-md border border-night-line bg-night-raised px-3.5 py-2.5 text-base text-night-ink outline-none placeholder:text-night-muted/60 focus-visible:border-brand-500";
 
   return (
-    <main className="flex min-h-dvh flex-col bg-night px-6 py-10 text-night-ink lg:justify-center lg:py-16">
-      {/* flex-1 duwt de kolom uit tot schermhoogte, zodat de footer op een
-          telefoon onderaan staat. Op een laptop is die hoogte geen 700 maar
-          1000 pixels, en dan staat het formulier bovenaan met een gat van een
-          halve pagina eronder. Vanaf lg dus natuurlijke hoogte en de kolom als
-          geheel gecentreerd. */}
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col lg:flex-none">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <BrandMark className="size-5 text-brand-500" />
-            <span className="text-base font-semibold tracking-tight">{PRACTICE_NAME}</span>
-          </div>
-          {/* Bovenaan en niet onderaan: de keuze hoort te staan voordat iemand
-              de consenttekst leest, want die tekst is waar hij mee instemt. */}
-          <LocaleToggle className="ring-night-line" />
-        </div>
-
-        <h1 className="mt-8 text-2xl leading-tight font-semibold tracking-tight">
+    <NightShell
+      headline={
+        <>
           {t("headline")}
           <br />
           {t("headlineSecond")}
-        </h1>
-        <p className="mt-2.5 text-sm text-night-muted">
-          {t("intro")}
-        </p>
-
+        </>
+      }
+      intro={t("intro")}
+      footer={t("footer")}
+    >
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -239,11 +218,6 @@ export function AthleteAuth({
           </Link>
         )}
 
-        <footer className="mt-auto flex items-center justify-center gap-1.5 pt-10 text-xs text-night-muted">
-          <LockIcon className="size-3.5" />
-          <span>{t("footer")}</span>
-        </footer>
-      </div>
-    </main>
+    </NightShell>
   );
 }
