@@ -80,27 +80,31 @@ export function AthleteList({ athletes }: { athletes: AthleteListRow[] }) {
         <ul className="divide-y divide-hairline border-t border-hairline">
           {shown.map((athlete) => (
             <li key={athlete.id}>
+              {/* Onder lg: naam met de telling eronder, status rechts. Precies
+                  wat het was. Vanaf lg schuift de telling naar een eigen kolom,
+                  zodat de datums onder elkaar staan. Dat is het verschil tussen
+                  een lijst waar je langs leest en een lijst waar je langs kijkt;
+                  op 375 pixels is die kolom er niet, daar telt alleen dat de
+                  naam heel blijft. */}
               <Link
                 href={`/coach/athletes/${athlete.id}`}
-                className="flex items-baseline justify-between gap-4 py-3 transition-colors hover:bg-canvas"
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 py-3 transition-colors hover:bg-canvas lg:grid-cols-[minmax(0,1fr)_13rem_11rem]"
               >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">
-                    {athlete.name ?? "Name unknown"}
-                  </span>
-                  <span className="block text-xs text-ink-muted">
-                    {/* Een uitnodiging die nog niet is aangenomen heeft geen
-                        intakes om te tellen, en "0 intakes" zegt niet waarom.
-                        Dat hij nog niet binnen is geweest, wel. */}
-                    {athlete.invited
-                      ? "invited, not signed in yet"
-                      : athlete.intakeCount === 1
-                        ? "1 intake"
-                        : `${athlete.intakeCount} intakes`}
-                    {athlete.lastActivity && ` · ${athlete.lastActivity.slice(0, 10)}`}
-                  </span>
+                <span className="col-start-1 truncate text-sm font-medium">
+                  {athlete.name ?? "Name unknown"}
                 </span>
-                <span className="shrink-0 text-right text-xs">
+                <span className="col-start-1 text-xs text-ink-muted lg:col-start-2 lg:row-start-1">
+                  {/* Een uitnodiging die nog niet is aangenomen heeft geen
+                      intakes om te tellen, en "0 intakes" zegt niet waarom.
+                      Dat hij nog niet binnen is geweest, wel. */}
+                  {athlete.invited
+                    ? "invited, not signed in yet"
+                    : athlete.intakeCount === 1
+                      ? "1 intake"
+                      : `${athlete.intakeCount} intakes`}
+                  {athlete.lastActivity && ` · ${athlete.lastActivity.slice(0, 10)}`}
+                </span>
+                <span className="col-start-2 row-span-2 row-start-1 text-right text-xs lg:col-start-3 lg:row-span-1">
                   {athlete.waiting > 0 && (
                     <span className="block font-medium text-ink">
                       {athlete.waiting === 1

@@ -33,8 +33,10 @@ export default async function TeamPage() {
 
   const team = await listTeam();
 
+  // Ruimer dan een leesbreedte: elke rij draagt een naam plus drie
+  // bedieningselementen, en het toevoegformulier vier velden naast elkaar.
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <main className="mx-auto max-w-3xl px-6 py-10 lg:max-w-5xl">
       <Link href="/coach" className="text-xs text-ink-muted underline">
         Athletes
       </Link>

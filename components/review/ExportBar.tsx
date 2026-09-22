@@ -17,7 +17,7 @@ export function ExportBar({ intakeId }: { intakeId: string }) {
   const base = `/api/review/${intakeId}/export`;
 
   return (
-    <div className="no-print sticky bottom-0 mt-8 flex gap-2 border-t border-hairline bg-surface/95 py-3 backdrop-blur">
+    <div className="no-print sticky bottom-0 mt-8 flex gap-2 border-t border-hairline bg-surface/95 py-3 backdrop-blur lg:static lg:mt-6 lg:border-t-0 lg:bg-transparent lg:py-0 lg:backdrop-blur-none">
       <a
         href={`/review/${intakeId}/print`}
         target="_blank"

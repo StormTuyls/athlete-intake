@@ -68,8 +68,9 @@ export function ConsentGate({
   }
 
   return (
-    <main className="flex min-h-dvh flex-col bg-night px-6 py-8 text-night-ink">
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col">
+    <main className="flex min-h-dvh flex-col bg-night px-6 py-8 text-night-ink lg:justify-center lg:py-16">
+      {/* Zie AthleteAuth: vanaf lg natuurlijke hoogte, kolom gecentreerd. */}
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col lg:flex-none">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BrandMark className="size-5 text-brand-500" />

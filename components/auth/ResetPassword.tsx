@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/browser";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { PRACTICE_NAME } from "@/lib/report/branding";
+import { AuthShell } from "@/components/auth/AuthShell";
 
 /**
  * Een nieuw wachtwoord kiezen na een herstelmail.
@@ -55,7 +56,7 @@ export function ResetPassword({ signedIn }: { signedIn: boolean }) {
     "mt-1.5 w-full rounded-md border border-hairline bg-surface px-3.5 py-2.5 text-base outline-none focus-visible:border-brand-600";
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
+    <AuthShell>
       <div className="flex items-baseline justify-between gap-2">
         <h1 className="text-xl font-semibold tracking-tight">{PRACTICE_NAME}</h1>
         <LocaleToggle />
@@ -130,6 +131,6 @@ export function ResetPassword({ signedIn }: { signedIn: boolean }) {
           </form>
         </>
       )}
-    </main>
+    </AuthShell>
   );
 }

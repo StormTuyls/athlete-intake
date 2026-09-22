@@ -41,10 +41,14 @@ export default async function AthleteReportPage({
 
   if (!report) notFound();
 
+  // Zelfde omhulling als /home en /profile: vanaf lg ligt het scherm als
+  // kaart op de backdrop in plaats van als kolom tegen een witte pagina.
   return (
-    <AthleteReportView
-      report={report}
-      backTo={report.status === "draft" ? "/intake" : "/home"}
-    />
+    <div className="lg:min-h-dvh lg:bg-backdrop">
+      <AthleteReportView
+        report={report}
+        backTo={report.status === "draft" ? "/intake" : "/home"}
+      />
+    </div>
   );
 }

@@ -28,7 +28,7 @@ export function AthleteReportView({
   const dated = report.submittedAt ?? report.startedAt;
 
   return (
-    <main className="mx-auto min-h-dvh max-w-[30rem] bg-canvas px-4 pt-4 pb-10">
+    <main className="mx-auto min-h-dvh max-w-[30rem] bg-canvas px-4 pt-4 pb-10 lg:shadow-card lg:ring-1 lg:ring-hairline">
       <header className="flex items-center gap-3 px-1 py-2">
         <Link
           href={backTo}

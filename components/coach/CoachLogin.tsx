@@ -7,6 +7,7 @@ import Link from "next/link";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { createClient } from "@/lib/supabase/browser";
 import { PRACTICE_NAME } from "@/lib/report/branding";
+import { AuthShell } from "@/components/auth/AuthShell";
 
 /**
  * Inloggen voor de behandelaar: e-mail en wachtwoord.
@@ -63,7 +64,7 @@ export function CoachLogin({ next }: { next: string | null }) {
     "mt-1.5 w-full rounded-md border border-hairline bg-surface px-3.5 py-2.5 text-base outline-none focus-visible:border-brand-500";
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
+    <AuthShell>
       <div className="flex items-baseline justify-between gap-2">
         <h1 className="text-xl font-semibold tracking-tight">{PRACTICE_NAME}</h1>
         <LocaleToggle />
@@ -134,6 +135,6 @@ export function CoachLogin({ next }: { next: string | null }) {
       <p className="mt-6 text-xs text-ink-faint">
         {t("coachFooter")}
       </p>
-    </main>
+    </AuthShell>
   );
 }
