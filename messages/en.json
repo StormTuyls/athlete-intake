@@ -544,6 +544,12 @@
       "no_body_mass": "no body mass recorded",
       "no_baseline": "no earlier measurement",
       "protocol_mismatch": "earlier measurement under a different protocol"
-    }
+    },
+    "trend": "Trend",
+    "trendIntro": "Every measured metric across the screenings. A line breaks where the protocol changed: measurements under a different protocol cannot be laid alongside each other.",
+    "noTrend": "No measurements to plot yet.",
+    "tableView": "As a table",
+    "sessionsCount": "{count, plural, one {# screening} other {# screenings}}",
+    "backToAthlete": "Back to the athlete"
   }
 }

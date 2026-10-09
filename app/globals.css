@@ -49,6 +49,13 @@
 
   /* Aparte kleur voor 'citaat niet teruggevonden'. Zie ConfidenceChip: die
      staat bewust niet in hetzelfde teal als een geverifieerde waarde. */
+  /* Twee reekskleuren voor een verlooplijn: links en rechts.
+     Gevalideerd op lichtheid, chroma, CVD-scheiding (deutan ΔE 17,6) en
+     contrast tegen het vlak. Niet op het oog gekozen; zie de reekslegenda,
+     want kleur mag nooit het enige onderscheid zijn. */
+  --color-series-1: #0e9384;
+  --color-series-2: #7f56d9;
+
   --color-unverified: #475467;
   --color-unverified-soft: #f2f4f7;
 
