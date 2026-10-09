@@ -27,8 +27,15 @@ export interface PurgeCounts {
   field_proposals: number;
   dossier_fields: number;
   injury_events: number;
-  test_sessions: number;
-  test_measurements: number;
+  screening_sessions: number;
+  test_items: number;
+  test_trials: number;
+  trial_values: number;
+  measurements: number;
+  derived_results: number;
+  test_imports: number;
+  screening_notes: number;
+  screening_reports: number;
   intake_reports: number;
 }
 
@@ -37,7 +44,7 @@ export interface PurgeManifest {
   profile_id: string | null;
   intake_ids: string[];
   document_ids: string[];
-  test_session_ids: string[];
+  screening_session_ids: string[];
   storage_paths: string[];
 }
 
