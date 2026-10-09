@@ -121,6 +121,29 @@ export default async function ScreeningSessionPage({
         </p>
       </header>
 
+      {/* Exporteren loopt altijd over een bevroren versie, nooit over de stand
+          van nu: de drempels kunnen sindsdien bijgesteld zijn. */}
+      <div className="mb-6 flex flex-wrap gap-2 text-xs">
+        <a
+          href={`/coach/screening/${session.id}/print`}
+          className="rounded border border-hairline px-3 py-1.5 transition-colors hover:bg-canvas"
+        >
+          {t("printReport")}
+        </a>
+        <a
+          href={`/api/coach/screening/${session.id}/export?format=json`}
+          className="rounded border border-hairline px-3 py-1.5 transition-colors hover:bg-canvas"
+        >
+          {t("exportJson")}
+        </a>
+        <a
+          href={`/api/coach/screening/${session.id}/export?format=csv`}
+          className="rounded border border-hairline px-3 py-1.5 transition-colors hover:bg-canvas"
+        >
+          {t("exportCsv")}
+        </a>
+      </div>
+
       {ordered.map(([block, rows]) => (
         <section key={block} className="mb-8">
           <h2 className="mb-1 text-sm font-medium">

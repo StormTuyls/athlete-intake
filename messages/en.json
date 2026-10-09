@@ -550,7 +550,17 @@
     "noTrend": "No measurements to plot yet.",
     "tableView": "As a table",
     "sessionsCount": "{count, plural, one {# screening} other {# screenings}}",
-    "backToAthlete": "Back to the athlete"
+    "backToAthlete": "Back to the athlete",
+    "report": "Report",
+    "printReport": "Report",
+    "reportVersion": "Version {n}, frozen {date}",
+    "frozenNote": "This report comes from a frozen version. The thresholds used below are those in force when it was frozen; later adjustments do not change this printout.",
+    "tester": "Tester",
+    "measured": "Measured",
+    "rules": "Thresholds used",
+    "ruleVersion": "rule v{n}",
+    "exportJson": "JSON",
+    "exportCsv": "CSV"
   },
   "library": {
     "title": "Reference values",

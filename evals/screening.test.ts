@@ -15,6 +15,8 @@ import {
   toSpecs,
 } from "../lib/db/screening";
 import { evaluate } from "../lib/screening/evaluate";
+import { addVersion } from "../lib/db/referenceRules";
+import { ensureFrozenScreening, getScreeningReport } from "../lib/report/screeningFreeze";
 
 /**
  * De screeningspijplijn tegen een echte databank.
@@ -189,9 +191,66 @@ try {
     assert.equal(typeof row.protocolConfirmed, "boolean");
   }
 
+  // --- het bevroren rapport -------------------------------------------------
+  //
+  // Dit is waarom bevriezen bij een screening scherper is dan bij een intake.
+  // De praktijk kan op /coach/library een drempel bijstellen; een afdruk van
+  // vorig jaar hoort dat niet mee te maken.
+
+  const frozenV1 = await ensureFrozenScreening(secondId, actor, null);
+  assert.ok(frozenV1, "een sessie hoort te bevriezen");
+  assert.equal(frozenV1.version, 1);
+  assert.ok(frozenV1.created);
+
+  // Niets veranderd: dezelfde versie, geen nieuwe rij. Twee keer exporteren
+  // levert hetzelfde bestand.
+  const again = await ensureFrozenScreening(secondId, actor, null);
+  assert.ok(again);
+  assert.equal(again.version, 1, "zonder wijziging komt er geen versie bij");
+  assert.equal(again.created, false);
+  assert.equal(again.snapshot.contentHash, frozenV1.snapshot.contentHash);
+
+  // Wat er in versie 1 stond voor de linker SLR: 70 graden, band 'poor'.
+  const frozenLeft = frozenV1.snapshot.results.find(
+    (r) => r.metricKey === slr.metricKey && r.side === "left" && r.kind === "absolute",
+  );
+  assert.equal(frozenLeft?.value, 70);
+  assert.equal(frozenLeft?.bandStatus, "poor");
+  assert.equal(frozenLeft?.ruleVersion, 1, "de regelversie reist mee");
+
+  // Nu stelt de praktijk de drempel bij: 70 valt voortaan in 'good'.
+  await addVersion(
+    {
+      metricKey: slr.metricKey,
+      bands: [
+        { status: "poor", score: 0, lt: 40 },
+        { status: "good", score: 2, gte: 40 },
+      ],
+      coverage: "total",
+      classificationEnabled: true,
+      evidence: "internal",
+      sourceCitation: null,
+      sourceNote: "bijgesteld tijdens de test",
+    },
+    { id: null, isAdmin: true },
+  );
+
+  // DE CONTROLE. Versie 1 moet nog steeds 'poor' zeggen.
+  const reread = await getScreeningReport(secondId, 1);
+  assert.ok(reread);
+  const stillPoor = reread.snapshot.results.find(
+    (r) => r.metricKey === slr.metricKey && r.side === "left" && r.kind === "absolute",
+  );
+  assert.equal(
+    stillPoor?.bandStatus,
+    "poor",
+    "een vastgelegd rapport verandert niet mee met een bijgestelde drempel",
+  );
+  assert.equal(stillPoor?.ruleVersion, 1);
+
   console.log(
     `screening: ${library.length} tests, 2 sessies, delta per zijde (links was 78, rechts was 84), ` +
-      "band aan voor SLR en uit voor Thomas",
+      "band aan voor SLR en uit voor Thomas, rapport bevroren tegen een bijgestelde drempel",
   );
 } finally {
   // De cascade ruimt sessies, items, proeven, metingen en uitkomsten op.
