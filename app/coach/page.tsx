@@ -42,8 +42,11 @@ export default async function CoachPage() {
 
   const athletes = await listAthletesForCoach();
 
+  // max-w-3xl is een leesbreedte, en dit is geen tekst maar een lijst met een
+  // naam links en een status rechts. Op 768 stond die status tegen de naam
+  // aan; vanaf lg is er ruimte tussen de twee dingen die je vergelijkt.
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <main className="mx-auto max-w-3xl px-6 py-10 lg:max-w-5xl">
       <header className="mb-8 flex items-baseline justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Athletes</h1>
