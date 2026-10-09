@@ -490,5 +490,60 @@
     "busy": "Working",
     "failed": "Your consent could not be saved.",
     "signOut": "Not you? Sign out"
+  },
+  "screening": {
+    "title": "Screening",
+    "new": "New screening",
+    "none": "No screenings yet.",
+    "heading": "Screenings",
+    "intro": "Fill in what you measured. Leave the rest empty; an empty field means not measured, not zero.",
+    "date": "Date",
+    "bodyMass": "Body mass today (kg)",
+    "context": "Context",
+    "contextHint": "week 3 of build-up",
+    "save": "Save screening",
+    "saving": "Saving...",
+    "nothingEntered": "Nothing entered yet",
+    "measurements": "{count, plural, one {# measurement} other {# measurements}}",
+    "saveFailed": "Could not save this screening.",
+    "emptyLibrary": "No tests in the library yet. Run {command}.",
+    "noBandYet": "no band yet",
+    "protocolNotFixed": "protocol not fixed",
+    "bodyMassMissing": "body mass not recorded",
+    "asymmetry": "asymmetry",
+    "left": "left",
+    "right": "right",
+    "lowerLeft": "left lower",
+    "lowerRight": "right lower",
+    "vsPrevious": "vs previous",
+    "was": "was {value}",
+    "protocolChanged": "protocol changed",
+    "unclassified": "{count, plural, one {# measurement has} other {# measurements have}} no band. Those tests have a protocol or scoring convention that is not confirmed yet, so the value is recorded and trended but not graded.",
+    "provenance": "Reference rules used",
+    "provenanceIntro": "Where the bands above come from. A threshold without a source does not belong in a medical file.",
+    "classificationOff": "does not classify",
+    "evidence": {
+      "source_sheet": "source sheet, protocol unconfirmed",
+      "published": "peer-reviewed",
+      "internal": "internal practice target"
+    },
+    "blocks": {
+      "anthropometry": "Anthropometry",
+      "mobility_ll": "Mobility, lower limb",
+      "mobility_ul": "Mobility, upper limb",
+      "core": "Core control",
+      "movement_ll": "Movement quality",
+      "forcedecks": "Isometric push",
+      "strength_ul": "Upper-limb strength"
+    },
+    "unavailable": {
+      "missing_input": "not measured",
+      "single_side_only": "only one side measured",
+      "zero_denominator": "cannot be calculated",
+      "unit_mismatch": "units do not match",
+      "no_body_mass": "no body mass recorded",
+      "no_baseline": "no earlier measurement",
+      "protocol_mismatch": "earlier measurement under a different protocol"
+    }
   }
 }

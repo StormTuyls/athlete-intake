@@ -310,8 +310,10 @@ export interface SessionView {
   notes: string | null;
   results: Array<{
     metricKey: string;
-    testLabel: string;
-    metricLabel: string;
+    testLabelNl: string;
+    testLabelEn: string;
+    metricLabelNl: string;
+    metricLabelEn: string;
     block: string;
     side: Side;
     kind: "absolute" | "asymmetry" | "delta";
@@ -329,7 +331,10 @@ export interface SessionView {
       previous?: number | null;
     } | null;
     protocolConfirmed: boolean;
+    /** Herkomst van de regel die deze band gaf, of uitlegt waarom er geen is. FR-08. */
     ruleNote: string | null;
+    ruleSource: string | null;
+    ruleEvidence: string | null;
   }>;
 }
 
@@ -352,15 +357,20 @@ export async function getSession(
     // van beide zijden (dan is test_item_id null).
     `select d.metric_key, ti.side, d.derived_key, d.value, d.unit, d.status,
             d.unavailable_reason, d.band_status, d.band_score, d.inputs,
-            m.label_en as metric_label, m.decimals,
-            t.label_en as test_label, t.block, t.sort_order,
-            p.protocol_confirmed, r.source_note
+            m.label_nl as metric_label_nl, m.label_en as metric_label_en, m.decimals,
+            t.label_nl as test_label_nl, t.label_en as test_label_en,
+            t.block, t.sort_order,
+            p.protocol_confirmed, r.source_note, r.source_citation, r.evidence
        from medical.derived_results d
        left join medical.test_items ti on ti.id = d.test_item_id
        join public.metric_definitions m on m.key = d.metric_key
        join public.test_definitions t on t.key = m.test_key
        join public.test_protocols p on p.test_key = t.key and p.retired_at is null
-       left join public.reference_rules r on r.id = d.reference_rule_id
+       -- Ook koppelen als er geen band uitkwam: dan is juist de noot het
+       -- antwoord op "waarom staat hier niets". Vandaar op de metriek en niet
+       -- op reference_rule_id, dat bij een uitgezette regel null is.
+       left join public.reference_rules r
+         on r.metric_key = d.metric_key and r.retired_at is null
       where d.session_id = $1
       order by t.block, t.sort_order, d.derived_key nulls first, ti.side`,
     [sessionId],
@@ -385,8 +395,10 @@ export async function getSession(
     notes: (head.notes as string | null) ?? null,
     results: rows.map((row) => ({
       metricKey: row.metric_key as string,
-      testLabel: row.test_label as string,
-      metricLabel: row.metric_label as string,
+      testLabelNl: row.test_label_nl as string,
+      testLabelEn: row.test_label_en as string,
+      metricLabelNl: row.metric_label_nl as string,
+      metricLabelEn: row.metric_label_en as string,
       block: row.block as string,
       side: (row.side as Side | null) ?? "bilateral",
       // Geen eigen kolom: derived_key zegt welke soort uitkomst dit is, en
@@ -407,6 +419,8 @@ export async function getSession(
       inputs: readSides(row.inputs),
       protocolConfirmed: row.protocol_confirmed as boolean,
       ruleNote: (row.source_note as string | null) ?? null,
+      ruleSource: (row.source_citation as string | null) ?? null,
+      ruleEvidence: (row.evidence as string | null) ?? null,
     })),
   };
 }

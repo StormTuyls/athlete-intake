@@ -490,5 +490,60 @@
     "busy": "Bezig",
     "failed": "Je toestemming kon niet worden opgeslagen.",
     "signOut": "Ben jij dit niet? Afmelden"
+  },
+  "screening": {
+    "title": "Screening",
+    "new": "Nieuwe screening",
+    "none": "Nog geen screenings.",
+    "heading": "Screenings",
+    "intro": "Vul in wat je gemeten hebt. Laat de rest leeg; een leeg veld betekent niet gemeten, niet nul.",
+    "date": "Datum",
+    "bodyMass": "Lichaamsgewicht vandaag (kg)",
+    "context": "Context",
+    "contextHint": "week 3 van de opbouw",
+    "save": "Screening opslaan",
+    "saving": "Opslaan...",
+    "nothingEntered": "Nog niets ingevuld",
+    "measurements": "{count, plural, one {# meting} other {# metingen}}",
+    "saveFailed": "Deze screening kon niet opgeslagen worden.",
+    "emptyLibrary": "Nog geen tests in de bibliotheek. Draai {command}.",
+    "noBandYet": "nog geen band",
+    "protocolNotFixed": "protocol niet vastgelegd",
+    "bodyMassMissing": "lichaamsgewicht niet genoteerd",
+    "asymmetry": "asymmetrie",
+    "left": "links",
+    "right": "rechts",
+    "lowerLeft": "links lager",
+    "lowerRight": "rechts lager",
+    "vsPrevious": "t.o.v. vorige",
+    "was": "was {value}",
+    "protocolChanged": "protocol gewijzigd",
+    "unclassified": "{count, plural, one {# meting heeft} other {# metingen hebben}} geen band. Bij die tests staat het protocol of de scoringsconventie nog niet vast, dus de waarde wordt vastgelegd en getrend maar niet beoordeeld.",
+    "provenance": "Gebruikte referentieregels",
+    "provenanceIntro": "Waar de banden hierboven vandaan komen. Een drempel zonder bron hoort niet in een medisch dossier.",
+    "classificationOff": "classificeert niet",
+    "evidence": {
+      "source_sheet": "bronbestand, protocol onbevestigd",
+      "published": "peer-reviewed",
+      "internal": "interne streefwaarde van de praktijk"
+    },
+    "blocks": {
+      "anthropometry": "Antropometrie",
+      "mobility_ll": "Mobiliteit, onderste lidmaat",
+      "mobility_ul": "Mobiliteit, bovenste lidmaat",
+      "core": "Rompcontrole",
+      "movement_ll": "Bewegingskwaliteit",
+      "forcedecks": "Isometrische push",
+      "strength_ul": "Kracht bovenste lidmaat"
+    },
+    "unavailable": {
+      "missing_input": "niet gemeten",
+      "single_side_only": "maar een zijde gemeten",
+      "zero_denominator": "niet te berekenen",
+      "unit_mismatch": "eenheden komen niet overeen",
+      "no_body_mass": "geen lichaamsgewicht genoteerd",
+      "no_baseline": "geen eerdere meting",
+      "protocol_mismatch": "vorige meting onder een ander protocol"
+    }
   }
 }

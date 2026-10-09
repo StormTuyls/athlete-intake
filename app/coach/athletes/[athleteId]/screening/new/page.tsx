@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { checkCoach, isUuid } from "@/lib/review/access";
 import { getAthleteProfile } from "@/lib/db/athletes";
 import { getLibrary } from "@/lib/db/screening";
@@ -40,10 +40,13 @@ export default async function NewScreeningPage({
   ]);
   if (!athlete) notFound();
 
+  const t = await getTranslations("screening");
+  const locale = await getLocale();
+
   const tests: EntryTest[] = library.map((item) => ({
     testKey: item.testKey,
     block: item.block,
-    label: item.labelEn,
+    label: locale === "nl" ? item.labelNl : item.labelEn,
     metricKey: item.metricKey,
     unit: item.unit,
     perSide: item.laterality === "per_side",
@@ -56,20 +59,17 @@ export default async function NewScreeningPage({
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <Link href={`/coach/athletes/${athleteId}`} className="text-xs text-ink-muted underline">
-        {athlete.name ?? "Athlete"}
+        {athlete.name ?? t("title")}
       </Link>
 
       <header className="mt-3 mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">New screening</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Fill in what you measured. Leave the rest empty; an empty field means
-          not measured, not zero.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("new")}</h1>
+        <p className="mt-1 text-sm text-ink-muted">{t("intro")}</p>
       </header>
 
       {tests.length === 0 ? (
         <p className="text-sm text-ink-faint">
-          No tests in the library yet. Run <code>npm run seed:screening</code>.
+          {t("emptyLibrary", { command: "npm run seed:screening" })}
         </p>
       ) : (
         <ScreeningEntry athleteId={athleteId} tests={tests} />
