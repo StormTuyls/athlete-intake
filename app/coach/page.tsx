@@ -35,6 +35,7 @@ export const dynamic = "force-dynamic";
  * ophalen.
  */
 export default async function CoachPage() {
+  const tl = await getTranslations("library");
   const access = await checkCoach();
   if (access.kind === "anonymous") redirect("/coach/login?next=/coach");
   if (access.kind !== "coach") notFound();
@@ -55,6 +56,15 @@ export default async function CoachPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Voor elke behandelaar: het bevestigen van een protocol is
+              klinisch werk, geen beheerderswerk. Elke wijziging staat in het
+              audit-log en de oude versie blijft bestaan. */}
+          <Link
+            href="/coach/library"
+            className="rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
+          >
+            {tl("title")}
+          </Link>
           {/* Alleen voor een admin, want alleen die komt er binnen. Een link
               tonen die op een 404 uitkomt is erger dan geen link. */}
           {coach.role === "admin" && (
