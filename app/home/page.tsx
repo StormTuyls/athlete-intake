@@ -47,7 +47,7 @@ export default async function HomePage() {
   });
 
   return (
-    <div className="lg:min-h-dvh lg:bg-backdrop">
+    <div className="lg:min-h-dvh lg:bg-canvas">
       <HomeScreen data={data} />
     </div>
   );

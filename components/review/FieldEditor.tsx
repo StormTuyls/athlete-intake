@@ -58,7 +58,7 @@ export function FieldEditor({
   const [value, setValue] = useState(() => initialValue(field));
 
   const input =
-    "w-full rounded-md border border-black/15 bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:border-black/50 dark:border-white/20 dark:focus-visible:border-white/60";
+    "w-full rounded-md border border-black/15 bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:border-black/50";
 
   return (
     <form
@@ -125,13 +125,13 @@ export function FieldEditor({
         )}
       </label>
 
-      {error && <p className="text-xs text-red-700 dark:text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-700">{error}</p>}
 
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={busy}
-          className="rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40 dark:bg-white dark:text-black"
+          className="rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40"
         >
           {busy ? "Bezig" : "Bewaren"}
         </button>
@@ -139,7 +139,7 @@ export function FieldEditor({
           type="button"
           onClick={onCancel}
           disabled={busy}
-          className="rounded-md px-3 py-1.5 text-xs ring-1 ring-black/15 ring-inset disabled:opacity-40 dark:ring-white/20"
+          className="rounded-md px-3 py-1.5 text-xs ring-1 ring-black/15 ring-inset disabled:opacity-40"
         >
           Annuleren
         </button>

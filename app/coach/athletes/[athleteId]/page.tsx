@@ -115,7 +115,7 @@ export default async function AthletePage({
       : "kept indefinitely";
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <main className="mx-auto max-w-3xl px-6 py-10 lg:max-w-5xl">
       <Link href="/coach" className="text-xs text-ink-muted underline">
         Athletes
       </Link>
@@ -132,103 +132,117 @@ export default async function AthletePage({
         </p>
       </header>
 
-      <section className="mb-8">
-        <h2 className="mb-1 text-sm font-medium">Details</h2>
-        <dl className="divide-y divide-hairline border-t border-hairline">
-          <Row label="Email" value={athlete.email} />
-          <Row label="Phone" value={athlete.phone} />
-          <Row label="Address" value={athlete.address} />
-          {/* Twee rijen die op elkaar lijken en dat niet zijn. "Assigned to" is
-              iemand met een login hier; de atleet kiest hem op zijn profiel en
-              de praktijk kan het hier corrigeren. "Own coach" is zijn eigen
-              trainer, een naam uit het dossier. */}
-          <ControlRow label="Assigned to">
-            <AssignPractitioner
-              athleteId={athlete.id}
-              current={athlete.practitionerId}
-              options={assignable}
+      {/* Vanaf lg naast elkaar. Links waar de behandelaar voor komt: wie dit
+          is, en welke dossiers er liggen. Rechts wat je zelden aanraakt maar
+          wel moet kunnen vinden: bewaartermijn, toestemming, en wissen.
+
+          Wissen hoort bewust niet onder de intakelijst. Een knop die een
+          persoon verwijdert, direct onder de rij die je aanklikt om een
+          dossier te openen, is een knop die je een keer per ongeluk raakt. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-10">
+        <div className="min-w-0">
+        <section className="mb-8">
+          <h2 className="mb-1 text-sm font-medium">Details</h2>
+          <dl className="divide-y divide-hairline border-t border-hairline">
+            <Row label="Email" value={athlete.email} />
+            <Row label="Phone" value={athlete.phone} />
+            <Row label="Address" value={athlete.address} />
+            {/* Twee rijen die op elkaar lijken en dat niet zijn. "Assigned to" is
+                iemand met een login hier; de atleet kiest hem op zijn profiel en
+                de praktijk kan het hier corrigeren. "Own coach" is zijn eigen
+                trainer, een naam uit het dossier. */}
+            <ControlRow label="Assigned to">
+              <AssignPractitioner
+                athleteId={athlete.id}
+                current={athlete.practitionerId}
+                options={assignable}
+              />
+            </ControlRow>
+            <Row label="Sport" value={athlete.sport} />
+            <Row label="Discipline" value={athlete.discipline} />
+            <Row label="Club" value={athlete.club} />
+            <Row label="Federation" value={athlete.federation} />
+            <Row label="Own coach" value={athlete.coachName} />
+          </dl>
+          <p className="mt-2 text-xs text-ink-faint">
+            Administrative data. Body measurements, medication and the full injury
+            history stay inside the intake file; each intake below is labelled with
+            the complaint it is about.
+          </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="mb-1 text-sm font-medium">Intakes</h2>
+          {athlete.intakes.length === 0 ? (
+            <p className="text-sm text-ink-faint">No intakes yet.</p>
+          ) : (
+            <ul className="divide-y divide-hairline border-t border-hairline">
+              {athlete.intakes.map((intake) => (
+                <li key={intake.id}>
+                  <Link
+                    href={`/review/${intake.id}`}
+                    className="flex flex-col gap-1 py-2.5 transition-colors hover:bg-canvas sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+                  >
+                    <span className="min-w-0">
+                      {/* De klacht als titel. De status zegt niets over welk
+                          dossier dit is, en bij twee intakes staat er twee keer
+                          hetzelfde; de klacht onderscheidt ze wel. */}
+                      <span className="block text-sm font-medium">
+                        {intake.label ?? "Intake"}
+                      </span>
+                      <span className="mt-0.5 flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] whitespace-nowrap ${statusStyle(intake.status)}`}
+                        >
+                          {statusLabel(intake.status)}
+                        </span>
+                        {/* nowrap, anders breekt een datum op een smal scherm
+                            midden in de maand af: "2026-" / "08-08". */}
+                        <span className="text-xs whitespace-nowrap text-ink-muted">
+                          {(intake.submittedAt ?? intake.startedAt)?.slice(0, 10)}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs text-ink-muted">
+                      {intake.requiredFilled}/{intake.requiredTotal} required
+                      {intake.conflicts > 0 && (
+                        <span className="ml-2 text-warn">{intake.conflicts} to check</span>
+                      )}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        </div>
+
+        <aside className="min-w-0 lg:sticky lg:top-10">
+        <section>
+          <h2 className="mb-1 text-sm font-medium">Data and consent</h2>
+          <dl className="divide-y divide-hairline border-t border-hairline">
+            <Row label="Retention" value={retention} />
+            <Row label="Retention basis" value={athlete.retentionBasis} />
+            <Row
+              label="Consent on file"
+              value={
+                athlete.accountConsentAt
+                  ? `given ${athlete.accountConsentAt.slice(0, 10)}`
+                  : null
+              }
             />
-          </ControlRow>
-          <Row label="Sport" value={athlete.sport} />
-          <Row label="Discipline" value={athlete.discipline} />
-          <Row label="Club" value={athlete.club} />
-          <Row label="Federation" value={athlete.federation} />
-          <Row label="Own coach" value={athlete.coachName} />
-        </dl>
-        <p className="mt-2 text-xs text-ink-faint">
-          Administrative data. Body measurements, medication and the full injury
-          history stay inside the intake file; each intake below is labelled with
-          the complaint it is about.
-        </p>
-      </section>
+          </dl>
+        </section>
 
-      <section className="mb-8">
-        <h2 className="mb-1 text-sm font-medium">Intakes</h2>
-        {athlete.intakes.length === 0 ? (
-          <p className="text-sm text-ink-faint">No intakes yet.</p>
-        ) : (
-          <ul className="divide-y divide-hairline border-t border-hairline">
-            {athlete.intakes.map((intake) => (
-              <li key={intake.id}>
-                <Link
-                  href={`/review/${intake.id}`}
-                  className="flex flex-col gap-1 py-2.5 transition-colors hover:bg-canvas sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
-                >
-                  <span className="min-w-0">
-                    {/* De klacht als titel. De status zegt niets over welk
-                        dossier dit is, en bij twee intakes staat er twee keer
-                        hetzelfde; de klacht onderscheidt ze wel. */}
-                    <span className="block text-sm font-medium">
-                      {intake.label ?? "Intake"}
-                    </span>
-                    <span className="mt-0.5 flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] whitespace-nowrap ${statusStyle(intake.status)}`}
-                      >
-                        {statusLabel(intake.status)}
-                      </span>
-                      {/* nowrap, anders breekt een datum op een smal scherm
-                          midden in de maand af: "2026-" / "08-08". */}
-                      <span className="text-xs whitespace-nowrap text-ink-muted">
-                        {(intake.submittedAt ?? intake.startedAt)?.slice(0, 10)}
-                      </span>
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-xs text-ink-muted">
-                    {intake.requiredFilled}/{intake.requiredTotal} required
-                    {intake.conflicts > 0 && (
-                      <span className="ml-2 text-warn">{intake.conflicts} to check</span>
-                    )}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <h2 className="mb-1 text-sm font-medium">Data and consent</h2>
-        <dl className="divide-y divide-hairline border-t border-hairline">
-          <Row label="Retention" value={retention} />
-          <Row label="Retention basis" value={athlete.retentionBasis} />
-          <Row
-            label="Consent on file"
-            value={
-              athlete.accountConsentAt
-                ? `given ${athlete.accountConsentAt.slice(0, 10)}`
-                : null
-            }
-          />
-        </dl>
-      </section>
-
-      <PurgeAthlete
-        athleteId={athlete.id}
-        athleteName={athlete.name}
-        intakeCount={athlete.intakes.length}
-        hasAccount={athlete.hasAccount}
-      />
+        <PurgeAthlete
+          athleteId={athlete.id}
+          athleteName={athlete.name}
+          intakeCount={athlete.intakes.length}
+          hasAccount={athlete.hasAccount}
+        />
+        </aside>
+      </div>
     </main>
   );
 }
