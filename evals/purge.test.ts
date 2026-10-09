@@ -217,17 +217,84 @@ await addInjuries([
   },
 ]);
 
-// Testsessie met metingen: die hangen aan de atleet, niet aan de intake.
+// Een screening met alles eraan. Die hangt aan de atleet en niet aan de intake:
+// een screening is een gebeurtenis in de tijdlijn van de atleet.
+//
+// De bibliotheekrijen staan in `public` en zijn GEEN patientgegeven; ze horen de
+// purge te overleven. Dat wordt onderaan gecontroleerd, want een verwijderpad
+// dat de taxonomie meeneemt is net zo stuk als een dat de atleet laat staan.
+//
+// We maken ze hier NIET aan maar gebruiken een geseed protocol. intake_server
+// heeft met opzet alleen select op deze tabellen: de bibliotheek wordt geseed
+// (scripts/seed-screening.ts, als postgres) en nooit door de applicatieserver
+// geschreven. Een fixture die ze zelf aanmaakt zou alleen slagen met een recht
+// dat in productie niet bestaat.
+const TEST_KEY = "mobility_ll.passive_slr";
+const METRIC_KEY = "mobility_ll.passive_slr.value";
+
+const protocolRows = await query<{ id: string }>(
+  "select id from public.test_protocols where test_key = $1 and retired_at is null",
+  [TEST_KEY],
+);
+if (protocolRows.length === 0) {
+  throw new Error(`geen actief protocol voor ${TEST_KEY}; draai eerst npm run seed:screening`);
+}
+const protocolId = protocolRows[0].id;
+
 const sessionRows = await query<{ id: string }>(
-  `insert into medical.test_sessions (athlete_id, intake_id, device, protocol, occurred_on)
-   values ($1, $2, 'VALD ForceDecks', 'CMJ', current_date) returning id`,
-  [athleteId, submittedIntake],
+  `insert into medical.screening_sessions
+     (athlete_id, occurred_at, occurred_on, body_mass_kg, source_system)
+   values ($1, now(), current_date, 72.5, 'manual') returning id`,
+  [athleteId],
 );
 const sessionId = sessionRows[0].id;
+
+const itemRows = await query<{ id: string }>(
+  `insert into medical.test_items (session_id, protocol_id, side, involved_side, trial_selection)
+   values ($1, $2, 'right', 'right', 'best') returning id`,
+  [sessionId, protocolId],
+);
+const itemId = itemRows[0].id;
+
+const trialRows = await query<{ id: string }>(
+  `insert into medical.test_trials (test_item_id, trial_number, valid)
+   values ($1, 1, true) returning id`,
+  [itemId],
+);
+const trialId = trialRows[0].id;
+
 await query(
-  `insert into medical.test_measurements (test_session_id, metric, value, unit, limb)
-   values ($1, 'peak_force', 1420, 'N', 'right')`,
+  `insert into medical.trial_values (test_trial_id, metric_key, value)
+   values ($1, $2, 1420)`,
+  [trialId, METRIC_KEY],
+);
+await query(
+  `insert into medical.measurements
+     (test_item_id, metric_key, value, selection, selected_trial_id)
+   values ($1, $2, 1420, 'best', $3)`,
+  [itemId, METRIC_KEY, trialId],
+);
+await query(
+  `insert into medical.derived_results
+     (session_id, test_item_id, metric_key, value, unit, status, engine_version)
+   values ($1, $2, $3, 19.59, 'n_per_kg', 'computed', 1)`,
+  [sessionId, itemId, METRIC_KEY],
+);
+await query(
+  `insert into medical.test_imports (session_id, source_system, source_record_id, payload)
+   values ($1, 'csv', 'fixture-row-1', '{"peak_force": 1420}'::jsonb)`,
   [sessionId],
+);
+await query(
+  `insert into medical.screening_notes (athlete_id, session_id, test_item_id, metric_key, severity, body)
+   values ($1, $2, $3, $4, 'watch', 'Rechts blijft achter.')`,
+  [athleteId, sessionId, itemId, METRIC_KEY],
+);
+await query(
+  `insert into medical.screening_reports
+     (athlete_id, session_id, version, content_hash, frozen_snapshot)
+   values ($1, $2, 1, 'fixture-hash', '{"schemaVersion": 1}'::jsonb)`,
+  [athleteId, sessionId],
 );
 
 for (const intakeId of intakeIds) await syncDossier(intakeId, "nl");
@@ -251,8 +318,20 @@ const before = {
     [documentIds],
   ),
   measurements: await count(
-    "select count(*)::text as n from medical.test_measurements where test_session_id = $1",
+    "select count(*)::text as n from medical.measurements where test_item_id = $1",
+    [itemId],
+  ),
+  trialValues: await count(
+    "select count(*)::text as n from medical.trial_values where test_trial_id = $1",
+    [trialId],
+  ),
+  derived: await count(
+    "select count(*)::text as n from medical.derived_results where session_id = $1",
     [sessionId],
+  ),
+  notes: await count(
+    "select count(*)::text as n from medical.screening_notes where athlete_id = $1",
+    [athleteId],
   ),
 };
 
@@ -260,6 +339,9 @@ assert.ok(before.proposals >= 4, "de opbouw moet voorstellen hebben gemaakt");
 assert.ok(before.dossier > 0, "de opbouw moet een dossier hebben gemaakt");
 assert.equal(before.pages, 2);
 assert.equal(before.measurements, 1);
+assert.equal(before.trialValues, 1);
+assert.equal(before.derived, 1);
+assert.equal(before.notes, 1);
 
 // Het bestaande spoor vastleggen: dat moet de purge overleven.
 const auditBefore = await count(
@@ -290,8 +372,15 @@ const leftovers: Array<[string, number]> = [
   ["medical.dossier_fields", await count("select count(*)::text as n from medical.dossier_fields where intake_id = any($1)", [intakeIds])],
   // Twee wegen naar injury_events: athlete_id cascadeert, intake_id is set null.
   ["medical.injury_events", await count("select count(*)::text as n from medical.injury_events where athlete_id = $1 or intake_id = any($2)", [athleteId, intakeIds])],
-  ["medical.test_sessions", await count("select count(*)::text as n from medical.test_sessions where athlete_id = $1 or intake_id = any($2)", [athleteId, intakeIds])],
-  ["medical.test_measurements", await count("select count(*)::text as n from medical.test_measurements where test_session_id = $1", [sessionId])],
+  ["medical.screening_sessions", await count("select count(*)::text as n from medical.screening_sessions where athlete_id = $1", [athleteId])],
+  ["medical.test_items", await count("select count(*)::text as n from medical.test_items where session_id = $1", [sessionId])],
+  ["medical.test_trials", await count("select count(*)::text as n from medical.test_trials where test_item_id = $1", [itemId])],
+  ["medical.trial_values", await count("select count(*)::text as n from medical.trial_values where test_trial_id = $1", [trialId])],
+  ["medical.measurements", await count("select count(*)::text as n from medical.measurements where test_item_id = $1", [itemId])],
+  ["medical.derived_results", await count("select count(*)::text as n from medical.derived_results where session_id = $1", [sessionId])],
+  ["medical.test_imports", await count("select count(*)::text as n from medical.test_imports where session_id = $1", [sessionId])],
+  ["medical.screening_notes", await count("select count(*)::text as n from medical.screening_notes where athlete_id = $1", [athleteId])],
+  ["medical.screening_reports", await count("select count(*)::text as n from medical.screening_reports where athlete_id = $1", [athleteId])],
   ["medical.intake_reports", await count("select count(*)::text as n from medical.intake_reports where intake_id = any($1)", [intakeIds])],
   ["public.intakes", await count("select count(*)::text as n from public.intakes where athlete_id = $1", [athleteId])],
   ["public.athletes", await count("select count(*)::text as n from public.athletes where id = $1", [athleteId])],
@@ -351,8 +440,21 @@ assert.equal(
     "achterblijft mag niet betekenen dat het spoor gewist is",
 );
 
+// De bibliotheek is geen patientgegeven en hoort te blijven staan. Zonder deze
+// controle zou een cascade die per ongeluk tot in public.test_definitions loopt
+// onopgemerkt de taxonomie van de hele praktijk wissen bij het verwijderen van
+// een enkele atleet.
+for (const [table, sql, key] of [
+  ["public.test_definitions", "select count(*)::text as n from public.test_definitions where key = $1", TEST_KEY],
+  ["public.test_protocols", "select count(*)::text as n from public.test_protocols where test_key = $1", TEST_KEY],
+  ["public.metric_definitions", "select count(*)::text as n from public.metric_definitions where key = $1", METRIC_KEY],
+] as const) {
+  assert.equal(await count(sql, [key]), 1, `${table} mag niet mee verdwijnen met de atleet`);
+}
+
 console.log(
   `purge: ${before.proposals} voorstellen, ${before.dossier} dossiervelden, 3 bestanden ` +
-    `(1 niet-geregistreerd), account en spoor gecontroleerd`,
+    `(1 niet-geregistreerd), screening met proef/meting/uitkomst/notitie, account en ` +
+    `spoor gecontroleerd; bibliotheek intact`,
 );
 process.exit(0);

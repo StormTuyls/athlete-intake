@@ -79,7 +79,7 @@ async function makePlan(athleteId: string): Promise<PurgeManifest> {
     profile_id: (athlete?.profile_id as string | null) ?? null,
     intake_ids: (intakes ?? []).map((row) => row.id as string),
     document_ids: [],
-    test_session_ids: [],
+    screening_session_ids: [],
     storage_paths: [],
   };
 }
