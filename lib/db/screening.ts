@@ -191,6 +191,94 @@ export async function getHistory(
   return history;
 }
 
+export interface MetricTrend {
+  metricKey: string;
+  testLabelNl: string;
+  testLabelEn: string;
+  block: string;
+  unit: string;
+  decimals: number;
+  points: Array<{ date: string; value: number; protocolId: string; side: Side }>;
+}
+
+/**
+ * Het verloop van elke gemeten metriek over alle screenings. FR-12.
+ *
+ * De protocolversie reist per punt mee, want de grafiek breekt de lijn daar.
+ * Zonder die kolom tekent hij een doorlopende lijn dwars door een
+ * protocolwissel, en dat is precies wat spec §4 verbiedt.
+ */
+export async function getTrends(
+  athleteId: string,
+  actor: { id: string | null },
+): Promise<MetricTrend[]> {
+  const rows = await query<Record<string, unknown>>(
+    `select me.metric_key, ti.side, ti.protocol_id, s.occurred_on, me.value,
+            m.label_nl, m.label_en, m.decimals, t.block, t.sort_order, m.unit
+       from medical.measurements me
+       join medical.test_items ti on ti.id = me.test_item_id
+       join medical.screening_sessions s on s.id = ti.session_id
+       join public.metric_definitions m on m.key = me.metric_key
+       join public.test_definitions t on t.key = m.test_key
+      where s.athlete_id = $1 and me.value is not null
+      order by t.block, t.sort_order, me.metric_key, s.occurred_on`,
+    [athleteId],
+  );
+
+  await logAudit({
+    actorId: actor.id,
+    actorKind: "coach",
+    action: "read",
+    entitySchema: "medical",
+    entityTable: "measurements",
+    entityId: athleteId,
+    detail: { points: rows.length },
+  });
+
+  const byMetric = new Map<string, MetricTrend>();
+  for (const row of rows) {
+    const key = row.metric_key as string;
+    let trend = byMetric.get(key);
+    if (!trend) {
+      trend = {
+        metricKey: key,
+        testLabelNl: row.label_nl as string,
+        testLabelEn: row.label_en as string,
+        block: row.block as string,
+        unit: row.unit as string,
+        decimals: Number(row.decimals),
+        points: [],
+      };
+      byMetric.set(key, trend);
+    }
+    trend.points.push({
+      date: row.occurred_on as string,
+      value: Number(row.value),
+      protocolId: row.protocol_id as string,
+      side: row.side as Side,
+    });
+  }
+
+  return [...byMetric.values()];
+}
+
+/** Blessures als gebeurtenissen op de tijdlijn. Spec §11. */
+export async function getTimelineEvents(
+  athleteId: string,
+): Promise<Array<{ date: string; label: string }>> {
+  const rows = await query<Record<string, unknown>>(
+    `select onset_date, body_region, diagnosis
+       from medical.injury_events
+      where athlete_id = $1 and onset_date is not null
+      order by onset_date`,
+    [athleteId],
+  );
+  return rows.map((row) => ({
+    date: row.onset_date as string,
+    label: (row.diagnosis as string | null) ?? (row.body_region as string),
+  }));
+}
+
 export interface NewSession {
   athleteId: string;
   occurredOn: string;

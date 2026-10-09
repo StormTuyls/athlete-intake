@@ -178,12 +178,22 @@ export default async function AthletePage({
         <section className="mb-8">
           <div className="mb-1 flex items-baseline justify-between gap-4">
             <h2 className="text-sm font-medium">{ts("heading")}</h2>
-            <Link
-              href={`/coach/athletes/${athlete.id}/screening/new`}
-              className="text-xs text-brand-700 underline"
-            >
-              {ts("new")}
-            </Link>
+            <span className="flex gap-3">
+              {screenings.length > 0 && (
+                <Link
+                  href={`/coach/athletes/${athlete.id}/screening`}
+                  className="text-xs text-brand-700 underline"
+                >
+                  {ts("trend")}
+                </Link>
+              )}
+              <Link
+                href={`/coach/athletes/${athlete.id}/screening/new`}
+                className="text-xs text-brand-700 underline"
+              >
+                {ts("new")}
+              </Link>
+            </span>
           </div>
           {screenings.length === 0 ? (
             <p className="text-sm text-ink-faint">{ts("none")}</p>

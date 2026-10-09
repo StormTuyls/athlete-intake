@@ -544,6 +544,12 @@
       "no_body_mass": "geen lichaamsgewicht genoteerd",
       "no_baseline": "geen eerdere meting",
       "protocol_mismatch": "vorige meting onder een ander protocol"
-    }
+    },
+    "trend": "Verloop",
+    "trendIntro": "Elke gemeten metriek over de screenings heen. Een lijn breekt waar het protocol wijzigde: metingen onder een ander protocol zijn niet langs elkaar te leggen.",
+    "noTrend": "Nog geen metingen om een verloop van te tekenen.",
+    "tableView": "Als tabel",
+    "sessionsCount": "{count, plural, one {# screening} other {# screenings}}",
+    "backToAthlete": "Terug naar de atleet"
   }
 }
