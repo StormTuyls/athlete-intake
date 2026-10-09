@@ -168,8 +168,8 @@ const PROTO = "protocol-v1";
     [
       historyKey(slr.key, "left"),
       [
-        { occurredAt: "2026-04-01T09:00:00Z", protocolId: PROTO, value: 90 },
-        { occurredAt: "2026-07-01T09:00:00Z", protocolId: PROTO, value: 84 },
+        { occurredAt: "2026-04-01T09:00:00Z", recordedAt: "2026-04-01T09:00:00Z", protocolId: PROTO, value: 90 },
+        { occurredAt: "2026-07-01T09:00:00Z", recordedAt: "2026-07-01T09:00:00Z", protocolId: PROTO, value: 84 },
       ],
     ],
   ]);
@@ -217,7 +217,7 @@ const PROTO = "protocol-v1";
   const history = new Map([
     [
       historyKey(slr.key, "left"),
-      [{ occurredAt: "2026-07-01T09:00:00Z", protocolId: "protocol-v2", value: 84 }],
+      [{ occurredAt: "2026-07-01T09:00:00Z", recordedAt: "2026-07-01T09:00:00Z", protocolId: "protocol-v2", value: 84 }],
     ],
   ]);
   const rows = evaluate(
@@ -243,8 +243,8 @@ console.log(
 // percentage over twee verschillende knieen. Gemeten in de browser, niet bedacht.
 {
   const history = new Map([
-    [historyKey(slr.key, "left"), [{ occurredAt: "2026-07-01T09:00:00Z", protocolId: PROTO, value: 78 }]],
-    [historyKey(slr.key, "right"), [{ occurredAt: "2026-07-01T09:00:00Z", protocolId: PROTO, value: 84 }]],
+    [historyKey(slr.key, "left"), [{ occurredAt: "2026-07-01T09:00:00Z", recordedAt: "2026-07-01T09:00:00Z", protocolId: PROTO, value: 78 }]],
+    [historyKey(slr.key, "right"), [{ occurredAt: "2026-07-01T09:00:00Z", recordedAt: "2026-07-01T09:00:00Z", protocolId: PROTO, value: 84 }]],
   ]);
 
   const rows = evaluate(

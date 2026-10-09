@@ -163,14 +163,17 @@ export async function getHistory(
   if (metricKeys.length === 0) return history;
 
   const rows = await query<Record<string, unknown>>(
-    `select me.metric_key, ti.side, ti.protocol_id, s.occurred_at, me.value
+    // created_at komt mee als tweede sleutel: het formulier vraagt alleen een
+    // datum, dus twee screenings op dezelfde dag hebben hetzelfde occurred_at.
+    // Zonder deze kolom is geen van beide "voor" de andere.
+    `select me.metric_key, ti.side, ti.protocol_id, s.occurred_at, s.created_at, me.value
        from medical.measurements me
        join medical.test_items ti on ti.id = me.test_item_id
        join medical.screening_sessions s on s.id = ti.session_id
       where s.athlete_id = $1
         and me.metric_key = any($2)
         and me.value is not null
-      order by s.occurred_at`,
+      order by s.occurred_at, s.created_at`,
     [athleteId, metricKeys],
   );
 
@@ -182,6 +185,7 @@ export async function getHistory(
     const list = history.get(key) ?? [];
     list.push({
       occurredAt: (row.occurred_at as Date).toISOString(),
+      recordedAt: (row.created_at as Date).toISOString(),
       protocolId: row.protocol_id as string,
       value: Number(row.value),
     });
@@ -525,7 +529,7 @@ export async function listSessions(
               where ti.session_id = s.id) as measurements
        from medical.screening_sessions s
       where s.athlete_id = $1
-      order by s.occurred_at desc`,
+      order by s.occurred_at desc, s.created_at desc`,
     [athleteId],
   );
 

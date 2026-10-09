@@ -122,6 +122,8 @@ export function evaluate(
   specs: ReadonlyMap<string, MetricSpec>,
   history: History = new Map(),
   occurredAt: string = new Date().toISOString(),
+  /** Invoermoment, alleen om gelijke stand te breken. Zie baseline.ts. */
+  recordedAt: string = new Date().toISOString(),
 ): ResultRow[] {
   const rows: ResultRow[] = [];
 
@@ -138,7 +140,7 @@ export function evaluate(
     // kern is.
     if (m.value === null) continue;
     const self = compare(
-      { value: m.value, protocolId: m.protocolId, occurredAt },
+      { value: m.value, protocolId: m.protocolId, occurredAt, recordedAt },
       history.get(historyKey(m.metricKey, m.side)) ?? [],
       "previous",
       spec.direction,
