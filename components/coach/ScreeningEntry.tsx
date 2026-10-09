@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 /**
  * Invoerscherm voor een screening.
@@ -31,15 +32,11 @@ export interface EntryTest {
   note: string | null;
 }
 
-const BLOCK_LABELS: Record<string, string> = {
-  anthropometry: "Anthropometry",
-  mobility_ll: "Mobility, lower limb",
-  mobility_ul: "Mobility, upper limb",
-  core: "Core control",
-  movement_ll: "Movement quality",
-  forcedecks: "Isometric push",
-  strength_ul: "Upper-limb strength",
-};
+/** Alleen de volgorde; de namen komen uit de berichtencatalogus. */
+const BLOCK_ORDER = [
+  "anthropometry", "mobility_ll", "mobility_ul", "core",
+  "movement_ll", "forcedecks", "strength_ul",
+];
 
 const UNIT_LABELS: Record<string, string> = {
   deg: "°",
@@ -67,6 +64,7 @@ export function ScreeningEntry({
   tests: EntryTest[];
 }) {
   const router = useRouter();
+  const t = useTranslations("screening");
   const [values, setValues] = useState<Values>({});
   const [occurredOn, setOccurredOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [bodyMass, setBodyMass] = useState("");
@@ -85,9 +83,9 @@ export function ScreeningEntry({
     // sorteert op bloknaam, en alfabetisch komt 'forcedecks' dan tussen 'core'
     // en 'mobility_ll' te staan. Een screening loopt van meten naar bewegen naar
     // kracht; dat is de volgorde waarin een behandelaar hem ook afwerkt.
-    const order = Object.keys(BLOCK_LABELS);
     return [...grouped].sort(
-      (a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99),
+      (a, b) =>
+        (BLOCK_ORDER.indexOf(a[0]) + 1 || 99) - (BLOCK_ORDER.indexOf(b[0]) + 1 || 99),
     );
   }, [tests]);
 
@@ -124,7 +122,7 @@ export function ScreeningEntry({
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not save this screening.");
+      setError(body?.error ?? t("saveFailed"));
       setSaving(false);
       return;
     }
@@ -137,7 +135,7 @@ export function ScreeningEntry({
     <div className="space-y-8">
       <section className="grid gap-3 sm:grid-cols-3">
         <label className="text-sm">
-          <span className="mb-1 block text-xs text-ink-muted">Date</span>
+          <span className="mb-1 block text-xs text-ink-muted">{t("date")}</span>
           <input
             type="date"
             value={occurredOn}
@@ -148,7 +146,7 @@ export function ScreeningEntry({
         <label className="text-sm">
           {/* Spec §8: relatieve kracht gebruikt de massa van DIE dag. Hij wordt
               op de sessie gekopieerd, niet uit het profiel gelezen. */}
-          <span className="mb-1 block text-xs text-ink-muted">Body mass today (kg)</span>
+          <span className="mb-1 block text-xs text-ink-muted">{t("bodyMass")}</span>
           <input
             type="number"
             inputMode="decimal"
@@ -159,12 +157,12 @@ export function ScreeningEntry({
           />
         </label>
         <label className="text-sm sm:col-span-1">
-          <span className="mb-1 block text-xs text-ink-muted">Context</span>
+          <span className="mb-1 block text-xs text-ink-muted">{t("context")}</span>
           <input
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="week 3 of build-up"
+            placeholder={t("contextHint")}
             className="w-full rounded border border-hairline bg-surface px-2 py-1.5 text-base"
           />
         </label>
@@ -172,7 +170,7 @@ export function ScreeningEntry({
 
       {blocks.map(([block, items]) => (
         <section key={block}>
-          <h2 className="mb-2 text-sm font-medium">{BLOCK_LABELS[block] ?? block}</h2>
+          <h2 className="mb-2 text-sm font-medium">{t(`blocks.${block}` as "blocks.core")}</h2>
           <ul className="divide-y divide-hairline border-t border-hairline">
             {items.map((test) => (
               <li
@@ -186,8 +184,8 @@ export function ScreeningEntry({
                     {/* Eerlijk zijn over wat dit getal straks oplevert. Een
                         tester die weet dat een test niet scoort, weet ook
                         waarom er later geen band staat. */}
-                    {!test.classifies && " · no band yet"}
-                    {!test.protocolConfirmed && " · protocol not fixed"}
+                    {!test.classifies && ` · ${t("noBandYet")}`}
+                    {!test.protocolConfirmed && ` · ${t("protocolNotFixed")}`}
                   </span>
                 </div>
 
@@ -248,9 +246,7 @@ export function ScreeningEntry({
 
       <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-hairline bg-canvas py-3">
         <span className="text-xs text-ink-muted">
-          {filled === 0
-            ? "Nothing entered yet"
-            : `${filled} ${filled === 1 ? "measurement" : "measurements"}`}
+          {filled === 0 ? t("nothingEntered") : t("measurements", { count: filled })}
         </span>
         <button
           type="button"
@@ -258,7 +254,7 @@ export function ScreeningEntry({
           disabled={saving || filled === 0}
           className="rounded bg-brand-700 px-4 py-2 text-sm text-white disabled:opacity-40"
         >
-          {saving ? "Saving..." : "Save screening"}
+          {saving ? t("saving") : t("save")}
         </button>
       </div>
     </div>

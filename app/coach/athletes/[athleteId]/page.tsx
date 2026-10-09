@@ -111,6 +111,8 @@ export default async function AthletePage({
       archived: member.archivedAt !== null,
     }));
 
+  const ts = await getTranslations("screening");
+
   const retention =
     athlete.retentionMode === "until_date"
       ? `until ${athlete.retentionUntil ?? "unknown"}`
@@ -175,16 +177,16 @@ export default async function AthletePage({
 
         <section className="mb-8">
           <div className="mb-1 flex items-baseline justify-between gap-4">
-            <h2 className="text-sm font-medium">Screenings</h2>
+            <h2 className="text-sm font-medium">{ts("heading")}</h2>
             <Link
               href={`/coach/athletes/${athlete.id}/screening/new`}
               className="text-xs text-brand-700 underline"
             >
-              New screening
+              {ts("new")}
             </Link>
           </div>
           {screenings.length === 0 ? (
-            <p className="text-sm text-ink-faint">No screenings yet.</p>
+            <p className="text-sm text-ink-faint">{ts("none")}</p>
           ) : (
             <ul className="divide-y divide-hairline border-t border-hairline">
               {screenings.map((screening) => (
@@ -195,8 +197,7 @@ export default async function AthletePage({
                   >
                     <span className="text-sm">{screening.occurredOn}</span>
                     <span className="text-xs text-ink-muted">
-                      {screening.measurements}{" "}
-                      {screening.measurements === 1 ? "measurement" : "measurements"}
+                      {ts("measurements", { count: screening.measurements })}
                     </span>
                   </Link>
                 </li>

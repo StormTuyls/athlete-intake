@@ -182,7 +182,7 @@ try {
   // joinen. Mist er een van deze velden, dan rendert het scherm leeg zonder
   // foutmelding.
   for (const row of two.results) {
-    assert.ok(row.testLabel, "elke rij heeft een testnaam");
+    assert.ok(row.testLabelNl && row.testLabelEn, "elke rij heeft een naam in beide talen");
     assert.ok(row.block, "elke rij hoort bij een blok");
     assert.ok(row.unit, "elke rij heeft een eenheid");
     assert.equal(typeof row.decimals, "number");
