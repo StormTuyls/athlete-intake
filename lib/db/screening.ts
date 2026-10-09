@@ -427,6 +427,7 @@ export interface SessionView {
     ruleNote: string | null;
     ruleSource: string | null;
     ruleEvidence: string | null;
+    ruleVersion: number | null;
   }>;
 }
 
@@ -435,6 +436,11 @@ export async function getSession(
   actor: { id: string | null },
 ): Promise<SessionView | null> {
   const head = await queryOne<Record<string, unknown>>(
+    // Geen join naar public.profiles voor de naam van de tester: intake_server
+    // heeft daar met opzet geen select op, en dat recht verbreden voor een
+    // naam is de verkeerde ruil. De juiste oplossing is de naam bij het
+    // opslaan op de sessie zetten, zoals de lichaamsmassa, zodat een rapport
+    // blijft zeggen wie er mat ook als die persoon later vertrekt. Zie README.
     `select s.id, s.athlete_id, s.occurred_on, s.body_mass_kg, s.notes, a.full_name
        from medical.screening_sessions s
        join public.athletes a on a.id = s.athlete_id
@@ -452,7 +458,8 @@ export async function getSession(
             m.label_nl as metric_label_nl, m.label_en as metric_label_en, m.decimals,
             t.label_nl as test_label_nl, t.label_en as test_label_en,
             t.block, t.sort_order,
-            p.protocol_confirmed, r.source_note, r.source_citation, r.evidence
+            p.protocol_confirmed, r.source_note, r.source_citation, r.evidence,
+            r.version as rule_version
        from medical.derived_results d
        left join medical.test_items ti on ti.id = d.test_item_id
        join public.metric_definitions m on m.key = d.metric_key
@@ -513,8 +520,76 @@ export async function getSession(
       ruleNote: (row.source_note as string | null) ?? null,
       ruleSource: (row.source_citation as string | null) ?? null,
       ruleEvidence: (row.evidence as string | null) ?? null,
+      ruleVersion: row.rule_version === null ? null : Number(row.rule_version),
     })),
   };
+}
+
+/** Een bevroren screeningrapport zoals het in de databank staat. */
+export interface StoredScreeningReport {
+  version: number;
+  snapshot: unknown;
+  generatedAt: string;
+}
+
+export async function readScreeningReport(
+  sessionId: string,
+  version: number,
+): Promise<StoredScreeningReport | null> {
+  const row = await queryOne<Record<string, unknown>>(
+    `select version, frozen_snapshot, generated_at from medical.screening_reports
+      where session_id = $1 and version = $2`,
+    [sessionId, version],
+  );
+  return row
+    ? {
+        version: Number(row.version),
+        snapshot: row.frozen_snapshot,
+        generatedAt: (row.generated_at as Date).toISOString(),
+      }
+    : null;
+}
+
+export async function readLatestScreeningReport(
+  sessionId: string,
+): Promise<StoredScreeningReport | null> {
+  const row = await queryOne<Record<string, unknown>>(
+    `select version, frozen_snapshot, generated_at from medical.screening_reports
+      where session_id = $1 order by version desc limit 1`,
+    [sessionId],
+  );
+  return row
+    ? {
+        version: Number(row.version),
+        snapshot: row.frozen_snapshot,
+        generatedAt: (row.generated_at as Date).toISOString(),
+      }
+    : null;
+}
+
+/**
+ * Een versie wegschrijven. Null bij een botsing op het versienummer, zodat de
+ * aanroeper kan beslissen of dat erg is; zie lib/report/screeningFreeze.ts.
+ */
+export async function insertScreeningReport(input: {
+  sessionId: string;
+  athleteId: string;
+  contentHash: string;
+  snapshot: unknown;
+  generatedBy: string | null;
+}): Promise<{ version: number } | null> {
+  const rows = await query<{ version: number }>(
+    `insert into medical.screening_reports
+       (athlete_id, session_id, version, content_hash, frozen_snapshot, generated_by)
+     select $1, $2,
+            coalesce((select max(version) from medical.screening_reports where session_id = $2), 0) + 1,
+            $3, $4::jsonb, $5
+     on conflict (session_id, version) do nothing
+     returning version`,
+    [input.athleteId, input.sessionId, input.contentHash,
+     JSON.stringify(input.snapshot), input.generatedBy],
+  );
+  return rows[0] ? { version: Number(rows[0].version) } : null;
 }
 
 /** Screenings van een atleet, nieuwste eerst. Voor de atleetpagina. */

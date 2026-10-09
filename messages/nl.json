@@ -550,7 +550,17 @@
     "noTrend": "Nog geen metingen om een verloop van te tekenen.",
     "tableView": "Als tabel",
     "sessionsCount": "{count, plural, one {# screening} other {# screenings}}",
-    "backToAthlete": "Terug naar de atleet"
+    "backToAthlete": "Terug naar de atleet",
+    "report": "Rapport",
+    "printReport": "Rapport",
+    "reportVersion": "Versie {n}, vastgelegd {date}",
+    "frozenNote": "Dit rapport komt uit een vastgelegde versie. De drempels die hieronder gebruikt zijn, zijn die van het moment van vastleggen; latere bijstellingen veranderen deze afdruk niet.",
+    "tester": "Tester",
+    "measured": "Gemeten",
+    "rules": "Gebruikte drempels",
+    "ruleVersion": "regel v{n}",
+    "exportJson": "JSON",
+    "exportCsv": "CSV"
   },
   "library": {
     "title": "Referentiewaarden",
