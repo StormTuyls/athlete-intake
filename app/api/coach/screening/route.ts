@@ -83,7 +83,16 @@ export async function POST(request: Request) {
       entries.map((e) => e.metricKey),
     );
 
-    const results = evaluate(entries, toSpecs(library), history);
+    // occurredAt is de gemeten datum, recordedAt het invoermoment. Dat tweede
+    // breekt gelijke stand als er twee screenings op dezelfde dag staan.
+    const recordedAt = new Date().toISOString();
+    const results = evaluate(
+      entries,
+      toSpecs(library),
+      history,
+      `${input.occurredOn}T00:00:00.000Z`,
+      recordedAt,
+    );
 
     const sessionId = await createSession(
       {

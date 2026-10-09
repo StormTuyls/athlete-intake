@@ -15,12 +15,12 @@ const v1 = "protocol-v1";
 const v2 = "protocol-v2";
 
 const history: HistoryPoint[] = [
-  { occurredAt: "2026-01-10T09:00:00Z", protocolId: v1, value: 300 },
-  { occurredAt: "2026-04-12T09:00:00Z", protocolId: v1, value: 340 },
-  { occurredAt: "2026-07-03T09:00:00Z", protocolId: v1, value: 320 },
+  { occurredAt: "2026-01-10T09:00:00Z", recordedAt: "2026-01-10T09:00:00Z", protocolId: v1, value: 300 },
+  { occurredAt: "2026-04-12T09:00:00Z", recordedAt: "2026-04-12T09:00:00Z", protocolId: v1, value: 340 },
+  { occurredAt: "2026-07-03T09:00:00Z", recordedAt: "2026-07-03T09:00:00Z", protocolId: v1, value: 320 },
 ];
 
-const now = { value: 330, protocolId: v1, occurredAt: "2026-10-09T09:00:00Z" };
+const now = { value: 330, protocolId: v1, occurredAt: "2026-10-09T09:00:00Z", recordedAt: "2026-10-09T09:00:00Z" };
 
 // ── 1. Waartegen vergeleken wordt, staat erbij ───────────────────────────────
 //
@@ -52,11 +52,11 @@ const now = { value: 330, protocolId: v1, occurredAt: "2026-10-09T09:00:00Z" };
 // 'beste van drie', op een derde plek.
 {
   const times: HistoryPoint[] = [
-    { occurredAt: "2026-01-10T09:00:00Z", protocolId: v1, value: 2.6 },
-    { occurredAt: "2026-04-12T09:00:00Z", protocolId: v1, value: 2.1 },
+    { occurredAt: "2026-01-10T09:00:00Z", recordedAt: "2026-01-10T09:00:00Z", protocolId: v1, value: 2.6 },
+    { occurredAt: "2026-04-12T09:00:00Z", recordedAt: "2026-04-12T09:00:00Z", protocolId: v1, value: 2.1 },
   ];
   const best = compare(
-    { value: 2.3, protocolId: v1, occurredAt: "2026-10-09T09:00:00Z" },
+    { value: 2.3, protocolId: v1, occurredAt: "2026-10-09T09:00:00Z", recordedAt: "2026-10-09T09:00:00Z" },
     times,
     "best",
     "lower_better",
@@ -80,7 +80,7 @@ const now = { value: 330, protocolId: v1, occurredAt: "2026-10-09T09:00:00Z" };
 // De huidige meting staat onder v2, alle historie onder v1. Er is dus GEEN
 // vergelijkbare voorganger, hoeveel metingen er ook staan.
 {
-  const underV2 = { value: 330, protocolId: v2, occurredAt: "2026-10-09T09:00:00Z" };
+  const underV2 = { value: 330, protocolId: v2, occurredAt: "2026-10-09T09:00:00Z", recordedAt: "2026-10-09T09:00:00Z" };
   const r = compare(underV2, history, "previous", "higher_better", "n");
 
   assert.equal(r.reference.ok, false);
@@ -108,7 +108,7 @@ const now = { value: 330, protocolId: v1, occurredAt: "2026-10-09T09:00:00Z" };
 {
   const withFuture: HistoryPoint[] = [
     ...history,
-    { occurredAt: "2027-01-01T09:00:00Z", protocolId: v1, value: 999 },
+    { occurredAt: "2027-01-01T09:00:00Z", recordedAt: "2027-01-01T09:00:00Z", protocolId: v1, value: 999 },
   ];
   const r = compare(now, withFuture, "best", "higher_better", "n");
   assert.ok(r.reference.ok);
@@ -117,3 +117,51 @@ const now = { value: 330, protocolId: v1, occurredAt: "2026-10-09T09:00:00Z" };
 }
 
 console.log("screening-baseline: previous/first/best, protocolwissel, geen toekomst");
+
+// ── 4. Twee screenings op dezelfde dag ──────────────────────────────────────
+//
+// Het formulier vraagt een datum en geen tijdstip, dus een ochtend- en een
+// avondmeting krijgen hetzelfde occurredAt. Zonder tweede sleutel is geen van
+// beide "voor" de andere en krijgt de tweede geen baseline, terwijl de eerste
+// er gewoon staat. Dat is stil: er staat dan "nog geen baseline" bij een atleet
+// met vijf eerdere metingen.
+{
+  const sameDay: HistoryPoint[] = [
+    { occurredAt: "2026-10-09T00:00:00Z", recordedAt: "2026-10-09T09:15:00Z", protocolId: v1, value: 70 },
+  ];
+
+  const evening = compare(
+    {
+      value: 76,
+      protocolId: v1,
+      occurredAt: "2026-10-09T00:00:00Z",
+      recordedAt: "2026-10-09T18:40:00Z",
+    },
+    sameDay,
+    "previous",
+    "higher_better",
+    "n",
+  );
+
+  assert.ok(evening.reference.ok, "de ochtendmeting telt als baseline");
+  assert.equal(evening.reference.value, 70);
+  assert.ok(evening.change.ok && evening.change.value > 0, "76 na 70 is vooruit");
+
+  // En andersom niet: de ochtendmeting mag de avondmeting niet als baseline
+  // nemen. Anders verwijzen ze naar elkaar.
+  const morning = compare(
+    {
+      value: 70,
+      protocolId: v1,
+      occurredAt: "2026-10-09T00:00:00Z",
+      recordedAt: "2026-10-09T09:15:00Z",
+    },
+    [
+      { occurredAt: "2026-10-09T00:00:00Z", recordedAt: "2026-10-09T18:40:00Z", protocolId: v1, value: 76 },
+    ],
+    "previous",
+    "higher_better",
+    "n",
+  );
+  assert.equal(morning.reference.ok, false, "wat later ingevoerd is, is geen baseline");
+}
