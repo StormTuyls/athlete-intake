@@ -99,6 +99,7 @@ export async function POST(request: Request) {
         athleteId: input.athleteId,
         occurredOn: input.occurredOn,
         testerProfileId: coach.id,
+        testerName: coach.fullName,
         bodyMassKg: input.bodyMassKg,
         notes: input.notes,
         entries,

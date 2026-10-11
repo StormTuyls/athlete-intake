@@ -117,6 +117,7 @@ export default async function ScreeningSessionPage({
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
           {session.bodyMassKg ? `${session.bodyMassKg} kg` : t("bodyMassMissing")}
+          {session.testerName ? ` · ${t("tester")}: ${session.testerName}` : ""}
           {session.notes ? ` · ${session.notes}` : ""}
         </p>
       </header>

@@ -104,6 +104,7 @@ export default async function ScreeningPrintPage({
           <p className="mt-1 text-sm text-ink-muted">
             {t("title")} {s.occurredOn}
             {s.bodyMassKg ? ` · ${s.bodyMassKg} kg` : ""}
+            {s.testerName ? ` · ${t("tester")}: ${s.testerName}` : ""}
           </p>
           <p className="mt-0.5 text-xs text-ink-faint">
             {t("reportVersion", { n: report.version, date: s.generatedAt.slice(0, 10) })}

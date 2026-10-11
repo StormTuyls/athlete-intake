@@ -90,6 +90,7 @@ try {
       athleteId,
       occurredOn: "2026-07-01",
       testerProfileId: null,
+      testerName: "Lotte Vermeulen",
       bodyMassKg: 61,
       notes: null,
       entries: first,
@@ -137,6 +138,7 @@ try {
       athleteId,
       occurredOn: "2026-10-09",
       testerProfileId: null,
+      testerName: "Lotte Vermeulen",
       bodyMassKg: 62.4,
       notes: "derde week opbouw",
       entries: second,
@@ -217,6 +219,10 @@ try {
   assert.equal(frozenLeft?.value, 70);
   assert.equal(frozenLeft?.bandStatus, "poor");
   assert.equal(frozenLeft?.ruleVersion, 1, "de regelversie reist mee");
+
+  // De tester staat in het rapport, als naam en niet als verwijzing. Spec §4.
+  // Gekopieerd bij het meten, dus een latere naamswijziging raakt dit niet.
+  assert.equal(frozenV1.snapshot.testerName, "Lotte Vermeulen");
 
   // Nu stelt de praktijk de drempel bij: 70 valt voortaan in 'good'.
   await addVersion(
