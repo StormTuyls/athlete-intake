@@ -182,7 +182,16 @@ export async function addVersion(
     );
 
     const ruleKey = current[0]?.rule_key ?? `practice.${input.metricKey}`;
-    const next = current[0] ? current[0].version + 1 : 1;
+
+    // Het volgende nummer komt uit de HOOGSTE versie die ooit bestond, niet uit
+    // de actieve. Die twee lopen uiteen zodra een regel uitgefaseerd is zonder
+    // opvolger: dan is de actieve v1 terwijl v2 al bestaat, en v1 + 1 botst op
+    // de unieke sleutel (rule_key, version).
+    const highest = await run<{ version: number }>(
+      "select coalesce(max(version), 0) as version from public.reference_rules where rule_key = $1",
+      [ruleKey],
+    );
+    const next = Number(highest[0]?.version ?? 0) + 1;
 
     if (current[0]) {
       await run("update public.reference_rules set retired_at = now() where id = $1", [

@@ -53,11 +53,12 @@ function ControlRow({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-function statusLabel(status: string): string {
-  if (status === "approved") return "approved";
-  if (status === "in_review") return "in review";
-  if (status === "submitted") return "waiting for review";
-  return "in progress";
+/** De sleutel voor deze status; de pagina vertaalt hem. */
+function statusKey(status: string): "statusApproved" | "statusInReview" | "statusSubmitted" | "statusDraft" {
+  if (status === "approved") return "statusApproved";
+  if (status === "in_review") return "statusInReview";
+  if (status === "submitted") return "statusSubmitted";
+  return "statusDraft";
 }
 
 /**
@@ -112,27 +113,27 @@ export default async function AthletePage({
     }));
 
   const ts = await getTranslations("screening");
+  const tc = await getTranslations("coach");
+  const titles = await getTranslations("titles");
 
   const retention =
     athlete.retentionMode === "until_date"
-      ? `until ${athlete.retentionUntil ?? "unknown"}`
-      : "kept indefinitely";
+      ? tc("keptUntil", { date: athlete.retentionUntil ?? tc("unknown") })
+      : tc("keptIndefinitely");
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10 lg:max-w-5xl">
       <Link href="/coach" className="text-xs text-ink-muted underline">
-        Athletes
+        {titles("athletes")}
       </Link>
 
       <header className="mt-3 mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">
-          {athlete.name ?? "Name unknown"}
+          {athlete.name ?? tc("nameUnknown")}
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
-          {athlete.intakes.length === 1
-            ? "1 intake"
-            : `${athlete.intakes.length} intakes`}
-          {athlete.hasAccount ? " · has an account" : " · no account, file only"}
+          {tc("intakeCount", { count: athlete.intakes.length })}
+          {athlete.hasAccount ? tc("hasAccount") : tc("noAccount")}
         </p>
       </header>
 
@@ -146,32 +147,30 @@ export default async function AthletePage({
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-10">
         <div className="min-w-0">
         <section className="mb-8">
-          <h2 className="mb-1 text-sm font-medium">Details</h2>
+          <h2 className="mb-1 text-sm font-medium">{tc("details")}</h2>
           <dl className="divide-y divide-hairline border-t border-hairline">
-            <Row label="Email" value={athlete.email} />
-            <Row label="Phone" value={athlete.phone} />
-            <Row label="Address" value={athlete.address} />
+            <Row label={tc("email")} value={athlete.email} />
+            <Row label={tc("phone")} value={athlete.phone} />
+            <Row label={tc("address")} value={athlete.address} />
             {/* Twee rijen die op elkaar lijken en dat niet zijn. "Assigned to" is
                 iemand met een login hier; de atleet kiest hem op zijn profiel en
                 de praktijk kan het hier corrigeren. "Own coach" is zijn eigen
                 trainer, een naam uit het dossier. */}
-            <ControlRow label="Assigned to">
+            <ControlRow label={tc("assignedTo")}>
               <AssignPractitioner
                 athleteId={athlete.id}
                 current={athlete.practitionerId}
                 options={assignable}
               />
             </ControlRow>
-            <Row label="Sport" value={athlete.sport} />
-            <Row label="Discipline" value={athlete.discipline} />
-            <Row label="Club" value={athlete.club} />
-            <Row label="Federation" value={athlete.federation} />
-            <Row label="Own coach" value={athlete.coachName} />
+            <Row label={tc("sport")} value={athlete.sport} />
+            <Row label={tc("discipline")} value={athlete.discipline} />
+            <Row label={tc("club")} value={athlete.club} />
+            <Row label={tc("federation")} value={athlete.federation} />
+            <Row label={tc("ownCoach")} value={athlete.coachName} />
           </dl>
           <p className="mt-2 text-xs text-ink-faint">
-            Administrative data. Body measurements, medication and the full injury
-            history stay inside the intake file; each intake below is labelled with
-            the complaint it is about.
+            {tc("adminNote")}
           </p>
         </section>
 
@@ -217,9 +216,9 @@ export default async function AthletePage({
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-1 text-sm font-medium">Intakes</h2>
+          <h2 className="mb-1 text-sm font-medium">{tc("intakes")}</h2>
           {athlete.intakes.length === 0 ? (
-            <p className="text-sm text-ink-faint">No intakes yet.</p>
+            <p className="text-sm text-ink-faint">{tc("noIntakes")}</p>
           ) : (
             <ul className="divide-y divide-hairline border-t border-hairline">
               {athlete.intakes.map((intake) => (
@@ -233,13 +232,13 @@ export default async function AthletePage({
                           dossier dit is, en bij twee intakes staat er twee keer
                           hetzelfde; de klacht onderscheidt ze wel. */}
                       <span className="block text-sm font-medium">
-                        {intake.label ?? "Intake"}
+                        {intake.label ?? tc("intakeFallback")}
                       </span>
                       <span className="mt-0.5 flex flex-wrap items-center gap-2">
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] whitespace-nowrap ${statusStyle(intake.status)}`}
                         >
-                          {statusLabel(intake.status)}
+                          {tc(statusKey(intake.status))}
                         </span>
                         {/* nowrap, anders breekt een datum op een smal scherm
                             midden in de maand af: "2026-" / "08-08". */}
@@ -249,9 +248,14 @@ export default async function AthletePage({
                       </span>
                     </span>
                     <span className="shrink-0 text-xs text-ink-muted">
-                      {intake.requiredFilled}/{intake.requiredTotal} required
+                      {tc("required", {
+                        filled: intake.requiredFilled,
+                        total: intake.requiredTotal,
+                      })}
                       {intake.conflicts > 0 && (
-                        <span className="ml-2 text-warn">{intake.conflicts} to check</span>
+                        <span className="ml-2 text-warn">
+                          {tc("toCheck", { count: intake.conflicts })}
+                        </span>
                       )}
                     </span>
                   </Link>
@@ -265,15 +269,15 @@ export default async function AthletePage({
 
         <aside className="min-w-0 lg:sticky lg:top-10">
         <section>
-          <h2 className="mb-1 text-sm font-medium">Data and consent</h2>
+          <h2 className="mb-1 text-sm font-medium">{tc("dataAndConsent")}</h2>
           <dl className="divide-y divide-hairline border-t border-hairline">
-            <Row label="Retention" value={retention} />
-            <Row label="Retention basis" value={athlete.retentionBasis} />
+            <Row label={tc("retention")} value={retention} />
+            <Row label={tc("retentionBasis")} value={athlete.retentionBasis} />
             <Row
-              label="Consent on file"
+              label={tc("consentOnFile")}
               value={
                 athlete.accountConsentAt
-                  ? `given ${athlete.accountConsentAt.slice(0, 10)}`
+                  ? tc("consentGiven", { date: athlete.accountConsentAt.slice(0, 10) })
                   : null
               }
             />

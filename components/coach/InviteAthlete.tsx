@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -17,6 +19,7 @@ import { useRouter } from "next/navigation";
  * precies het geval waarin een scherm behulpzaam hoort te zijn.
  */
 export function InviteAthlete({ onDone }: { onDone: () => void }) {
+  const t = useTranslations("coach");
   const router = useRouter();
 
   const [fullName, setFullName] = useState("");
@@ -66,14 +69,12 @@ export function InviteAthlete({ onDone }: { onDone: () => void }) {
         className="rounded-card bg-surface p-4 ring-1 ring-hairline ring-inset"
       >
         <p className="mb-3 text-xs text-ink-faint">
-          Creates an account and emails them an invitation. They give consent
-          themselves the first time they sign in, and nothing is recorded before
-          that.
+          {t("inviteIntro")}
         </p>
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <label className="min-w-0 flex-1">
-            <span className="text-xs text-ink-muted">Full name</span>
+            <span className="text-xs text-ink-muted">{t("fullName")}</span>
             <input
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
@@ -82,7 +83,7 @@ export function InviteAthlete({ onDone }: { onDone: () => void }) {
             />
           </label>
           <label className="min-w-0 flex-1">
-            <span className="text-xs text-ink-muted">Email</span>
+            <span className="text-xs text-ink-muted">{t("email")}</span>
             <input
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -99,7 +100,7 @@ export function InviteAthlete({ onDone }: { onDone: () => void }) {
             disabled={!canInvite}
             className="rounded-md bg-brand-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
           >
-            {busy ? "Working…" : "Send invitation"}
+            {busy ? t("working") : t("sendInvitation")}
           </button>
           <button
             type="button"
@@ -117,15 +118,15 @@ export function InviteAthlete({ onDone }: { onDone: () => void }) {
         <div className="mt-3 rounded-card border border-ok/30 bg-ok/5 p-4">
           <p className="text-sm font-medium">
             {sent.mailed
-              ? `Invitation emailed to ${sent.name}.`
-              : `Account created for ${sent.name}, but the email could not be sent.`}
+              ? t("invitationSent", { name: sent.name })
+              : t("invitationNotMailed", { name: sent.name })}
           </p>
           {sent.link && (
             <>
               <p className="mt-1 text-xs text-ink-muted">
                 {sent.mailed
-                  ? "If it does not arrive, this link gets them in. It is shown only here."
-                  : "This link is how they get in. It is shown only here."}
+                  ? t("linkIfNotArrived")
+                  : t("linkShownOnce")}
               </p>
               <code className="mt-1.5 block rounded bg-canvas px-2 py-1.5 font-mono text-xs break-all">
                 {sent.link}

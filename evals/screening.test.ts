@@ -259,6 +259,26 @@ try {
       "band aan voor SLR en uit voor Thomas, rapport bevroren tegen een bijgestelde drempel",
   );
 } finally {
+  // De referentieregel die deze test aanmaakte weer weghalen, en de originele
+  // terugzetten. Zonder dit slaagt de test precies een keer: de tweede run
+  // leest een bibliotheek waarin 70 graden 'good' is in plaats van 'fair', en
+  // faalt op een assertie die niets met de wijziging te maken heeft.
+  //
+  // Een test die zijn eigen bibliotheek verbouwt en laat staan is geen test
+  // maar een migratie.
+  // Uitfaseren en niet verwijderen: intake_server heeft met opzet geen delete
+  // op deze tabel, en een regel waar beoordeelde metingen aan hangen hoort ook
+  // niet te verdwijnen. De partiele unieke index staat precies een actieve
+  // versie toe, dus eerst de nieuwe uitfaseren, dan de originele terugzetten.
+  await query(
+    `update public.reference_rules set retired_at = now()
+      where metric_key = 'mobility_ll.passive_slr.value' and version > 1`,
+  );
+  await query(
+    `update public.reference_rules set retired_at = null
+      where metric_key = 'mobility_ll.passive_slr.value' and version = 1`,
+  );
+
   // De cascade ruimt sessies, items, proeven, metingen en uitkomsten op.
   // Via de service-rol, want delete op public.athletes is bij authenticated
   // weggehaald en intake_server mag er sowieso niet schrijven.
