@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { checkCoach, isUuid } from "@/lib/review/access";
 import { getSession } from "@/lib/db/screening";
+import { listNotes } from "@/lib/db/screeningNotes";
+import { ScreeningNotes } from "@/components/coach/ScreeningNotes";
 
 export async function generateMetadata() {
   const t = await getTranslations("titles");
@@ -53,6 +55,7 @@ export default async function ScreeningSessionPage({
 
   const session = await getSession(sessionId, { id: access.coach.id });
   if (session === null) notFound();
+  const notes = await listNotes(sessionId);
 
   const t = await getTranslations("screening");
   // De testnamen staan in de databank in beide talen; de pagina kiest, zodat de
@@ -212,6 +215,19 @@ export default async function ScreeningSessionPage({
           </ul>
         </section>
       ))}
+
+      {/* Wat opvolging vraagt bepaalt de behandelaar. Spec §14. */}
+      <ScreeningNotes
+        sessionId={session.id}
+        notes={notes}
+        metrics={[
+          ...new Map(
+            session.results
+              .filter((r) => r.kind === "absolute")
+              .map((r) => [r.metricKey, { key: r.metricKey, label: name(r) }]),
+          ).values(),
+        ]}
+      />
 
       {unclassified > 0 && (
         <p className="mb-6 border-t border-hairline pt-3 text-xs text-ink-faint">

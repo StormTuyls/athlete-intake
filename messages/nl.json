@@ -603,5 +603,28 @@
     "turnOff": "Indelen uitzetten",
     "boundaryHint": "Grenzen zijn halfopen: vanaf telt mee, tot niet. Laat 'vanaf' leeg voor de onderste band en 'tot' leeg voor de bovenste.",
     "noRules": "Nog geen referentieregels."
+  },
+  "notes": {
+    "heading": "Opmerkingen en vlaggen",
+    "intro": "Wat opvolging vraagt bepaalt de behandelaar, niet een drempel. Een vlag blijft open tot iemand hem sluit.",
+    "none": "Nog geen opmerkingen.",
+    "add": "Opmerking toevoegen",
+    "adding": "Opslaan...",
+    "body": "Opmerking",
+    "aboutMetric": "Gaat over",
+    "wholeSession": "de hele screening",
+    "severity": "Ernst",
+    "info": "ter info",
+    "watch": "opvolgen",
+    "action": "actie nodig",
+    "action_field": "Afgesproken actie",
+    "actionHint": "Bijvoorbeeld: hertesten over 6 weken.",
+    "resolve": "Sluiten",
+    "resolved": "gesloten",
+    "open": "open",
+    "openCount": "{count, plural, one {# open vlag} other {# open vlaggen}}",
+    "by": "door",
+    "saveFailed": "Deze opmerking kon niet opgeslagen worden.",
+    "cancel": "Annuleren"
   }
 }
