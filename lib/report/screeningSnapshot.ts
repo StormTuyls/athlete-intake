@@ -55,6 +55,7 @@ export interface ScreeningSnapshot {
   occurredOn: string;
   bodyMassKg: number | null;
   notes: string | null;
+  testerName: string | null;
   results: SnapshotResult[];
   /** Hoeveel metingen geen band kregen, en dus niet beoordeeld zijn. */
   unclassified: number;

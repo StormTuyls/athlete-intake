@@ -287,6 +287,8 @@ export interface NewSession {
   athleteId: string;
   occurredOn: string;
   testerProfileId: string | null;
+  /** De naam zoals die bij het meten gold. Gekopieerd, niet gejoind. */
+  testerName: string | null;
   bodyMassKg: number | null;
   notes: string | null;
   entries: Array<{
@@ -320,11 +322,11 @@ export async function createSession(
       // dus twee kolommen. Spec §12.1 vraagt de lokale testtijd te bewaren; het
       // formulier geeft alleen een datum, dus dat is wat er staat.
       `insert into medical.screening_sessions
-         (athlete_id, occurred_at, occurred_on, tester_profile_id, body_mass_kg,
-          notes, created_by, source_system)
-       values ($1, $2::date, $2, $3, $4, $5, $6, 'manual')
+         (athlete_id, occurred_at, occurred_on, tester_profile_id, tester_name,
+          body_mass_kg, notes, created_by, source_system)
+       values ($1, $2::date, $2, $3, $4, $5, $6, $7, 'manual')
        returning id`,
-      [input.athleteId, input.occurredOn, input.testerProfileId,
+      [input.athleteId, input.occurredOn, input.testerProfileId, input.testerName,
        input.bodyMassKg, input.notes, actor.id],
     );
     const id = session[0].id;
@@ -400,6 +402,7 @@ export interface SessionView {
   occurredOn: string;
   bodyMassKg: number | null;
   notes: string | null;
+  testerName: string | null;
   results: Array<{
     metricKey: string;
     testLabelNl: string;
@@ -441,7 +444,10 @@ export async function getSession(
     // naam is de verkeerde ruil. De juiste oplossing is de naam bij het
     // opslaan op de sessie zetten, zoals de lichaamsmassa, zodat een rapport
     // blijft zeggen wie er mat ook als die persoon later vertrekt. Zie README.
-    `select s.id, s.athlete_id, s.occurred_on, s.body_mass_kg, s.notes, a.full_name
+    // tester_name staat op de sessie en wordt niet uit profiles gehaald; zie
+    // de kolomopmerking in 20261011090000.
+    `select s.id, s.athlete_id, s.occurred_on, s.body_mass_kg, s.notes,
+            s.tester_name, a.full_name
        from medical.screening_sessions s
        join public.athletes a on a.id = s.athlete_id
       where s.id = $1`,
@@ -492,6 +498,7 @@ export async function getSession(
     occurredOn: head.occurred_on as string,
     bodyMassKg: num(head.body_mass_kg),
     notes: (head.notes as string | null) ?? null,
+    testerName: (head.tester_name as string | null) ?? null,
     results: rows.map((row) => ({
       metricKey: row.metric_key as string,
       testLabelNl: row.test_label_nl as string,

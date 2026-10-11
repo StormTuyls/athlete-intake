@@ -76,6 +76,7 @@ export async function collectScreening(
     occurredOn: session.occurredOn,
     bodyMassKg: session.bodyMassKg,
     notes: session.notes,
+    testerName: session.testerName,
     results,
     unclassified: results.filter(
       (r) => r.kind === "absolute" && r.status === "computed" && r.bandStatus === null,
