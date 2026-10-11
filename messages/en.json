@@ -603,5 +603,28 @@
     "turnOff": "Turn grading off",
     "boundaryHint": "Bounds are half-open: from counts, to does not. Leave 'from' empty for the lowest band and 'to' empty for the highest.",
     "noRules": "No reference rules yet."
+  },
+  "notes": {
+    "heading": "Notes and flags",
+    "intro": "What needs follow-up is decided by the practitioner, not a threshold. A flag stays open until someone closes it.",
+    "none": "No notes yet.",
+    "add": "Add a note",
+    "adding": "Saving...",
+    "body": "Note",
+    "aboutMetric": "About",
+    "wholeSession": "the whole screening",
+    "severity": "Severity",
+    "info": "for information",
+    "watch": "watch",
+    "action": "action needed",
+    "action_field": "Agreed action",
+    "actionHint": "For example: retest in 6 weeks.",
+    "resolve": "Close",
+    "resolved": "closed",
+    "open": "open",
+    "openCount": "{count, plural, one {# open flag} other {# open flags}}",
+    "by": "by",
+    "saveFailed": "Could not save this note.",
+    "cancel": "Cancel"
   }
 }
