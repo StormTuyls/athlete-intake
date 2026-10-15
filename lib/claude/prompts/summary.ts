@@ -45,6 +45,9 @@ export const CLINICAL_MARKERS: Record<Locale, {
   unverified: string;
   timeline: string;
   until: string;
+  /** De kop boven de vragen die onbeantwoord bleven. */
+  unanswered: string;
+  required: string;
 }> = {
   nl: {
     conflicting: "[TEGENSTRIJDIG tussen bronnen]",
@@ -53,6 +56,8 @@ export const CLINICAL_MARKERS: Record<Locale, {
     unverified: "[uit een scan, citaat niet terugvindbaar in de brontekst]",
     timeline: "Blessuretijdlijn:",
     until: "tot",
+    unanswered: "Vragen die onbeantwoord bleven:",
+    required: "verplicht",
   },
   en: {
     conflicting: "[CONTRADICTORY between sources]",
@@ -61,6 +66,8 @@ export const CLINICAL_MARKERS: Record<Locale, {
     unverified: "[from a scan, quote not found in the source text]",
     timeline: "Injury timeline:",
     until: "to",
+    unanswered: "Questions that were left unanswered:",
+    required: "required",
   },
 };
 
@@ -133,7 +140,8 @@ Regels:
    - ${markers.coach}: hard gegeven. Geen voorbehoud nodig.
    - ${markers.unverified}: dit hoort in "${headings[2]}", met de naam van het gegeven.
    - ${markers.conflicting}: altijd noemen, met beide waarden.
-5. Kort. De lezer neemt dit in dertig seconden door.`;
+5. Onder "${markers.unanswered}" staat waar het gesprek niet uit kwam. Dat is geen lijst om over te nemen: zet onder "${headings[2]}" alleen de punten die voor de behandeling uitmaken, en zeg bij een verplichte vraag erbij dat ze open staat. Staat er niets onder die kop, schrijf dan niet dat alles compleet is; zeg gewoon niets.
+6. Kort. De lezer neemt dit in dertig seconden door.`;
   }
 
   return `You summarise an athlete intake for the coach or practitioner who will review the file. You are not a practitioner and you do not diagnose.
@@ -159,5 +167,6 @@ Rules:
    - ${markers.coach}: hard data. No caveat needed.
    - ${markers.unverified}: this belongs under "${headings[2]}", with the name of the item.
    - ${markers.conflicting}: always name it, with both values.
-5. Brief. The reader goes through this in thirty seconds.`;
+5. Under "${markers.unanswered}" is what the conversation did not resolve. That is not a list to copy over: under "${headings[2]}" put only the points that matter for treatment, and for a required question say that it is still open. If nothing appears under that heading, do not write that everything is complete; simply say nothing.
+6. Brief. The reader goes through this in thirty seconds.`;
 }
