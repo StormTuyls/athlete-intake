@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
+import { disciplinesOf } from "@/lib/intake/sports";
+import type { Locale } from "@/lib/i18n/locale";
 import { SectionLabel } from "@/components/intake/SectionLabel";
 import { ChevronLeftIcon, CheckIcon } from "@/components/intake/icons";
 import { ChangePassword } from "@/components/auth/ChangePassword";
@@ -44,6 +46,7 @@ function Field({
   placeholder,
   className,
   type = "text",
+  suggestions,
 }: {
   id: string;
   labelText: string;
@@ -55,7 +58,11 @@ function Field({
   placeholder?: string;
   className?: string;
   type?: "text" | "date";
+  /** Suggesties, geen keuzelijst: de atleet mag iets anders typen. */
+  suggestions?: string[];
 }) {
+  const listId = suggestions && suggestions.length > 0 ? `${id}-list` : undefined;
+
   return (
     <label htmlFor={id} className={cn("block", className)}>
       <span className={label}>{labelText}</span>
@@ -68,8 +75,16 @@ function Field({
         maxLength={maxLength}
         inputMode={inputMode}
         placeholder={placeholder}
+        list={listId}
         className={field}
       />
+      {listId && (
+        <datalist id={listId}>
+          {suggestions!.map((suggestion) => (
+            <option key={suggestion} value={suggestion} />
+          ))}
+        </datalist>
+      )}
     </label>
   );
 }
@@ -173,6 +188,7 @@ function toDraft(values: AthleteProfileValues): Draft {
 
 export function ProfileScreen({ data }: { data: ProfileData }) {
   const t = useTranslations("profile");
+  const locale = useLocale() as Locale;
   const router = useRouter();
 
   const [draft, setDraft] = useState<Draft>(() => toDraft(data.values));
@@ -315,6 +331,7 @@ export function ProfileScreen({ data }: { data: ProfileData }) {
               placeholder={t("disciplineHint")}
               maxLength={120}
               className="mt-4"
+              suggestions={disciplinesOf(draft.sport, locale)}
             />
             <Field
               id="profile-club"

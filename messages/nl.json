@@ -87,6 +87,7 @@
       "training": "Training",
       "medical_history": "Medische historiek",
       "current_status": "Pijn en klachten",
+      "complaint": "Je klacht",
       "uploads": "Documenten"
     },
     "clinical": {
@@ -96,6 +97,7 @@
       "training": "Training en wedstrijden",
       "medical_history": "Medische historiek",
       "current_status": "Huidige status en doelen",
+      "complaint": "Klachtbeeld",
       "uploads": "Aangeleverd materiaal"
     }
   },
@@ -126,13 +128,6 @@
     "yesterday": "Gisteren"
   },
   "enums": {
-    "identity:sport:sprint": "sprint",
-    "identity:sport:hurdles": "horden",
-    "identity:sport:rowing": "roeien",
-    "identity:sport:speed_skating": "snelschaatsen",
-    "identity:sport:inline_skating": "skeeleren",
-    "identity:sport:football": "voetbal",
-    "identity:sport:other": "andere",
     "biometrics:dominant_side:left": "links",
     "biometrics:dominant_side:right": "rechts",
     "biometrics:dominant_side:ambidextrous": "beide",

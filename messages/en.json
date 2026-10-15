@@ -87,6 +87,7 @@
       "training": "Training",
       "medical_history": "Medical history",
       "current_status": "Pain & complaints",
+      "complaint": "Your complaint",
       "uploads": "Documents"
     },
     "clinical": {
@@ -96,6 +97,7 @@
       "training": "Training and competition",
       "medical_history": "Medical history",
       "current_status": "Current status and goals",
+      "complaint": "Complaint presentation",
       "uploads": "Material provided"
     }
   },
@@ -126,13 +128,6 @@
     "yesterday": "Yesterday"
   },
   "enums": {
-    "identity:sport:sprint": "sprint",
-    "identity:sport:hurdles": "hurdles",
-    "identity:sport:rowing": "rowing",
-    "identity:sport:speed_skating": "speed skating",
-    "identity:sport:inline_skating": "inline skating",
-    "identity:sport:football": "football",
-    "identity:sport:other": "other",
     "biometrics:dominant_side:left": "left",
     "biometrics:dominant_side:right": "right",
     "biometrics:dominant_side:ambidextrous": "ambidextrous",
