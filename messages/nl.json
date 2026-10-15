@@ -434,6 +434,7 @@
     "reasonConflicting": "bronnen spreken elkaar tegen",
     "reasonMissing": "ontbreekt",
     "notStated": "Niet opgegeven",
+    "notFilledIn": "Niet ingevuld:",
     "summaryTitle": "Gegenereerde samenvatting ({kind})",
     "summaryKindClinical": "klinisch",
     "summaryKindCommercial": "zakelijk",

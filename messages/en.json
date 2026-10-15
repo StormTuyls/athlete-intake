@@ -434,6 +434,7 @@
     "reasonConflicting": "sources disagree",
     "reasonMissing": "missing",
     "notStated": "Not stated",
+    "notFilledIn": "Not filled in:",
     "summaryTitle": "Generated summary ({kind})",
     "summaryKindClinical": "clinical",
     "summaryKindCommercial": "commercial",
