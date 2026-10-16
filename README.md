@@ -169,12 +169,28 @@ Health check:
 curl -s http://localhost:3000/api/health
 ```
 
-### Dicteren lokaal aanzetten
+### Dicteren
 
-De microfoonknop in het gesprek verschijnt alleen als er een transcriptiedienst
-geconfigureerd is. Lokaal hoeft daar geen derde partij voor in de keten: Whisper
-draait in een container, en die spreekt hetzelfde endpoint als de gehoste
-diensten (`POST /v1/audio/transcriptions`). Zie `lib/intake/transcribe.ts`.
+De microfoonknop heeft twee motoren, en welke er draait hangt aan
+`TRANSCRIBE_API_KEY`.
+
+Staat die sleutel LEEG, dan gebruikt de knop de spraakherkenning van de browser.
+Gratis, geen server, werkt meteen, maar de audio gaat buiten ons om naar Google
+(Chrome) of Apple (Safari). Tijdens het opnemen staat er daarom een regel onder
+het invoerveld die dat tegen de atleet zegt. Firefox heeft die API niet; daar
+blijft de knop weg.
+
+Staat de sleutel WEL gezet, dan neemt de browser op en gaat de audio naar
+`/api/intake/transcribe`, en van daar naar een partij die in het
+verwerkingsregister staat. Dat is de bedoeling voor productie met echte atleten.
+Zie de noot bij de subverwerkerstabel in [docs/oplevering.md](docs/oplevering.md);
+die is belangrijker dan deze alinea.
+
+### De servermotor lokaal aanzetten
+
+Lokaal hoeft daar geen derde partij voor in de keten: Whisper draait in een
+container, en die spreekt hetzelfde endpoint als de gehoste diensten
+(`POST /v1/audio/transcriptions`). Zie `lib/intake/transcribe.ts`.
 
 ```bash
 docker run --detach --publish 8000:8000 --name speaches \
@@ -224,10 +240,10 @@ het starten kost 7 seconden extra voor het laden van het model.
 
 De `.en`-modellen uit de documentatie van speaches kunnen geen Nederlands.
 
-Dit is uitdrukkelijk alleen de ontwikkelopstelling. Wat er in productie gebeurt is
-een aparte beslissing, want daar hoort een partij met een verwerkersovereenkomst
-of een eigen gehoste Whisper op echte hardware bij. Zie de subverwerkerstabel in
-[docs/oplevering.md](docs/oplevering.md).
+Dit is de ontwikkelopstelling. Op echte hardware met een GPU kan dezelfde
+container ook in productie, maar niet op een laptop-CPU: de route heeft
+`maxDuration = 60` en `large-v3` doet er ongeveer realtime over, dus een opname
+van twee minuten loopt in een timeout.
 
 ## Scripts
 
