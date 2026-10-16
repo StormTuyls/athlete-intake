@@ -55,7 +55,8 @@ Tegen de echte productie-URL, niet lokaal:
 
 ## Subverwerkers
 
-Voor de GDPR-administratie van de klant. Vijf partijen, en vier ervan zien medische data.
+Voor de GDPR-administratie van de klant. Vier vaste partijen, en drie ervan zien medische data.
+De vijfde komt er alleen bij als dicteren op een gehoste dienst staat; zie de noot onder de tabel.
 
 | Subverwerker | Rol | Wat er heen gaat | Waar |
 |---|---|---|---|
@@ -65,9 +66,12 @@ Voor de GDPR-administratie van de klant. Vijf partijen, en vier ervan zien medis
 | Notion Labs Inc. | Commerciele laag: atleten, facturatie, opvolgacties | Met opzet geen medische velden | VS |
 | Mistral AI SAS | Spraak naar tekst voor de dicteerknop in de intake | De opname zelf: alles wat een atleet inspreekt, dus klachten, medicatie en historiek | Frankrijk (EU) |
 
-**Mistral telt alleen mee als dicteren aanstaat.** De microfoonknop verschijnt pas als
+**Mistral telt alleen mee als dicteren op Mistral staat.** De microfoonknop verschijnt pas als
 `TRANSCRIBE_API_KEY` gezet is; staat de variabele leeg, dan is er geen knop, gaat er geen audio de deur
-uit en is deze rij niet van toepassing. De opname wordt nergens opgeslagen: ze gaat door
+uit en is deze rij niet van toepassing. Lokaal ontwikkelen gebeurt tegen een Whisper-container op de
+machine zelf (zie de README), en dan is er evenmin een derde partij: het endpoint is OpenAI-compatibel,
+dus waar de audio heen gaat is een kwestie van `TRANSCRIBE_BASE_URL`. Wie in productie geen partij wil,
+host Whisper zelf; dan vervalt deze rij en komt er een machine bij die dezelfde eisen erft als de rest. De opname wordt nergens opgeslagen: ze gaat door
 `/api/intake/transcribe` heen naar de dienst en verdwijnt met het verzoek. Er is dus niets om op te
 ruimen en het verwijderpad gaat er niet langs, om dezelfde reden als bij Anthropic. Wie naar een andere
 aanbieder overstapt (de API is OpenAI-compatibel, zie `.env.example`) wisselt daarmee deze rij, en dat

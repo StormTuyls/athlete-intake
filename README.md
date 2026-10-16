@@ -169,6 +169,44 @@ Health check:
 curl -s http://localhost:3000/api/health
 ```
 
+### Dicteren lokaal aanzetten
+
+De microfoonknop in het gesprek verschijnt alleen als er een transcriptiedienst
+geconfigureerd is. Lokaal hoeft daar geen derde partij voor in de keten: Whisper
+draait in een container, en die spreekt hetzelfde endpoint als de gehoste
+diensten (`POST /v1/audio/transcriptions`). Zie `lib/intake/transcribe.ts`.
+
+```bash
+docker run --rm --detach \
+  --publish 8000:8000 \
+  --name speaches \
+  --volume hf-hub-cache:/home/ubuntu/.cache/huggingface/hub \
+  ghcr.io/speaches-ai/speaches:latest-cpu
+```
+
+Daarna in `.env.local`:
+
+```
+TRANSCRIBE_API_KEY=lokaal
+TRANSCRIBE_BASE_URL=http://localhost:8000/v1
+TRANSCRIBE_MODEL=Systran/faster-whisper-large-v3
+```
+
+`TRANSCRIBE_API_KEY` mag lokaal elke waarde zijn; hij staat er alleen omdat de
+route hem als schakelaar gebruikt (geen sleutel is geen knop). Herstart de
+devserver, want Next leest de omgeving bij het opstarten.
+
+Let op het model. De voorbeelden in de documentatie van speaches gebruiken
+`.en`-modellen, en die kunnen geen Nederlands. `large-v3` kan het goed maar doet
+op een CPU tientallen seconden over twee minuten audio; `Systran/faster-whisper-small`
+is snel en verstaat anatomische termen een stuk slechter. Het model wordt bij het
+eerste verzoek gedownload, dus die eerste transcriptie duurt lang.
+
+Dit is uitdrukkelijk alleen de ontwikkelopstelling. Wat er in productie gebeurt is
+een aparte beslissing, want daar hoort een partij met een verwerkersovereenkomst
+of een eigen gehoste Whisper bij. Zie de subverwerkerstabel in
+[docs/oplevering.md](docs/oplevering.md).
+
 ## Scripts
 
 | Script | Doet |
