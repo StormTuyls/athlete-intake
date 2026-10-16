@@ -304,7 +304,9 @@
     "signIn": "Sign in",
     "signingIn": "Signing in",
     "coachIntro": "Sign in to review athlete intakes.",
-    "coachFooter": "Accounts are created by the practice. Ask an administrator to reset your password if you cannot sign in."
+    "coachFooter": "Accounts are created by the practice. Ask an administrator to reset your password if you cannot sign in.",
+    "toCoach": "Are you a practitioner? Sign in here",
+    "toAthlete": "Are you an athlete? Go to your own intake"
   },
   "athleteReport": {
     "title": "Intake report",

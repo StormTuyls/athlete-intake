@@ -121,6 +121,16 @@ export function CoachLogin({ next }: { next: string | null }) {
       >
         {tPassword("forgotLink")}
       </Link>
+
+      {/* De andere voordeur. Er zijn twee loginschermen en niets wees naar het
+          andere, dus wie op de verkeerde belandde kwam er alleen uit door de URL
+          te raden. */}
+      <Link
+        href="/start"
+        className="mt-2 block text-center text-xs text-ink-faint underline-offset-2 hover:underline"
+      >
+        {t("toAthlete")}
+      </Link>
     </AuthShell>
   );
 }
