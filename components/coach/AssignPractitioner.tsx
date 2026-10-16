@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PractitionerKind } from "@/lib/db/practitioners";
@@ -24,6 +26,7 @@ export function AssignPractitioner({
   current: string | null;
   options: Array<{ id: string; name: string | null; kind: PractitionerKind; archived: boolean }>;
 }) {
+  const t = useTranslations("coach");
   const router = useRouter();
   const [value, setValue] = useState(current ?? "");
   const [busy, setBusy] = useState(false);
@@ -63,13 +66,13 @@ export function AssignPractitioner({
         value={value}
         disabled={busy}
         onChange={(event) => void save(event.target.value)}
-        aria-label="Assigned practitioner"
+        aria-label={t("assignedPractitioner")}
         className="rounded-md border border-hairline bg-surface px-2 py-1 text-sm text-ink disabled:opacity-50"
       >
-        <option value="">Not assigned</option>
+        <option value="">{t("notAssigned")}</option>
         {options.map((option) => (
           <option key={option.id} value={option.id}>
-            {option.name ?? "Name unknown"} · {option.kind}
+            {option.name ?? t("nameUnknown")} · {option.kind}
             {option.archived ? " (archived)" : ""}
           </option>
         ))}

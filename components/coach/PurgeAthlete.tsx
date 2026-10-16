@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -34,6 +36,7 @@ export function PurgeAthlete({
   intakeCount: number;
   hasAccount: boolean;
 }) {
+  const t = useTranslations("coach.purge");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
@@ -86,58 +89,52 @@ export function PurgeAthlete({
 
   return (
     <section className="mt-8 rounded-lg border border-danger/40 bg-danger/5 p-4">
-      <h2 className="text-sm font-medium text-danger">Atleet verwijderen</h2>
+      <h2 className="text-sm font-medium text-danger">{t("heading")}</h2>
 
       {!open ? (
         <>
           <p className="mt-1 text-xs text-ink-muted">
-            Op verzoek van de atleet, of wanneer de bewaartermijn verstreken is.
-            Dit gaat over de persoon en niet over één intake.
+            {t("intro")}
           </p>
           <button
             type="button"
             onClick={() => setOpen(true)}
             className="mt-3 rounded-md px-3 py-1.5 text-xs font-medium text-danger ring-1 ring-danger/40 ring-inset transition-colors hover:bg-danger/10"
           >
-            Verwijderen voorbereiden
+            {t("prepare")}
           </button>
         </>
       ) : (
         <>
           <div className="mt-2 space-y-2 text-xs">
-            <p className="font-medium text-ink">Wat verdwijnt</p>
+            <p className="font-medium text-ink">{t("whatGoes")}</p>
             <ul className="list-disc space-y-0.5 pl-4 text-ink-muted">
               <li>
-                {intakeCount === 1
-                  ? "de intake van deze atleet"
-                  : `alle ${intakeCount} intakes van deze atleet`}
-                , met het dossier, de voorstellen en de rapportversies
+                {t("goesIntakes", { count: intakeCount })}
               </li>
-              <li>alle aangeleverde documenten en de tekst die eruit gehaald is</li>
-              <li>de blessuretijdlijn, testmetingen en het gesprek</li>
-              <li>de toestemmingsregistratie</li>
-              {hasAccount && <li>het inlogaccount van de atleet</li>}
+              <li>{t("goesDocuments")}</li>
+              <li>{t("goesTimeline")}</li>
+              <li>{t("goesConsent")}</li>
+              {hasAccount && <li>{t("goesAccount")}</li>}
               <li>
-                de kaart in Notion wordt leeggemaakt en gearchiveerd; Notion kent
-                geen definitief verwijderen via de API
+                {t("goesNotion")}
               </li>
             </ul>
 
-            <p className="pt-1 font-medium text-ink">Wat blijft</p>
+            <p className="pt-1 font-medium text-ink">{t("whatStays")}</p>
             <ul className="list-disc space-y-0.5 pl-4 text-ink-muted">
               <li>
-                het audit-spoor: wie wat wanneer deed, met aantallen en zonder
-                waarden. Zonder dat is niet aan te tonen dat er verwijderd is.
+                {t("staysAudit")}
               </li>
             </ul>
 
-            <p className="pt-1 text-ink-muted">Dit is niet terug te draaien.</p>
+            <p className="pt-1 text-ink-muted">{t("irreversible")}</p>
           </div>
 
           {nameRequired && (
             <label className="mt-3 block">
               <span className="text-xs text-ink-muted">
-                Typ de naam van de atleet om te bevestigen:{" "}
+                {t("typeName")}{" "}
                 <strong className="text-ink">{athleteName}</strong>
               </span>
               <input
@@ -158,7 +155,7 @@ export function PurgeAthlete({
               disabled={busy || !matches}
               className="rounded-md bg-danger px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-40"
             >
-              {busy ? "Bezig" : "Definitief verwijderen"}
+              {busy ? t("busy") : t("confirm")}
             </button>
             <button
               type="button"
@@ -170,7 +167,7 @@ export function PurgeAthlete({
               disabled={busy}
               className="rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas disabled:opacity-40"
             >
-              Annuleren
+              {t("cancel")}
             </button>
           </div>
         </>

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { AthleteListRow } from "@/lib/db/athletes";
 import { InviteAthlete } from "@/components/coach/InviteAthlete";
 
@@ -20,6 +21,7 @@ import { InviteAthlete } from "@/components/coach/InviteAthlete";
  */
 
 export function AthleteList({ athletes }: { athletes: AthleteListRow[] }) {
+  const t = useTranslations("coach");
   const [inviting, setInviting] = useState(false);
   const [search, setSearch] = useState("");
   const [onlyWaiting, setOnlyWaiting] = useState(false);
@@ -42,8 +44,8 @@ export function AthleteList({ athletes }: { athletes: AthleteListRow[] }) {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           type="search"
-          placeholder="Search by name"
-          aria-label="Search athletes by name"
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchLabel")}
           className="min-w-0 flex-1 rounded-md border border-hairline bg-surface px-3 py-2 text-sm outline-none focus-visible:border-brand-500"
         />
         <button
@@ -56,7 +58,7 @@ export function AthleteList({ athletes }: { athletes: AthleteListRow[] }) {
               : "shrink-0 rounded-md px-3 py-2 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
           }
         >
-          Waiting for review{waitingTotal > 0 && ` (${waitingTotal})`}
+          {t("waitingForReview")}{waitingTotal > 0 && ` (${waitingTotal})`}
         </button>
         <button
           type="button"
@@ -64,7 +66,7 @@ export function AthleteList({ athletes }: { athletes: AthleteListRow[] }) {
           aria-expanded={inviting}
           className="shrink-0 rounded-md px-3 py-2 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
         >
-          {inviting ? "Cancel" : "Invite athlete"}
+          {inviting ? t("cancel") : t("invite")}
         </button>
       </div>
 
@@ -74,7 +76,7 @@ export function AthleteList({ athletes }: { athletes: AthleteListRow[] }) {
 
       {shown.length === 0 ? (
         <p className="text-sm text-ink-faint">
-          {athletes.length === 0 ? "No athletes yet." : "No athletes match that search."}
+          {athletes.length === 0 ? t("noAthletes") : t("noMatch")}
         </p>
       ) : (
         <ul className="divide-y divide-hairline border-t border-hairline">
@@ -91,29 +93,25 @@ export function AthleteList({ athletes }: { athletes: AthleteListRow[] }) {
                 className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 py-3 transition-colors hover:bg-canvas lg:grid-cols-[minmax(0,1fr)_13rem_11rem]"
               >
                 <span className="col-start-1 truncate text-sm font-medium">
-                  {athlete.name ?? "Name unknown"}
+                  {athlete.name ?? t("nameUnknown")}
                 </span>
                 <span className="col-start-1 text-xs text-ink-muted lg:col-start-2 lg:row-start-1">
                   {/* Een uitnodiging die nog niet is aangenomen heeft geen
                       intakes om te tellen, en "0 intakes" zegt niet waarom.
                       Dat hij nog niet binnen is geweest, wel. */}
                   {athlete.invited
-                    ? "invited, not signed in yet"
-                    : athlete.intakeCount === 1
-                      ? "1 intake"
-                      : `${athlete.intakeCount} intakes`}
+                    ? t("invitedNotSignedIn")
+                    : t("intakeCount", { count: athlete.intakeCount })}
                   {athlete.lastActivity && ` · ${athlete.lastActivity.slice(0, 10)}`}
                 </span>
                 <span className="col-start-2 row-span-2 row-start-1 text-right text-xs lg:col-start-3 lg:row-span-1">
                   {athlete.waiting > 0 && (
                     <span className="block font-medium text-ink">
-                      {athlete.waiting === 1
-                        ? "waiting for review"
-                        : `${athlete.waiting} waiting for review`}
+                      {t("waitingCount", { count: athlete.waiting })}
                     </span>
                   )}
                   {athlete.conflicts > 0 && (
-                    <span className="block text-warn">{athlete.conflicts} to check</span>
+                    <span className="block text-warn">{t("toCheck", { count: athlete.conflicts })}</span>
                   )}
                 </span>
               </Link>

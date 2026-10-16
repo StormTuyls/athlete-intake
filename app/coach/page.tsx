@@ -36,6 +36,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function CoachPage() {
   const tl = await getTranslations("library");
+  const tc = await getTranslations("coach");
+  const titles = await getTranslations("titles");
   const access = await checkCoach();
   if (access.kind === "anonymous") redirect("/coach/login?next=/coach");
   if (access.kind !== "coach") notFound();
@@ -50,9 +52,12 @@ export default async function CoachPage() {
     <main className="mx-auto max-w-3xl px-6 py-10 lg:max-w-5xl">
       <header className="mb-8 flex items-baseline justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Athletes</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{titles("athletes")}</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {PRACTICE_NAME} · signed in as {coach.fullName ?? coach.email}
+            {tc("signedInAs", {
+              practice: PRACTICE_NAME,
+              name: coach.fullName ?? coach.email ?? "",
+            })}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -72,7 +77,7 @@ export default async function CoachPage() {
               href="/coach/team"
               className="rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
             >
-              Team
+              {tc("team")}
             </Link>
           )}
           <LocaleToggle />
@@ -81,7 +86,7 @@ export default async function CoachPage() {
             type="submit"
             className="rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
           >
-              Sign out
+              {tc("signOut")}
             </button>
           </form>
         </div>
