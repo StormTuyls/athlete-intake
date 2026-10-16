@@ -55,7 +55,7 @@ Tegen de echte productie-URL, niet lokaal:
 
 ## Subverwerkers
 
-Voor de GDPR-administratie van de klant. Vier partijen, en drie ervan zien medische data.
+Voor de GDPR-administratie van de klant. Vijf partijen, en vier ervan zien medische data.
 
 | Subverwerker | Rol | Wat er heen gaat | Waar |
 |---|---|---|---|
@@ -63,8 +63,17 @@ Voor de GDPR-administratie van de klant. Vier partijen, en drie ervan zien medis
 | Vercel Inc. | Hosting en uitvoering | Alle requests lopen hierlangs, dus medische velden gaan door hun infrastructuur | Functions `fra1`; CDN wereldwijd |
 | Anthropic PBC | Extractie uit documenten, klinische samenvatting | Documentinhoud en dossierinhoud, in de API-call zelf | VS |
 | Notion Labs Inc. | Commerciele laag: atleten, facturatie, opvolgacties | Met opzet geen medische velden | VS |
+| Mistral AI SAS | Spraak naar tekst voor de dicteerknop in de intake | De opname zelf: alles wat een atleet inspreekt, dus klachten, medicatie en historiek | Frankrijk (EU) |
 
-**Er komt een vijfde bij zodra de herstelmail live gaat.** Het wachtwoordherstel (`/auth/forgot`)
+**Mistral telt alleen mee als dicteren aanstaat.** De microfoonknop verschijnt pas als
+`TRANSCRIBE_API_KEY` gezet is; staat de variabele leeg, dan is er geen knop, gaat er geen audio de deur
+uit en is deze rij niet van toepassing. De opname wordt nergens opgeslagen: ze gaat door
+`/api/intake/transcribe` heen naar de dienst en verdwijnt met het verzoek. Er is dus niets om op te
+ruimen en het verwijderpad gaat er niet langs, om dezelfde reden als bij Anthropic. Wie naar een andere
+aanbieder overstapt (de API is OpenAI-compatibel, zie `.env.example`) wisselt daarmee deze rij, en dat
+is geen configuratiedetail maar een wijziging in het verwerkingsregister.
+
+**Er komt een zesde bij zodra de herstelmail live gaat.** Het wachtwoordherstel (`/auth/forgot`)
 laat Supabase Auth een mail sturen. Lokaal vangt Mailpit die op en gaat er niets de deur uit; in
 productie gebruikt Supabase zonder eigen SMTP-instelling hun ingebouwde mailer, met een harde limiet
 van een handvol mails per uur die niet bedoeld is voor echt gebruik. Wie hier een eigen SMTP zet
@@ -349,6 +358,11 @@ Geen enkele sleutel staat in git. `.env.example` bevat alleen namen.
 - **Vercel**: alle productievariabelen staan in het project. `CRON_SECRET` en `NEXT_PUBLIC_APP_URL`
   staan alleen op `production`, de rest op `production` en `preview`. `PRACTICE_LOCALE` is optioneel
   en betekent `nl` als hij ontbreekt.
+- **`TRANSCRIBE_API_KEY` is optioneel en staat nog nergens.** Zolang hij leeg is, is er geen
+  microfoonknop in de intake en is Mistral geen subverwerker. Hem zetten is dus niet alleen een
+  configuratiewijziging maar ook een regel erbij in de tabel hierboven en in het verwerkingsregister
+  van de klant. `TRANSCRIBE_BASE_URL` en `TRANSCRIBE_MODEL` hebben een standaard en hoeven alleen gezet
+  te worden bij een andere aanbieder.
 - **`INTAKE_SERVER_PASSWORD` is uit Vercel verwijderd.** Die variabele hoort alleen lokaal te bestaan,
   waar `scripts/db-local.ts` er het rolwachtwoord in de Docker-stack mee zet. In productie deed hij
   niets en zag hij eruit als een geheim.
