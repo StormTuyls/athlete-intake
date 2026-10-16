@@ -304,7 +304,9 @@
     "signIn": "Aanmelden",
     "signingIn": "Aanmelden",
     "coachIntro": "Meld je aan om intakes van atleten na te kijken.",
-    "coachFooter": "Accounts worden door de praktijk aangemaakt. Vraag een beheerder om je wachtwoord opnieuw in te stellen als je niet binnen komt."
+    "coachFooter": "Accounts worden door de praktijk aangemaakt. Vraag een beheerder om je wachtwoord opnieuw in te stellen als je niet binnen komt.",
+    "toCoach": "Ben je behandelaar? Meld je hier aan",
+    "toAthlete": "Ben je atleet? Ga naar je eigen intake"
   },
   "athleteReport": {
     "title": "Intakerapport",

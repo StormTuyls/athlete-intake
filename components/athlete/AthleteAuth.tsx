@@ -205,6 +205,14 @@ export function AthleteAuth({
             : t("newHere")}
         </button>
 
+        {/* De andere voordeur, zie CoachLogin. */}
+        <Link
+          href="/coach/login"
+          className="mt-3 block text-center text-xs text-night-muted/70 underline-offset-2 hover:underline"
+        >
+          {t("toCoach")}
+        </Link>
+
         {/* Alleen bij inloggen. Wie zich net aanmeldt heeft nog geen
             wachtwoord om te vergeten, en een herstellink onder een
             aanmeldformulier leest als een aanwijzing dat je hier al een
