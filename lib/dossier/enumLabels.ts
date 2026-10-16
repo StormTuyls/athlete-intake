@@ -1,4 +1,5 @@
 import { translator } from "@/lib/i18n/translator";
+import { sportLabel } from "@/lib/intake/sports";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 
 /**
@@ -29,14 +30,30 @@ export function enumLabel(
   if (value === null || value === undefined) return "-";
 
   const raw = String(value);
+
+  // Sport staat niet in de berichtenbestanden maar in lib/intake/sports.ts,
+  // samen met de disciplines. Zestig sporten als losse i18n-sleutels zou de
+  // lijst over drie bestanden verdelen die alle drie met de hand gelijk moeten
+  // blijven, en een sport zonder label valt dan stil terug op "Cross country
+  // skiing" met een hoofdletter.
+  if (fieldKey === "identity.sport") {
+    return sportLabel(raw, locale) ?? prettify(raw);
+  }
+
   const t = translator(locale, "enums");
   const key = `${fieldKey.replace(".", ":")}:${raw}` as never;
 
   if (t.has(key)) return t(key);
 
-  // Onbekend: leesbaar maken in plaats van de sleutel laten staan. Zo degradeert
-  // een nieuwe waarde in de taxonomie naar "Nieuwe waarde" en niet naar
-  // "nieuwe_waarde", en gaat er niets stuk voordat het label er is.
+  return prettify(raw);
+}
+
+/**
+ * Onbekend: leesbaar maken in plaats van de sleutel laten staan. Zo degradeert
+ * een nieuwe waarde in de taxonomie naar "Nieuwe waarde" en niet naar
+ * "nieuwe_waarde", en gaat er niets stuk voordat het label er is.
+ */
+function prettify(raw: string): string {
   const words = raw.replace(/_/g, " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

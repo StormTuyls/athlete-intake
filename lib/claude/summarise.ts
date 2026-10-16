@@ -128,6 +128,21 @@ export async function clinicalSummary(input: {
     onsetDate: string | null;
     endDate: string | null;
   }>;
+  /**
+   * Wat er niet beantwoord is, uit computeGaps.
+   *
+   * Tot nu kreeg het model alleen de aanwezige feiten: de lus hieronder slaat
+   * elk veld met status 'missing' over. Het kopje "wat nog nagekeken moet
+   * worden" moest dus afgeleid worden uit wat het model NIET zag, en dat levert
+   * vage punten op in plaats van namen.
+   *
+   * Uit de gaten en niet uit `resolved`, want dat verschil doet ertoe: een veld
+   * dat door ask_when buiten bereik valt of dat de atleet bewust oversloeg is
+   * ook 'missing', maar het is geen openstaande vraag. Die als gat opvoeren zou
+   * betekenen dat een rapport van een atleet zonder klacht veertien
+   * klachtvragen als "nog na te kijken" opsomt.
+   */
+  gaps: Array<{ fieldKey: string; required: boolean }>;
 }): Promise<SummaryResult> {
   const facts: string[] = [];
   const markers = CLINICAL_MARKERS[input.locale];
@@ -169,6 +184,18 @@ export async function clinicalSummary(input: {
       facts.push(
         `- ${injury.bodyRegion} ${injury.side}${injury.diagnosis ? `, ${injury.diagnosis}` : ""}${period ? ` (${period})` : ""}`,
       );
+    }
+  }
+
+  if (input.gaps.length > 0) {
+    const byKey = new Map(input.definitions.map((d) => [d.key, d]));
+    facts.push("");
+    facts.push(markers.unanswered);
+    for (const gap of input.gaps) {
+      const definition = byKey.get(gap.fieldKey);
+      if (!definition) continue;
+      const label = input.locale === "nl" ? definition.labelNl : definition.labelEn;
+      facts.push(`- ${label}${gap.required ? ` (${markers.required})` : ""}`);
     }
   }
 

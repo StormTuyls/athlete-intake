@@ -12,7 +12,7 @@
     "intro": {
       "title": "What this conversation is for",
       "body": "I will ask you about your sport, your history and your complaints, and turn that into a structured record for your coach.",
-      "point1": "Start with one account in your own words: what is going on, since when, and what you want to achieve. The more you tell me at once, the less I have to ask afterwards. If you do not know something, skip it. If your keyboard has a microphone key, you can dictate it instead of typing.",
+      "point1": "Start with one account in your own words: what is going on, since when, and what you want to achieve. The more you tell me at once, the less I have to ask afterwards. If you do not know something, skip it.",
       "point2": "You can add reports, scans, screenshots or a WhatsApp export. I only read them once you ask me to.",
       "point3": "Nothing enters your record without your confirmation, and your coach reviews all of it before it counts."
     },
@@ -41,7 +41,13 @@
     "skip": {
       "unknown": "{field} skipped. Your coach sees that you did not know this; you can come back to it later.",
       "declined": "{field} skipped because you preferred not to say. Your coach sees that this was a choice."
-    }
+    },
+    "dictate": "Dictate",
+    "dictateStop": "Stop recording",
+    "recording": "Recording",
+    "transcribing": "Transcribing",
+    "dictateFailed": "Transcribing failed. Try again or type your answer.",
+    "micDenied": "No access to the microphone. Enable it in your browser settings."
   },
   "errors": {
     "generic": "Something went wrong",
@@ -87,6 +93,7 @@
       "training": "Training",
       "medical_history": "Medical history",
       "current_status": "Pain & complaints",
+      "complaint": "Your complaint",
       "uploads": "Documents"
     },
     "clinical": {
@@ -96,6 +103,7 @@
       "training": "Training and competition",
       "medical_history": "Medical history",
       "current_status": "Current status and goals",
+      "complaint": "Complaint presentation",
       "uploads": "Material provided"
     }
   },
@@ -126,13 +134,6 @@
     "yesterday": "Yesterday"
   },
   "enums": {
-    "identity:sport:sprint": "sprint",
-    "identity:sport:hurdles": "hurdles",
-    "identity:sport:rowing": "rowing",
-    "identity:sport:speed_skating": "speed skating",
-    "identity:sport:inline_skating": "inline skating",
-    "identity:sport:football": "football",
-    "identity:sport:other": "other",
     "biometrics:dominant_side:left": "left",
     "biometrics:dominant_side:right": "right",
     "biometrics:dominant_side:ambidextrous": "ambidextrous",
@@ -356,7 +357,11 @@
     "unsupportedImage": "This image format cannot be read. Please upload a JPEG or PNG.",
     "discardOnlyDraft": "This intake has already been submitted and can no longer be discarded. Ask the practice if it needs to go.",
     "profileIncomplete": "Complete your profile first. Name, date of birth and sport are needed before we can start.",
-    "requiredGapsOpen": "{count, plural, one {1 required field was skipped} other {# required fields were skipped}} and is still empty. Fill them in, or confirm you are approving without them."
+    "requiredGapsOpen": "{count, plural, one {1 required field was skipped} other {# required fields were skipped}} and is still empty. Fill them in, or confirm you are approving without them.",
+    "noRecording": "Nothing was recorded.",
+    "unsupportedAudio": "This audio format is not supported.",
+    "recordingTooLong": "The recording is too long. Record it in parts.",
+    "dictationOff": "Dictation is not switched on."
   },
   "review": {
     "loading": "Loading file",
@@ -439,6 +444,7 @@
     "reasonConflicting": "sources disagree",
     "reasonMissing": "missing",
     "notStated": "Not stated",
+    "notFilledIn": "Not filled in:",
     "summaryTitle": "Generated summary ({kind})",
     "summaryKindClinical": "clinical",
     "summaryKindCommercial": "commercial",

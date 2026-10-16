@@ -68,6 +68,7 @@ async function buildSummary(
       definitions: state.definitions,
       resolved: state.resolved,
       injuries,
+      gaps: state.gaps,
       locale: PRACTICE_LOCALE,
     });
     return {

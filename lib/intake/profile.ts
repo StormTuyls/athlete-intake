@@ -1,5 +1,6 @@
 import { addProposals, getFieldDefinitions } from "@/lib/db/dossier";
 import { enumLabel } from "@/lib/dossier/enumLabels";
+import { isDeprecatedSport } from "@/lib/intake/sports";
 import { PROFILE_COLUMNS, PROFILE_FIELDS } from "@/lib/intake/profileFields";
 import { z } from "zod";
 import { appDb } from "@/lib/supabase/service";
@@ -157,7 +158,16 @@ export async function loadProfile(input: {
     sportOptions: (
       definitions.find((definition) => definition.key === "identity.sport")
         ?.enumOptions ?? []
-    ).map((option) => ({ value: option, label: enumLabel("identity.sport", option, locale) })),
+    )
+      // Afgedankte sleutels verdwijnen uit de keuzelijst, maar niet als deze
+      // atleet er een heeft staan. Een <select> met een waarde die niet in zijn
+      // opties zit rendert leeg, en dan wist de eerstvolgende opslag stil een
+      // sport die de atleet nooit gewijzigd heeft.
+      .filter(
+        (option) =>
+          !isDeprecatedSport(option) || option === (row?.sport as string | null),
+      )
+      .map((option) => ({ value: option, label: enumLabel("identity.sport", option, locale) })),
   };
 }
 

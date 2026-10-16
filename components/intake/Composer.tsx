@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { useTranslations } from "next-intl";
 import { ACCEPT_ATTRIBUTE } from "@/lib/intake/uploads";
-import { ArrowUpIcon, PlusIcon } from "@/components/intake/icons";
+import { ArrowUpIcon, MicIcon, PlusIcon, StopIcon } from "@/components/intake/icons";
+import { useDictation } from "@/components/intake/useDictation";
 
 /**
  * De invoerbalk: bestand toevoegen, antwoord typen, versturen.
@@ -37,6 +38,30 @@ export function Composer({
   const fileInput = useRef<HTMLInputElement>(null);
   const [rowsHeight, setRowsHeight] = useState<number>();
 
+  /**
+   * De laatste waarde, voor de dicteerknop.
+   *
+   * De callback die de transcriptie ontvangt wordt eenmalig aan de recorder
+   * gehangen. Zou hij `value` uit de sluiting lezen, dan plakt hij de tekst
+   * achter de waarde van het moment dat de opname begon, en verdwijnt alles wat
+   * er tijdens het opnemen bijgetypt is.
+   */
+  const latest = useRef(value);
+  useEffect(() => {
+    latest.current = value;
+  }, [value]);
+
+  const dictation = useDictation(
+    useCallback(
+      (text: string) => {
+        const current = latest.current.trimEnd();
+        onChange(current ? `${current} ${text}` : text);
+        textarea.current?.focus();
+      },
+      [onChange],
+    ),
+  );
+
   // Hoogte volgt de inhoud. Eerst terug naar auto, anders groeit hij alleen.
   useEffect(() => {
     const element = textarea.current;
@@ -61,6 +86,25 @@ export function Composer({
         className,
       )}
     >
+      {/* Opnemen is een toestand die je moet kunnen zien, niet alleen aan een
+          knop die van kleur verandert. Aria-live omdat een rode knop niets zegt
+          tegen iemand met een schermlezer. */}
+      {(dictation.state !== "idle" || dictation.error) && (
+        <p
+          aria-live="polite"
+          className={cn(
+            "mb-1.5 flex items-center gap-1.5 px-1 text-xs",
+            dictation.error ? "text-danger" : "text-ink-muted",
+          )}
+        >
+          {dictation.state === "recording" && (
+            <span className="size-2 shrink-0 animate-pulse rounded-full bg-danger" />
+          )}
+          {dictation.error ??
+            (dictation.state === "recording" ? t("recording") : t("transcribing"))}
+        </p>
+      )}
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -90,6 +134,28 @@ export function Composer({
         >
           <PlusIcon className="size-5" />
         </button>
+
+        {dictation.available && (
+          <button
+            type="button"
+            onClick={dictation.toggle}
+            disabled={disabled || dictation.state === "transcribing"}
+            aria-label={dictation.state === "recording" ? t("dictateStop") : t("dictate")}
+            aria-pressed={dictation.state === "recording"}
+            className={cn(
+              "flex size-10 shrink-0 items-center justify-center rounded-chip ring-1 ring-inset transition-colors disabled:opacity-40",
+              dictation.state === "recording"
+                ? "bg-danger-soft text-danger ring-danger/30"
+                : "text-ink-muted ring-hairline hover:bg-canvas",
+            )}
+          >
+            {dictation.state === "recording" ? (
+              <StopIcon className="size-5" />
+            ) : (
+              <MicIcon className="size-5" />
+            )}
+          </button>
+        )}
 
         <textarea
           ref={textarea}

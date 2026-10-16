@@ -25,8 +25,8 @@ const sections = new Set(
 assert.ok(sections.size > 0, "de seed leverde geen enkele sectie op, klopt de regex nog?");
 assert.equal(
   sections.size,
-  7,
-  `de taxonomie heeft zeven informatieblokken, gevonden: ${[...sections].join(", ")}`,
+  8,
+  `de taxonomie heeft acht informatieblokken, gevonden: ${[...sections].join(", ")}`,
 );
 
 for (const [language, catalog] of [
@@ -68,6 +68,6 @@ assert.ok(
 );
 
 console.log(
-  `section-labels: 7 secties, 2 registers, 2 talen, ${different.length} bewust verschillend`,
+  `section-labels: 8 secties, 2 registers, 2 talen, ${different.length} bewust verschillend`,
 );
 process.exit(0);

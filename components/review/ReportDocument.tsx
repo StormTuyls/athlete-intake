@@ -240,9 +240,32 @@ export function ReportDocument({
       )}
 
       {sections.map((section) => {
-        const fields = snapshot.fields
+        const inSection = snapshot.fields
           .filter((field) => field.section === section)
           .sort((a, b) => a.sortOrder - b.sortOrder);
+
+        /**
+         * Lege velden staan samengevat onderaan de sectie, niet als rij.
+         *
+         * Per veld kostte een leeg veld twee regels ("niet vermeld", en
+         * eronder een herkomstregel die hetzelfde zegt). Met een klachtsectie
+         * van veertien velden die bij een atleet zonder klacht allemaal leeg
+         * zijn, is het grootste deel van het rapport dan een opsomming van wat
+         * er niet in staat.
+         *
+         * Weglaten is geen optie: in een medisch document is het verschil
+         * tussen "geen allergieen" en "niet gevraagd" wezenlijk, en de lezer
+         * hoort te zien welke vragen open bleven. Vandaar samenvatten en niet
+         * verbergen. De verplichte en tegenstrijdige gaten staan daarnaast nog
+         * steeds apart bovenaan, in het blok hierboven.
+         *
+         * Gefilterd in de weergave en niet in het snapshot: snapshot.fields
+         * zit in de contenthash, dus daar iets uit laten zou elke bestaande
+         * intake bij de eerstvolgende export een nieuwe versie laten minten,
+         * met een modelcall erbij.
+         */
+        const fields = inSection.filter((field) => field.status !== "missing");
+        const empty = inSection.filter((field) => field.status === "missing");
 
         return (
           <section key={section} className="mt-6">
@@ -271,6 +294,13 @@ export function ReportDocument({
                 </div>
               ))}
             </dl>
+
+            {empty.length > 0 && (
+              <p className="mt-2 break-inside-avoid text-xs text-ink-faint">
+                <span className="italic">{t("notFilledIn")}</span>{" "}
+                {empty.map((field) => fieldLabel(field)).join(", ")}
+              </p>
+            )}
           </section>
         );
       })}
