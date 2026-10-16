@@ -169,6 +169,82 @@ Health check:
 curl -s http://localhost:3000/api/health
 ```
 
+### Dicteren
+
+De microfoonknop heeft twee motoren, en welke er draait hangt aan
+`TRANSCRIBE_API_KEY`.
+
+Staat die sleutel LEEG, dan gebruikt de knop de spraakherkenning van de browser.
+Gratis, geen server, werkt meteen, maar de audio gaat buiten ons om naar Google
+(Chrome) of Apple (Safari). Tijdens het opnemen staat er daarom een regel onder
+het invoerveld die dat tegen de atleet zegt. Firefox heeft die API niet; daar
+blijft de knop weg.
+
+Staat de sleutel WEL gezet, dan neemt de browser op en gaat de audio naar
+`/api/intake/transcribe`, en van daar naar een partij die in het
+verwerkingsregister staat. Dat is de bedoeling voor productie met echte atleten.
+Zie de noot bij de subverwerkerstabel in [docs/oplevering.md](docs/oplevering.md);
+die is belangrijker dan deze alinea.
+
+### De servermotor lokaal aanzetten
+
+Lokaal hoeft daar geen derde partij voor in de keten: Whisper draait in een
+container, en die spreekt hetzelfde endpoint als de gehoste diensten
+(`POST /v1/audio/transcriptions`). Zie `lib/intake/transcribe.ts`.
+
+```bash
+docker run --detach --publish 8000:8000 --name speaches \
+  --env WHISPER__COMPUTE_TYPE=int8 \
+  --volume hf-hub-cache:/home/ubuntu/.cache/huggingface/hub \
+  ghcr.io/speaches-ai/speaches:latest-cpu
+```
+
+`WHISPER__COMPUTE_TYPE=int8` is geen afstelling maar een voorwaarde. Zonder die
+regel leidt ctranslate2 uit het model float16 af, ziet dat de CPU dat niet
+efficient kan, en zet de gewichten om naar float32. `large-v3` wordt dan door de
+kernel afgeschoten (exit 137) op een Docker met 7,7 GB. Gemeten, niet bedacht:
+de container verdween zonder melding, en met `--rm` zijn ook de logs weg.
+
+Het model moet er apart bij, want het wordt NIET bij het eerste verzoek
+opgehaald; dat verzoek antwoordt dan "is not installed locally":
+
+```bash
+curl -X POST "http://localhost:8000/v1/models/Systran%2Ffaster-whisper-large-v3"
+```
+
+Daarna in `.env.local`:
+
+```
+TRANSCRIBE_API_KEY=lokaal
+TRANSCRIBE_BASE_URL=http://localhost:8000/v1
+TRANSCRIBE_MODEL=Systran/faster-whisper-large-v3
+```
+
+`TRANSCRIBE_API_KEY` mag lokaal elke waarde zijn; hij staat er alleen omdat de
+route hem als schakelaar gebruikt (geen sleutel is geen knop). Herstart de
+devserver, want Next leest de omgeving bij het opstarten.
+
+**Welk model.** Gemeten op een MacBook Air met een Nederlandse zin van elf
+seconden over adductorenklachten, int8, model al geladen:
+
+| Model | Duur | Uitkomst |
+| --- | --- | --- |
+| `Systran/faster-whisper-large-v3` | 10 s | "rechteradductoren", inhoudelijk foutloos |
+| `Systran/faster-whisper-small` | 5 s | "rechteradduktoren", "woord" in plaats van "word" |
+
+Dus ongeveer realtime voor `large-v3` en de helft daarvan voor `small`, en `small`
+maakt zijn fouten precies op de anatomische term. Voor een opname van twee
+minuten betekent dat een wachttijd van ongeveer twee minuten: bruikbaar om de
+functie te testen, te traag om een atleet voor te laten wachten. De eerste call na
+het starten kost 7 seconden extra voor het laden van het model.
+
+De `.en`-modellen uit de documentatie van speaches kunnen geen Nederlands.
+
+Dit is de ontwikkelopstelling. Op echte hardware met een GPU kan dezelfde
+container ook in productie, maar niet op een laptop-CPU: de route heeft
+`maxDuration = 60` en `large-v3` doet er ongeveer realtime over, dus een opname
+van twee minuten loopt in een timeout.
+
 ## Scripts
 
 | Script | Doet |

@@ -55,7 +55,9 @@ Tegen de echte productie-URL, niet lokaal:
 
 ## Subverwerkers
 
-Voor de GDPR-administratie van de klant. Vijf partijen, en vier ervan zien medische data.
+Voor de GDPR-administratie van de klant. Vier vaste partijen, en drie ervan zien medische data.
+Daarnaast komt er altijd een vijfde bij zodra iemand dicteert; welke dat is hangt af van een
+omgevingsvariabele. Zie de noot onder de tabel, die is belangrijker dan de tabel zelf.
 
 | Subverwerker | Rol | Wat er heen gaat | Waar |
 |---|---|---|---|
@@ -63,15 +65,35 @@ Voor de GDPR-administratie van de klant. Vijf partijen, en vier ervan zien medis
 | Vercel Inc. | Hosting en uitvoering | Alle requests lopen hierlangs, dus medische velden gaan door hun infrastructuur | Functions `fra1`; CDN wereldwijd |
 | Anthropic PBC | Extractie uit documenten, klinische samenvatting | Documentinhoud en dossierinhoud, in de API-call zelf | VS |
 | Notion Labs Inc. | Commerciele laag: atleten, facturatie, opvolgacties | Met opzet geen medische velden | VS |
-| Mistral AI SAS | Spraak naar tekst voor de dicteerknop in de intake | De opname zelf: alles wat een atleet inspreekt, dus klachten, medicatie en historiek | Frankrijk (EU) |
+| Mistral AI SAS | Spraak naar tekst, ALS `TRANSCRIBE_API_KEY` gezet is | De opname zelf: alles wat een atleet inspreekt, dus klachten, medicatie en historiek | Frankrijk (EU) |
+| Google LLC of Apple Inc. | Spraak naar tekst via de browser, als die sleutel NIET gezet is | Dezelfde spraak, maar buiten onze infrastructuur om: de browser stuurt hem rechtstreeks naar de spraakdienst van zijn maker | VS (Chrome: Google; Safari: Apple) |
 
-**Mistral telt alleen mee als dicteren aanstaat.** De microfoonknop verschijnt pas als
-`TRANSCRIBE_API_KEY` gezet is; staat de variabele leeg, dan is er geen knop, gaat er geen audio de deur
-uit en is deze rij niet van toepassing. De opname wordt nergens opgeslagen: ze gaat door
-`/api/intake/transcribe` heen naar de dienst en verdwijnt met het verzoek. Er is dus niets om op te
-ruimen en het verwijderpad gaat er niet langs, om dezelfde reden als bij Anthropic. Wie naar een andere
-aanbieder overstapt (de API is OpenAI-compatibel, zie `.env.example`) wisselt daarmee deze rij, en dat
-is geen configuratiedetail maar een wijziging in het verwerkingsregister.
+**Welke van die twee rijen geldt, hangt aan een omgevingsvariabele, en dat is de belangrijkste regel
+van deze hele tabel.**
+
+Staat `TRANSCRIBE_API_KEY` gezet, dan neemt de browser op, gaat de audio naar
+`/api/intake/transcribe` en van daar naar Mistral. Wij weten dan welke partij de spraak hoort, er ligt
+een verwerkersovereenkomst onder, en de opname wordt nergens opgeslagen: ze verdwijnt met het verzoek.
+Niets om op te ruimen, en het verwijderpad gaat er niet langs, om dezelfde reden als bij Anthropic.
+Lokaal kan diezelfde variabele naar een Whisper-container op de machine zelf wijzen (zie de README);
+dan is er helemaal geen derde partij, want het endpoint is OpenAI-compatibel en waar de audio heen gaat
+is een kwestie van `TRANSCRIBE_BASE_URL`.
+
+Staat die variabele LEEG, dan valt de knop terug op de spraakherkenning van de browser zelf. Die is
+gratis en vraagt geen contract, maar de audio gaat dan buiten onze infrastructuur om naar Google
+(Chrome) of Apple (Safari). Wij kiezen die partij niet, wij zien de audio niet, en wij kunnen niet
+afspreken hoe lang ze hem bewaren of waarvoor ze hem gebruiken. Dat is een zwakkere positie dan elke
+andere rij in deze tabel, en het is op dit moment de situatie in productie.
+
+Daarom staat het in de interface. Zodra die motor actief is, leest de atleet tijdens het opnemen: "Je
+browser zet je spraak om naar tekst. Daarvoor stuurt hij je stem naar Google of Apple, niet naar ons."
+Dat is geen vriendelijkheid maar de transparantieplicht: wie bijzondere categorie persoonsgegevens
+laat verwerken door een partij die hij niet kan binden, hoort dat te zeggen tegen degene van wie die
+gegevens zijn. Die zin weghalen is een juridische wijziging, geen tekstuele.
+
+Wie naar een andere aanbieder overstapt (de API is OpenAI-compatibel, zie `.env.example`) wisselt
+daarmee de Mistral-rij, en ook dat is geen configuratiedetail maar een wijziging in het
+verwerkingsregister.
 
 **Er komt een zesde bij zodra de herstelmail live gaat.** Het wachtwoordherstel (`/auth/forgot`)
 laat Supabase Auth een mail sturen. Lokaal vangt Mailpit die op en gaat er niets de deur uit; in
@@ -358,8 +380,9 @@ Geen enkele sleutel staat in git. `.env.example` bevat alleen namen.
 - **Vercel**: alle productievariabelen staan in het project. `CRON_SECRET` en `NEXT_PUBLIC_APP_URL`
   staan alleen op `production`, de rest op `production` en `preview`. `PRACTICE_LOCALE` is optioneel
   en betekent `nl` als hij ontbreekt.
-- **`TRANSCRIBE_API_KEY` is optioneel en staat nog nergens.** Zolang hij leeg is, is er geen
-  microfoonknop in de intake en is Mistral geen subverwerker. Hem zetten is dus niet alleen een
+- **`TRANSCRIBE_API_KEY` is optioneel en staat nog nergens.** Zolang hij leeg is, loopt dicteren via
+  de spraakherkenning van de browser en hoort Google of Apple de spraak in plaats van Mistral. Dat is
+  een keuze met een juridische kant, geen afstelling; zie de noot bij de subverwerkerstabel. Hem zetten is dus niet alleen een
   configuratiewijziging maar ook een regel erbij in de tabel hierboven en in het verwerkingsregister
   van de klant. `TRANSCRIBE_BASE_URL` en `TRANSCRIBE_MODEL` hebben een standaard en hoeven alleen gezet
   te worden bij een andere aanbieder.

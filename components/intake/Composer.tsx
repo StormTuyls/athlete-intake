@@ -105,6 +105,13 @@ export function Composer({
         </p>
       )}
 
+      {/* Wie de stem hoort. Bij de browsermotor gaat de audio buiten ons om naar
+          Google of Apple, en dat hoort de atleet te weten voordat hij zijn
+          klachten inspreekt. Zie de kop van useDictation.ts. */}
+      {dictation.viaBrowser && dictation.state === "recording" && (
+        <p className="mb-1.5 px-1 text-xs text-ink-faint">{t("dictateBrowserNote")}</p>
+      )}
+
       <form
         onSubmit={(event) => {
           event.preventDefault();

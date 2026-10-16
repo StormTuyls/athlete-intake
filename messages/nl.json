@@ -47,6 +47,7 @@
     "recording": "Aan het opnemen",
     "transcribing": "Aan het uitschrijven",
     "dictateFailed": "Het uitschrijven is niet gelukt. Probeer het opnieuw of typ je antwoord.",
+    "dictateBrowserNote": "Je browser zet je spraak om naar tekst. Daarvoor stuurt hij je stem naar Google of Apple, niet naar ons.",
     "micDenied": "Geen toegang tot de microfoon. Zet hem aan in de instellingen van je browser."
   },
   "errors": {

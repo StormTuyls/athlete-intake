@@ -47,6 +47,7 @@
     "recording": "Recording",
     "transcribing": "Transcribing",
     "dictateFailed": "Transcribing failed. Try again or type your answer.",
+    "dictateBrowserNote": "Your browser converts your speech to text. To do that it sends your voice to Google or Apple, not to us.",
     "micDenied": "No access to the microphone. Enable it in your browser settings."
   },
   "errors": {
