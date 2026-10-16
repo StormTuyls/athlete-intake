@@ -11,13 +11,33 @@ hem te laten werken, niet de juiste plek om hem te laten groeien. De spec die er
 VALD-import, wearables, trainingsbelasting, cohortpercentielen, alerts. Dat is een product met een
 eigen levensloop, en mogelijk met eigen klanten die de intake niet afnemen.
 
-**Vastgelegd:** eigen repo, eigen deploy, **hetzelfde Supabase-project**.
+**Vastgelegd:** eigen repo, eigen deploy, **hetzelfde Supabase-project**, en de gedeelde code wordt
+gekopieerd in plaats van gedeeld.
 
-Die laatste is de belangrijkste en de minst omkeerbare. De spec zegt in §1 waarom: "The athlete
-profile is the single source of truth. VALD, manual tests, training systems and wearables are data
-sources feeding that profile; they are not separate destinations." Een eigen databank zou betekenen
-dat er twee atleetprofielen bestaan die gesynchroniseerd moeten blijven, en dan is de eerste vraag bij
-elk verschil "welke klopt".
+**Nog niet beslist, en het hangt aan de overdracht:** wie eigenaar wordt van dat Supabase-project.
+
+Die gedeelde databank is de belangrijkste en de minst omkeerbare keuze. De spec zegt in §1 waarom:
+"The athlete profile is the single source of truth. VALD, manual tests, training systems and wearables
+are data sources feeding that profile; they are not separate destinations." Een eigen databank per app
+zou betekenen dat er twee atleetprofielen bestaan die gesynchroniseerd moeten blijven, en dan is de
+eerste vraag bij elk verschil "welke klopt".
+
+### De vraag die bij de overdracht valt
+
+Zolang beide apps van dezelfde partij zijn, is een gedeelde databank gewoon handig. Zodra de intake
+naar de klant gaat en de screening hier blijft, delen **twee verschillende eigenaren** één databank
+met bijzondere categorie persoonsgegevens erin. Dat is dan geen architectuurkeuze meer maar een
+juridische, en er zijn drie uitkomsten:
+
+| Eigenaar | Wat het betekent |
+|---|---|
+| De klant | De screening leest uit hun databank met een eigen rol. Technisch het minste werk, en het atleetprofiel blijft één bron. Maar dan ben je verwerker voor hun gegevens, met een verwerkersovereenkomst, en kunnen zij die toegang intrekken waarmee het product stilvalt. |
+| Jij | De overgedragen intake blijft op jouw infrastructuur draaien. Dan is het geen echte overdracht: de klant krijgt code zonder de data eronder. |
+| Allebei een eigen databank | Volledige scheiding, en de enige waarbij niemand van de ander afhangt. Breekt de koppeling uit de spec: de blessuretijdlijn verdwijnt uit de trendgrafiek (zie §6) en een atleet bestaat twee keer. |
+
+**Dit is bewust uitgesteld.** Het hoeft vandaag niet, maar het moet beslist zijn vóór de overdracht,
+en niet erdoor. Wie het dan pas opmerkt, staat voor de keuze tussen een overdracht uitstellen en een
+verwerkersovereenkomst tekenen onder tijdsdruk.
 
 ## 1. Wat verhuist, wat wordt gedeeld
 
@@ -46,22 +66,20 @@ Dit is de eigenlijke beslissing, en de duurste om later terug te draaien:
 `lib/report/branding.ts`, `components/review/AutoPrint.tsx`, en de hele loginkant
 (`app/coach/login`, `components/coach/CoachLogin.tsx`, `app/auth/*`).
 
-Drie manieren, in volgorde van wat ik zou doen:
+**Beslist: kopiëren.** Twee losse repo's, elk compleet, geen gedeelde laag ertussen.
 
-1. **Kopiëren en laten divergeren.** Snelst, en eerlijk over wat er gebeurt: twee producten die
-   toevallig dezelfde oorsprong hebben. De prijs is dat een fix in `lib/db/sql.ts` (zoals de
-   date-parser en de `sslmode`-truc, allebei duur bevochten) twee keer gedaan moet worden, en de
-   tweede keer vergeten wordt.
-2. **Een gedeeld npm-pakket** (`@unbound/core` of zo). Netter op papier, maar het betekent versies,
-   releases en een build-stap tussen een wijziging en het effect ervan. Voor twee apps van één team is
-   dat meestal meer ceremonie dan winst.
-3. **Een monorepo met twee Vercel-projecten.** Gedeelde code zonder publicatiestap, allebei de apps
-   deployen uit dezelfde repo met een eigen root directory. Dit is wat Vercel hiervoor heeft, en het
-   houdt de belofte "eigen deploy" zonder de belofte "eigen repo".
+Dat is geen smaak maar een gevolg van wie wat krijgt: **de intake wordt overgedragen aan de klant, de
+screening niet.** Daarmee vallen de twee nettere opties weg. Een monorepo kun je niet half
+overdragen, en een gedeeld npm-pakket zou betekenen dat de overgedragen intake een afhankelijkheid
+houdt op een pakket dat jij beheert. Allebei zijn het een overdracht die geen overdracht is.
 
-Optie 3 geeft het meeste voor het minste, maar botst met "eigen repo". Als dat laatste er vooral is om
-de screening apart te kunnen verkopen of overdragen, dan is 1 het antwoord en moet dat bewust gekozen
-worden, niet als gevolg.
+De prijs staat vast en hoort geaccepteerd te worden in plaats van later ontdekt: een fix in
+`lib/db/sql.ts` moet twee keer gebeuren. Dat bestand bevat twee dingen die duur bevochten zijn (de
+date-parser die een blessuredatum een dag liet verschuiven, en de `sslmode`-truc die de verbinding
+met de pooler überhaupt mogelijk maakt). Wie er een derde aan toevoegt, zet hem in beide repo's of
+schrijft op waarom niet.
+
+De koppeling in `lib/http.ts` is om dezelfde reden al doorgeknipt, zie hieronder.
 
 ### Eén koppeling moet sowieso doorgeknipt
 
@@ -254,13 +272,14 @@ op screening; de intake heeft er een, de screening niet).
    elke uuid die de client meestuurde. **Nog open:** of DEZE behandelaar bij DEZE atleet mag. Zie §4.
 3. ~~`getLibrary()` op populatie laten filteren.~~ **Gedaan.** Zie de bijgewerkte §5.
 4. Zelfinvoer door atleten, inclusief `source_system = 'self'` en zichtbaarheid in het rapport.
-5. Pas dan splitsen, met de keuze uit §1 bewust gemaakt.
+5. Pas dan splitsen. De keuze uit §1 is gemaakt: twee losse repo's, gedeelde code gekopieerd, omdat
+   de intake wordt overgedragen en de screening niet.
 6. VALD.
 
 ## Wat dit document niet beslist
 
-- Welke van de drie deelvormen uit §1 het wordt. Dat hangt aan de vraag of de screening ooit los
-  verkocht of overgedragen wordt, en dat weet de praktijk en wij niet.
+- **Wie eigenaar wordt van de databank.** Zie "De vraag die bij de overdracht valt" hierboven. Moet
+  beslist zijn voor de intake overgaat.
 - Of er een cookie-domein over subdomeinen komt. Eerst uitproberen.
 - Welke testblokken een atleet zelf mag afnemen. Klinische vraag.
 - Of laag 2 er komt, en bij welke N. Vraagt een uitspraak over hoeveel atleten de praktijk verwacht.
