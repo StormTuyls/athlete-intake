@@ -45,6 +45,8 @@
     "dictate": "Inspreken",
     "dictateStop": "Stoppen met opnemen",
     "recording": "Aan het opnemen",
+    "slideToCancel": "sleep weg om te annuleren",
+    "releaseToCancel": "Laat los om te annuleren",
     "transcribing": "Aan het uitschrijven",
     "dictateFailed": "Het uitschrijven is niet gelukt. Probeer het opnieuw of typ je antwoord.",
     "dictateBrowserNote": "Je browser zet je spraak om naar tekst. Daarvoor stuurt hij je stem naar Google of Apple, niet naar ons.",

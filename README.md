@@ -180,6 +180,23 @@ Gratis, geen server, werkt meteen, maar de audio gaat buiten ons om naar Google
 het invoerveld die dat tegen de atleet zegt. Firefox heeft die API niet; daar
 blijft de knop weg.
 
+De knop werkt als een spraakbericht: indrukken en vasthouden, loslaten om af te
+ronden, wegslepen en dan loslaten om weg te gooien. Dat is geen stijlkeuze maar
+de oplossing voor een fout. Een aan-uitknop ging stuk omdat de herkenner uit
+zichzelf stopt na een pauze (Chrome op Android negeert `continuous`): de knop
+sprong dan terug naar "Inspreken" en alles wat je daarna zei was weg. Nu telt de
+vinger en niet de herkenner, en stopt die uit zichzelf, dan komt er meteen een
+nieuwe. Met een toetsenbord is het wel een aan-uitknop, want vasthouden is daar
+geen gebaar.
+
+Versturen kan niet tijdens het opnemen. Deed je dat wel, dan zette de volgende
+tussenstand de zin opnieuw in het veld en stond het bericht twee keer: een keer
+verstuurd en een keer in de balk.
+
+De kwaliteit van de browserherkenning in het Nederlands is matig op anatomische
+termen: "hamstring" wordt "handen string". Dat is niet van onze kant op te
+lossen en het is het argument voor de servermotor.
+
 Staat de sleutel WEL gezet, dan neemt de browser op en gaat de audio naar
 `/api/intake/transcribe`, en van daar naar een partij die in het
 verwerkingsregister staat. Dat is de bedoeling voor productie met echte atleten.

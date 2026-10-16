@@ -88,13 +88,30 @@ export function useDictation(onText: (text: string) => void) {
   const [error, setError] = useState<string | null>(null);
 
   const recognition = useRef<SpeechRecognitionLike | null>(null);
+
+  /**
+   * Alles wat vaststaat sinds de vinger op de knop ging.
+   *
+   * Over INSTANTIES heen, niet per instantie. De herkenner stopt uit zichzelf en
+   * wordt dan opnieuw gestart; elke nieuwe instantie begint met een lege
+   * `results`, dus wat de vorige had vastgesteld moet hier blijven staan.
+   */
+  const settled = useRef("");
+
+  /**
+   * Of de vinger nog op de knop staat.
+   *
+   * Dit is de waarheid over "neemt hij op", niet de staat van de herkenner. Dat
+   * onderscheid is de hele reden dat deze hook herschreven is; zie de kop.
+   */
+  const held = useRef(false);
   const heard = useRef<string[]>([]);
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const chunks = useRef<Blob[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const release = useCallback(() => {
+  const releaseStream = useCallback(() => {
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
@@ -149,9 +166,9 @@ export function useDictation(onText: (text: string) => void) {
     () => () => {
       recognition.current?.abort();
       recognition.current = null;
-      release();
+      releaseStream();
     },
-    [release],
+    [releaseStream],
   );
 
   const send = useCallback(
@@ -225,7 +242,7 @@ export function useDictation(onText: (text: string) => void) {
     instance.onstop = () => {
       const audio = new Blob(chunks.current, { type: instance.mimeType });
       chunks.current = [];
-      release();
+      releaseStream();
       if (audio.size > 0) void send(audio);
       else setState("idle");
     };
@@ -235,31 +252,38 @@ export function useDictation(onText: (text: string) => void) {
     setState("recording");
 
     timer.current = setTimeout(() => instance.stop(), MAX_RECORDING_MS);
-  }, [release, send, t]);
+  }, [releaseStream, send, t]);
 
   /**
    * De gratis weg: de browser luistert en geeft tekst.
    *
    * Geen opname, geen upload, geen route. De audio gaat buiten ons om naar de
-   * spraakdienst van de browser. Daarom hoort hier geen enkele slimmigheid in:
-   * hoe minder dit pad doet, hoe minder er te verklaren valt.
+   * spraakdienst van de browser.
    *
-   * continuous staat aan omdat een antwoord op "vertel wat er speelt" langer
-   * duurt dan de stilte waarop de herkenner anders afsluit.
+   * ------------------------------------------------------------------------
+   * Waarom dit indrukken-en-vasthouden is
+   * ------------------------------------------------------------------------
    *
-   * interimResults staat ook aan, zodat de atleet ziet wat er van zijn woorden
-   * gemaakt wordt terwijl hij praat. Dat mag alleen omdat de aanroeper de tekst
-   * VERVANGT en niet aanvult: elke beurt levert de volledige zin tot nu toe, en
-   * de Composer zet die achter wat er al stond toen de opname begon. Zou hij
-   * aanvullen, dan stapelt elke tussenstand zich op tot "Ik heb Ik heb al Ik heb
-   * al twee weken".
+   * Dit was eerst een aan-uitknop, en dat werkte niet. `onend` vuurt namelijk
+   * ook als de herkenner UIT ZICHZELF stopt, en dat doet hij na een pauze;
+   * Chrome op Android negeert `continuous` grotendeels en sluit na één zin af.
+   * Het gevolg: je begon te praten, dacht even na, de knop sprong terug op
+   * "Inspreken", en alles wat je daarna zei was weg. Zonder melding.
+   *
+   * Nu is de VINGER de waarheid en niet de staat van de herkenner. Stopt die uit
+   * zichzelf terwijl de knop nog ingedrukt is, dan komt er meteen een nieuwe. Wat
+   * de vorige vaststelde blijft in `settled` staan, want elke nieuwe instantie
+   * begint met een lege `results`.
+   *
+   * interimResults staat aan zodat je ziet wat er van je woorden gemaakt wordt.
+   * Dat mag alleen omdat de aanroeper de tekst VERVANGT en niet aanvult: elke
+   * beurt levert de hele zin tot nu toe.
    */
-  const startBrowser = useCallback(() => {
+  const respawn = useRef<() => void>(() => {});
+
+  const spawnRecognition = useCallback(() => {
     const Recognition = speechRecognition();
     if (!Recognition) return;
-
-    setError(null);
-    heard.current = [];
 
     const instance = new Recognition();
     instance.lang = BROWSER_LANG[locale] ?? "nl-NL";
@@ -267,47 +291,97 @@ export function useDictation(onText: (text: string) => void) {
     instance.interimResults = true;
 
     instance.onresult = (event) => {
-      // event.results is cumulatief: het bevat alles sinds start(), dus de hele
-      // zin wordt elke beurt opnieuw opgebouwd in plaats van bijgehouden.
-      let settled = "";
+      // Cumulatief binnen DEZE instantie; eerdere instanties staan in settled.
+      let done = "";
       let pending = "";
       for (let i = 0; i < event.results.length; i += 1) {
         const result = event.results[i];
-        if (result.isFinal) settled += result[0].transcript;
+        if (result.isFinal) done += result[0].transcript;
         else pending += result[0].transcript;
       }
 
-      heard.current = [settled];
-      const shown = `${settled} ${pending}`.replace(/\s+/g, " ").trim();
+      heard.current = [done];
+      const shown = `${settled.current} ${done} ${pending}`.replace(/\s+/g, " ").trim();
       if (shown) onText(shown);
     };
 
     instance.onerror = (event) => {
-      // 'no-speech' is geen fout maar een stilte, en 'aborted' is onze eigen
-      // stopknop. Allebei een melding geven is een waarschuwing over niets.
+      // 'no-speech' is een stilte en 'aborted' is onze eigen stopknop. Allebei
+      // een melding geven is een waarschuwing over niets. Bij een echte fout gaat
+      // de vinger eraf, anders start onend meteen een nieuwe die weer faalt.
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        held.current = false;
         setError(t("micDenied"));
       } else if (event.error !== "no-speech" && event.error !== "aborted") {
+        held.current = false;
         setError(t("dictateFailed"));
       }
     };
 
     instance.onend = () => {
-      recognition.current = null;
-      const text = heard.current.join(" ").trim();
+      const done = heard.current.join("").trim();
+      if (done) settled.current = `${settled.current} ${done}`.trim();
       heard.current = [];
-      // De tussenstand staat al in het veld. Hier alleen nog de definitieve
-      // versie erover, zodat een half woord van de laatste tussenstand niet
-      // blijft staan. setState pas daarna: zolang de staat 'recording' is, laat
-      // de Composer de tekst vervangen in plaats van aanvullen.
-      if (text) onText(text);
+      recognition.current = null;
+
+      // De bugfix. Zolang de knop ingedrukt is, gaat het luisteren door.
+      //
+      // Via een ref en niet rechtstreeks: een useCallback die zichzelf aanroept
+      // verwijst naar een const die op dat moment nog niet bestaat, en de
+      // react-hooks-lintregel weigert dat terecht.
+      if (held.current) {
+        respawn.current();
+        return;
+      }
+
       setState("idle");
+      const text = settled.current.trim();
+      settled.current = "";
+      if (text) onText(text);
     };
 
     recognition.current = instance;
     instance.start();
-    setState("recording");
   }, [locale, onText, t]);
+
+  useEffect(() => {
+    respawn.current = spawnRecognition;
+  }, [spawnRecognition]);
+
+  /** Vinger op de knop. */
+  const beginHold = useCallback(() => {
+    if (!speechRecognition() || held.current) return;
+    setError(null);
+    held.current = true;
+    settled.current = "";
+    heard.current = [];
+    setState("recording");
+    spawnRecognition();
+  }, [spawnRecognition]);
+
+  /**
+   * Vinger van de knop.
+   *
+   * `discard` is de sleepbeweging weg van de knop, zoals in WhatsApp: dan telt de
+   * opname niet. abort() en niet stop(), want stop() levert nog een laatste
+   * resultaat af en dat is precies wat weg moet.
+   */
+  const endHold = useCallback((discard: boolean) => {
+    if (!held.current) return;
+    held.current = false;
+
+    if (discard) {
+      settled.current = "";
+      heard.current = [];
+      const instance = recognition.current;
+      recognition.current = null;
+      setState("idle");
+      instance?.abort();
+      return;
+    }
+
+    recognition.current?.stop();
+  }, []);
 
   return {
     available: engine !== null,
@@ -316,15 +390,21 @@ export function useDictation(onText: (text: string) => void) {
     state,
     error,
     clearError: useCallback(() => setError(null), []),
-    toggle: useCallback(() => {
-      if (state === "recording") {
-        if (engine === "browser") recognition.current?.stop();
-        else stop();
-        return;
-      }
+
+    /** Indrukken. Bij de servermotor begint hier de opname. */
+    press: useCallback(() => {
       if (state !== "idle") return;
-      if (engine === "browser") startBrowser();
+      if (engine === "browser") beginHold();
       else if (engine === "server") void start();
-    }, [engine, state, start, startBrowser, stop]),
+    }, [beginHold, engine, start, state]),
+
+    /** Loslaten. `discard` gooit weg wat er herkend is in plaats van af te ronden. */
+    release: useCallback(
+      (discard = false) => {
+        if (engine === "browser") endHold(discard);
+        else if (state === "recording") stop();
+      },
+      [endHold, engine, state, stop],
+    ),
   };
 }

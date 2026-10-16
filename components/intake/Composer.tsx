@@ -18,6 +18,15 @@ import { useDictation } from "@/components/intake/useDictation";
  * De tekstgrootte is 16px en dat is geen smaak: onder 16px zoomt iOS Safari
  * automatisch in zodra het veld focus krijgt, en dan staat de layout scheef.
  */
+/** Hoe ver je moet slepen voor het loslaten de opname weggooit. */
+const CANCEL_DISTANCE = 56;
+
+function formatSeconds(total: number): string {
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 export function Composer({
   value,
   onChange,
@@ -53,6 +62,11 @@ export function Composer({
    */
   const base = useRef(value);
 
+  /** Waar de vinger neerkwam, voor de sleep-om-te-annuleren. */
+  const pressedAt = useRef<{ x: number; y: number } | null>(null);
+  const [willCancel, setWillCancel] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+
   const dictation = useDictation(
     useCallback(
       (text: string) => {
@@ -68,6 +82,16 @@ export function Composer({
     if (dictation.state !== "recording") base.current = value;
   }, [value, dictation.state]);
 
+  // Een lopende teller, zoals bij een spraakbericht: zonder dat weet je niet of
+  // hij nog luistert of al gestopt is. Op nul zetten gebeurt bij het indrukken en
+  // niet hier: setState in een effectbody levert een cascade aan renders op, en
+  // de teller staat toch alleen in beeld zolang er opgenomen wordt.
+  useEffect(() => {
+    if (dictation.state !== "recording") return;
+    const id = setInterval(() => setSeconds((value) => value + 1), 1000);
+    return () => clearInterval(id);
+  }, [dictation.state]);
+
   // Hoogte volgt de inhoud. Eerst terug naar auto, anders groeit hij alleen.
   useEffect(() => {
     const element = textarea.current;
@@ -82,7 +106,10 @@ export function Composer({
     setRowsHeight(Math.min(element.scrollHeight, 220));
   }, [value]);
 
-  const canSend = value.trim().length > 0 && !disabled;
+  // Niet tijdens het opnemen. Versturen terwijl de herkenner nog luistert, zette
+  // de zin meteen opnieuw in het veld: het bericht stond dan twee keer, een keer
+  // verstuurd en een keer in de balk. Eerst loslaten, dan nalezen, dan sturen.
+  const canSend = value.trim().length > 0 && !disabled && dictation.state === "idle";
 
   return (
     <div
@@ -107,7 +134,11 @@ export function Composer({
             <span className="size-2 shrink-0 animate-pulse rounded-full bg-danger" />
           )}
           {dictation.error ??
-            (dictation.state === "recording" ? t("recording") : t("transcribing"))}
+            (dictation.state === "recording"
+              ? willCancel
+                ? t("releaseToCancel")
+                : `${t("recording")} · ${formatSeconds(seconds)} · ${t("slideToCancel")}`
+              : t("transcribing"))}
         </p>
       )}
 
@@ -151,14 +182,64 @@ export function Composer({
         {dictation.available && (
           <button
             type="button"
-            onClick={dictation.toggle}
             disabled={disabled || dictation.state === "transcribing"}
             aria-label={dictation.state === "recording" ? t("dictateStop") : t("dictate")}
             aria-pressed={dictation.state === "recording"}
+            onPointerDown={(event) => {
+              if (disabled || dictation.state !== "idle") return;
+              // De knop vangt de pointer, anders stopt een sleep buiten de knop
+              // de gebeurtenissen en blijft de opname hangen.
+              event.currentTarget.setPointerCapture(event.pointerId);
+              pressedAt.current = { x: event.clientX, y: event.clientY };
+              setWillCancel(false);
+              setSeconds(0);
+              dictation.press();
+            }}
+            onPointerMove={(event) => {
+              const from = pressedAt.current;
+              if (!from) return;
+              const far =
+                Math.hypot(event.clientX - from.x, event.clientY - from.y) >
+                CANCEL_DISTANCE;
+              setWillCancel(far);
+            }}
+            onPointerUp={() => {
+              if (!pressedAt.current) return;
+              pressedAt.current = null;
+              dictation.release(willCancel);
+              // Annuleren betekent: terug naar wat er stond voordat de vinger op
+              // de knop ging. De hook gooit zijn eigen tekst weg maar weet niet
+              // wat hier in het veld stond; dat weet alleen deze basis.
+              if (willCancel) onChange(base.current);
+              setWillCancel(false);
+            }}
+            onPointerCancel={() => {
+              // Het toestel neemt de pointer over (een inkomend gesprek, een
+              // systeemgebaar). Weggooien, want niemand heeft losgelaten.
+              if (!pressedAt.current) return;
+              pressedAt.current = null;
+              dictation.release(true);
+              onChange(base.current);
+              setWillCancel(false);
+            }}
+            onKeyDown={(event) => {
+              // Vasthouden is met een toetsenbord geen gebaar. Daarom hier wel een
+              // aan-uitknop: zonder dit is dicteren niet te bedienen zonder muis.
+              if (event.key !== " " && event.key !== "Enter") return;
+              event.preventDefault();
+              if (dictation.state === "recording") {
+                dictation.release(false);
+              } else {
+                setSeconds(0);
+                dictation.press();
+              }
+            }}
             className={cn(
-              "flex size-10 shrink-0 items-center justify-center rounded-chip ring-1 ring-inset transition-colors disabled:opacity-40",
+              "flex size-10 shrink-0 touch-none select-none items-center justify-center rounded-chip ring-1 ring-inset transition-colors disabled:opacity-40",
               dictation.state === "recording"
-                ? "bg-danger-soft text-danger ring-danger/30"
+                ? willCancel
+                  ? "bg-ink-faint/20 text-ink-muted ring-hairline"
+                  : "bg-danger-soft text-danger ring-danger/30"
                 : "text-ink-muted ring-hairline hover:bg-canvas",
             )}
           >
