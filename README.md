@@ -279,6 +279,7 @@ supabase/
   migrations/     versienummerde schemawijzigingen
 evals/            testset en verwachte output
 docs/plan.md      scope, milestones, randvoorwaarden
+docs/screening-app.md  wat er beslist moet worden voor de screening een eigen app wordt
 ```
 
 ## Wat hier niet in hoort
@@ -349,3 +350,8 @@ code zijn:
 Wat er verder open staat is operationeel en niet technisch (de plannen bij Supabase en Vercel, de
 service-role-sleutel, previews die naar de productiedatabank wijzen). Dat staat op volgorde in
 [docs/oplevering.md](docs/oplevering.md). Voor de scope en de milestones: [docs/plan.md](docs/plan.md).
+
+De screeningsmodule wordt een aparte webapp. Wat daar eerst voor beslist moet worden, en twee gaten die
+daarbij aan het licht kwamen (geen koppeling coach-atleet in enig autorisatiepad, en referentieregels
+die niet op populatie gefilterd worden), staan in
+[docs/screening-app.md](docs/screening-app.md).
