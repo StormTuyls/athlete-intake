@@ -116,6 +116,39 @@ Verder nodig, uit `.env.example`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPAB
 `NEXT_PUBLIC_APP_URL`. Niet nodig: `ANTHROPIC_API_KEY`, alle `NOTION_*`, `RETENTION_*`, `CRON_SECRET`,
 `TRANSCRIBE_*`.
 
+## 2b. Waar de migraties wonen
+
+Eén databank betekent één schema, en twee repo's kunnen niet allebei de baas zijn over dezelfde
+tabellen. Dit is de plek waar "twee losse repo's" het eerst lekt, en het heeft niets met de
+eigenaarsvraag te maken: het speelt ook zolang allebei de apps nog van jou zijn.
+
+**Voorstel: eigendom per tabel, niet per repo.**
+
+| Tabellen | Repo |
+|---|---|
+| `public.test_definitions`, `test_protocols`, `metric_definitions`, `reference_rules`, en alles onder `medical.screening_*`, `test_items`, `test_trials`, `trial_values`, `measurements`, `derived_results` | screening |
+| `field_definitions`, `intakes`, `consents`, `chat_messages`, en alles onder `medical` dat bij een intake hoort (`documents`, `document_pages`, `field_proposals`, `dossier_fields`, `injury_events`, `intake_reports`) | intake |
+| `public.athletes`, `public.profiles`, `public.audit_log` | gedeeld, zie hieronder |
+
+Migraties zijn op tijdstempel genummerd, dus twee repo's die elk hun eigen tabellen aanmaken botsen
+niet zolang ze elkaars tabellen met rust laten. `supabase db push` vanuit beide werkt.
+
+**Waar het wringt is lokaal ontwikkelen.** `supabase db reset` in de screening-repo kent alleen de
+migraties van die repo, en de screening hangt aan `public.athletes` en `public.profiles`. Een kopie
+van die tabeldefinities in de screening-repo is precies hoe twee schema's uit elkaar gaan lopen.
+
+Drie wegen, en de derde is de minst slechte:
+
+1. De gedeelde tabellen in beide repo's definiëren. Gaat gegarandeerd divergeren.
+2. De screening-repo ontwikkelt tegen een gedeelde Supabase-branch in plaats van een lokale stack.
+   Werkt, maar dan is er geen offline ontwikkelomgeving meer en kost elke test een netwerkronde.
+3. Een `baseline.sql` in de screening-repo: een gedumpt schema van de gedeelde kern, alleen voor
+   lokaal gebruik, dat vóór de eigen migraties draait en opnieuw gedumpt wordt als die kern verandert.
+   Expliciet gemarkeerd als afgeleide, zodat niemand hem met de hand bijwerkt.
+
+De gedeelde kern verandert zelden (`athletes` kreeg er sinds september twee kolommen bij, en dat was
+voor de screening), dus optie 3 vraagt weinig onderhoud en houdt beide repo's zelfstandig te draaien.
+
 ## 3. Sessies over twee domeinen
 
 `proxy.ts` verlengt de Supabase-sessie via cookies op het eigen domein, en doet verder met opzet geen
