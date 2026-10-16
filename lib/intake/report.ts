@@ -84,12 +84,52 @@ export async function dossierView(
   const sections = new Map<string, ReportSection>();
   const attention: ReportValue[] = [];
 
+  /**
+   * Velden die voor DEZE atleet niet gelden.
+   *
+   * Alleen de twee voorwaardelijke redenen. Een veld dat door `ask_when` buiten
+   * bereik valt is geen gat maar een vraag die niet over hem gaat, en de
+   * verplichte-teller hieronder weet dat al (computeCompleteness krijgt
+   * dezelfde lijst). Dit paneel wist het niet, en dat was onzichtbaar zolang er
+   * geen enkele voorwaarde in de taxonomie stond.
+   *
+   * Sinds de klachtsectie staat het er wel: een atleet die nog niet gezegd
+   * heeft of hij pijn heeft, kreeg veertien lege klachtvelden te zien waarvan
+   * er zeven als openstaand verplicht gat meetelden. Precies de lus die
+   * lib/dossier/askWhen.ts beschrijft, een laag hoger.
+   *
+   * `skipped`, `practitioner` en `profile` staan er met opzet NIET bij. Een
+   * overgeslagen veld hoort zichtbaar te blijven (de atleet zei er iets over),
+   * een profielveld heeft gewoon een waarde, en een behandelaarsvraag is geen
+   * gat maar ook geen geheim.
+   */
+  const notApplicable = new Set(
+    state.outOfScope
+      .filter(
+        (item) =>
+          item.reason === "condition_false" || item.reason === "condition_unknown",
+      )
+      .map((item) => item.fieldKey),
+  );
+
   for (const definition of state.definitions) {
     // De consentvelden horen niet in dit overzicht: de atleet gaf die
     // toestemming bij het aanmaken van zijn account en bij het indienen, en ze
     // als "veld" tussen zijn lengte en zijn klachten zetten maakt ze onzichtbaar
     // in plaats van duidelijk.
     if (definition.key.startsWith("consent.")) continue;
+
+    // Een voorwaardelijk veld laten staan zodra er een antwoord in zit: wie
+    // eerst "ja" zei en daarna "nee", heeft gegevens achtergelaten die niet
+    // mogen verdwijnen omdat de voorwaarde omsloeg.
+    //
+    // Op de STATUS kijken en niet op het bestaan van de rij. syncDossier zet
+    // voor elk veld een rij neer, ook een lege: `resolved.has()` is dus overal
+    // waar, en een controle daarop filtert niets.
+    if (notApplicable.has(definition.key)) {
+      const known = state.resolved.get(definition.key);
+      if (!known || known.status === "missing") continue;
+    }
 
     const resolved = state.resolved.get(definition.key);
     const winner =
