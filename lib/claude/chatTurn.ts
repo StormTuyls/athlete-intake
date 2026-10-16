@@ -143,9 +143,20 @@ function systemPrompt(
   // staat. Zonder die tweede lijst ziet hij optionele velden niet, en dan levert
   // "182 cm, ik weeg 77 kg, ik sprint bij AC Herentals" wel lengte, gewicht en
   // sport op maar niet de club. Precies dat ging mis bij de eerste UI-test.
+  //
+  // Profielvelden staan er ook in, al zijn ze nooit een gat. De bot VRAAGT er
+  // niet naar (dat doet het profielscherm), maar als de atleet in zijn verhaal
+  // zegt dat hij bij AC Herentals sprint, hoort dat in het dossier te landen in
+  // plaats van verloren te gaan. Zonder deze regel leverde precies dat antwoord
+  // wel lengte en gewicht op en niet de club, en moest hij het twee keer
+  // vertellen.
+  //
+  // shortcut: public.athletes wordt hier niet bijgewerkt, dus het profielscherm
+  // toont de oude waarde tot de atleet hem daar zelf aanpast. Opwaarderen zodra
+  // dat verschil iemand in de weg zit.
   const open = new Set(gaps.map((gap) => gap.fieldKey));
   const capturable = definitions
-    .filter((definition) => open.has(definition.key))
+    .filter((definition) => open.has(definition.key) || definition.fromProfile)
     .map((definition) => {
       const type =
         definition.dataType === "enum"
