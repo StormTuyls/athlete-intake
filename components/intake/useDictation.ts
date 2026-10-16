@@ -245,9 +245,14 @@ export function useDictation(onText: (text: string) => void) {
    * hoe minder dit pad doet, hoe minder er te verklaren valt.
    *
    * continuous staat aan omdat een antwoord op "vertel wat er speelt" langer
-   * duurt dan de stilte waarop de herkenner anders afsluit. interimResults uit,
-   * want half herkende woorden in het invoerveld laten zetten levert tekst op
-   * die de atleet niet zelf getypt heeft en ook niet heeft gezegd.
+   * duurt dan de stilte waarop de herkenner anders afsluit.
+   *
+   * interimResults staat ook aan, zodat de atleet ziet wat er van zijn woorden
+   * gemaakt wordt terwijl hij praat. Dat mag alleen omdat de aanroeper de tekst
+   * VERVANGT en niet aanvult: elke beurt levert de volledige zin tot nu toe, en
+   * de Composer zet die achter wat er al stond toen de opname begon. Zou hij
+   * aanvullen, dan stapelt elke tussenstand zich op tot "Ik heb Ik heb al Ik heb
+   * al twee weken".
    */
   const startBrowser = useCallback(() => {
     const Recognition = speechRecognition();
@@ -259,13 +264,22 @@ export function useDictation(onText: (text: string) => void) {
     const instance = new Recognition();
     instance.lang = BROWSER_LANG[locale] ?? "nl-NL";
     instance.continuous = true;
-    instance.interimResults = false;
+    instance.interimResults = true;
 
     instance.onresult = (event) => {
+      // event.results is cumulatief: het bevat alles sinds start(), dus de hele
+      // zin wordt elke beurt opnieuw opgebouwd in plaats van bijgehouden.
+      let settled = "";
+      let pending = "";
       for (let i = 0; i < event.results.length; i += 1) {
         const result = event.results[i];
-        if (result.isFinal) heard.current[i] = result[0].transcript;
+        if (result.isFinal) settled += result[0].transcript;
+        else pending += result[0].transcript;
       }
+
+      heard.current = [settled];
+      const shown = `${settled} ${pending}`.replace(/\s+/g, " ").trim();
+      if (shown) onText(shown);
     };
 
     instance.onerror = (event) => {
@@ -280,10 +294,14 @@ export function useDictation(onText: (text: string) => void) {
 
     instance.onend = () => {
       recognition.current = null;
-      setState("idle");
       const text = heard.current.join(" ").trim();
       heard.current = [];
+      // De tussenstand staat al in het veld. Hier alleen nog de definitieve
+      // versie erover, zodat een half woord van de laatste tussenstand niet
+      // blijft staan. setState pas daarna: zolang de staat 'recording' is, laat
+      // de Composer de tekst vervangen in plaats van aanvullen.
       if (text) onText(text);
+      setState("idle");
     };
 
     recognition.current = instance;

@@ -39,28 +39,34 @@ export function Composer({
   const [rowsHeight, setRowsHeight] = useState<number>();
 
   /**
-   * De laatste waarde, voor de dicteerknop.
+   * Wat er stond toen de opname begon.
    *
-   * De callback die de transcriptie ontvangt wordt eenmalig aan de recorder
-   * gehangen. Zou hij `value` uit de sluiting lezen, dan plakt hij de tekst
-   * achter de waarde van het moment dat de opname begon, en verdwijnt alles wat
-   * er tijdens het opnemen bijgetypt is.
+   * De dicteerknop levert tijdens het spreken telkens de HELE zin tot nu toe
+   * opnieuw, niet het stukje dat erbij kwam. Daarom wordt de tekst achter deze
+   * basis gezet en niet achter de huidige waarde: aanvullen zou van elke
+   * tussenstand een laag maken ("Ik heb Ik heb al Ik heb al twee weken").
+   *
+   * De basis schuift alleen mee als er NIET opgenomen wordt. Wie tijdens het
+   * opnemen ook nog begint te typen, ziet dat door de volgende tussenstand
+   * overschreven worden; praten en typen tegelijk is geen geval waar iets
+   * zinnigs voor te verzinnen valt.
    */
-  const latest = useRef(value);
-  useEffect(() => {
-    latest.current = value;
-  }, [value]);
+  const base = useRef(value);
 
   const dictation = useDictation(
     useCallback(
       (text: string) => {
-        const current = latest.current.trimEnd();
-        onChange(current ? `${current} ${text}` : text);
+        const start = base.current.trimEnd();
+        onChange(start ? `${start} ${text}` : text);
         textarea.current?.focus();
       },
       [onChange],
     ),
   );
+
+  useEffect(() => {
+    if (dictation.state !== "recording") base.current = value;
+  }, [value, dictation.state]);
 
   // Hoogte volgt de inhoud. Eerst terug naar auto, anders groeit hij alleen.
   useEffect(() => {
