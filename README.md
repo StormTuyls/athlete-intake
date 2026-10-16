@@ -177,11 +177,23 @@ draait in een container, en die spreekt hetzelfde endpoint als de gehoste
 diensten (`POST /v1/audio/transcriptions`). Zie `lib/intake/transcribe.ts`.
 
 ```bash
-docker run --rm --detach \
-  --publish 8000:8000 \
-  --name speaches \
+docker run --detach --publish 8000:8000 --name speaches \
+  --env WHISPER__COMPUTE_TYPE=int8 \
   --volume hf-hub-cache:/home/ubuntu/.cache/huggingface/hub \
   ghcr.io/speaches-ai/speaches:latest-cpu
+```
+
+`WHISPER__COMPUTE_TYPE=int8` is geen afstelling maar een voorwaarde. Zonder die
+regel leidt ctranslate2 uit het model float16 af, ziet dat de CPU dat niet
+efficient kan, en zet de gewichten om naar float32. `large-v3` wordt dan door de
+kernel afgeschoten (exit 137) op een Docker met 7,7 GB. Gemeten, niet bedacht:
+de container verdween zonder melding, en met `--rm` zijn ook de logs weg.
+
+Het model moet er apart bij, want het wordt NIET bij het eerste verzoek
+opgehaald; dat verzoek antwoordt dan "is not installed locally":
+
+```bash
+curl -X POST "http://localhost:8000/v1/models/Systran%2Ffaster-whisper-large-v3"
 ```
 
 Daarna in `.env.local`:
@@ -196,15 +208,25 @@ TRANSCRIBE_MODEL=Systran/faster-whisper-large-v3
 route hem als schakelaar gebruikt (geen sleutel is geen knop). Herstart de
 devserver, want Next leest de omgeving bij het opstarten.
 
-Let op het model. De voorbeelden in de documentatie van speaches gebruiken
-`.en`-modellen, en die kunnen geen Nederlands. `large-v3` kan het goed maar doet
-op een CPU tientallen seconden over twee minuten audio; `Systran/faster-whisper-small`
-is snel en verstaat anatomische termen een stuk slechter. Het model wordt bij het
-eerste verzoek gedownload, dus die eerste transcriptie duurt lang.
+**Welk model.** Gemeten op een MacBook Air met een Nederlandse zin van elf
+seconden over adductorenklachten, int8, model al geladen:
+
+| Model | Duur | Uitkomst |
+| --- | --- | --- |
+| `Systran/faster-whisper-large-v3` | 10 s | "rechteradductoren", inhoudelijk foutloos |
+| `Systran/faster-whisper-small` | 5 s | "rechteradduktoren", "woord" in plaats van "word" |
+
+Dus ongeveer realtime voor `large-v3` en de helft daarvan voor `small`, en `small`
+maakt zijn fouten precies op de anatomische term. Voor een opname van twee
+minuten betekent dat een wachttijd van ongeveer twee minuten: bruikbaar om de
+functie te testen, te traag om een atleet voor te laten wachten. De eerste call na
+het starten kost 7 seconden extra voor het laden van het model.
+
+De `.en`-modellen uit de documentatie van speaches kunnen geen Nederlands.
 
 Dit is uitdrukkelijk alleen de ontwikkelopstelling. Wat er in productie gebeurt is
 een aparte beslissing, want daar hoort een partij met een verwerkersovereenkomst
-of een eigen gehoste Whisper bij. Zie de subverwerkerstabel in
+of een eigen gehoste Whisper op echte hardware bij. Zie de subverwerkerstabel in
 [docs/oplevering.md](docs/oplevering.md).
 
 ## Scripts
