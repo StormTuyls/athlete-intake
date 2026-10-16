@@ -25,9 +25,17 @@ import { useTranslations } from "next-intl";
  * door een behandelaar gelezen; die laat de databankfunctie ook niet weggooien.
  */
 export function DiscardIntake({
+  intakeId,
   onDone,
   disabled = false,
 }: {
+  /**
+   * Welk concept. Expliciet en niet uit het cookie: het thuisscherm toont de
+   * concepten uit de databank, en het cookie kan er niet zijn (verse login,
+   * tweede toestel, verlopen token). Dat was precies de fout, en ze trof de
+   * knop die als uitgang bedoeld is.
+   */
+  intakeId: string;
   /**
    * Wat er na het weggooien moet gebeuren. `restart` is waar als de atleet
    * meteen een nieuw gesprek wil; de aanroeper beslist wat dat betekent, want
@@ -45,7 +53,11 @@ export function DiscardIntake({
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/intake/discard", { method: "POST" });
+      const response = await fetch("/api/intake/discard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intakeId }),
+      });
       if (!response.ok) {
         throw new Error((await response.json()).error ?? t("failed"));
       }
