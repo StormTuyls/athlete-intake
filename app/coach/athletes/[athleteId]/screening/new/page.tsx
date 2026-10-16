@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { checkCoach, isUuid } from "@/lib/review/access";
 import { getAthleteProfile } from "@/lib/db/athletes";
-import { getLibrary } from "@/lib/db/screening";
+import { getAthletePopulation, getLibrary } from "@/lib/db/screening";
 import { ScreeningEntry, type EntryTest } from "@/components/coach/ScreeningEntry";
 
 export async function generateMetadata() {
@@ -34,11 +34,19 @@ export default async function NewScreeningPage({
   }
   if (access.kind !== "coach") notFound();
 
-  const [athlete, library] = await Promise.all([
+  // Vandaag, want dit scherm toont de banden voordat er een datum gekozen is.
+  // De route rekent straks opnieuw met de werkelijke meetdatum.
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [athlete, population] = await Promise.all([
     getAthleteProfile(athleteId),
-    getLibrary(),
+    getAthletePopulation(athleteId, today),
   ]);
-  if (!athlete) notFound();
+  if (!athlete || !population) notFound();
+
+  // Met de populatie erbij: welke drempel in dit scherm staat hangt af van wie
+  // er gemeten wordt. Zie lib/screening/population.ts.
+  const library = await getLibrary(population);
 
   const t = await getTranslations("screening");
   const locale = await getLocale();

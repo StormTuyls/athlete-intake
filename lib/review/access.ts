@@ -1,4 +1,5 @@
 import { createServerSupabase } from "@/lib/supabase/server";
+import { CoachAuthError } from "@/lib/errors";
 
 /**
  * Wie het coachdossier mag zien.
@@ -19,12 +20,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
  * autorisatiebeslissing over een medisch dossier is dat verschil het hele punt.
  */
 
-export class CoachAuthError extends Error {
-  constructor() {
-    super("geen geldige coachsessie");
-    this.name = "CoachAuthError";
-  }
-}
+export { CoachAuthError } from "@/lib/errors";
 
 export interface Coach {
   id: string;

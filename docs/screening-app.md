@@ -193,20 +193,29 @@ De filterkolommen voor populatie bestaan al op `public.reference_rules` (`sex`, 
 `competition_level`, `age_min`, `age_max`) en de gegevens staan op `public.athletes` (`sex`,
 `competition_level`, `sport`, `discipline`, `date_of_birth`).
 
-Maar `getLibrary()` in `lib/db/screening.ts` krijgt **geen `athleteId` mee** en joint de regels zonder
-enige filter:
+`getLibrary()` keek daar niet naar. Hij joinde de regels zonder enige filter, dus lag er één actieve
+regel per metriek voor iedereen: een vrouw van 17 in de atletiek werd tegen dezelfde drempel gelegd
+als een man van 28 in het roeien.
 
-```sql
-left join public.reference_rules r
-  on r.metric_key = m.key and r.retired_at is null
-```
+**Gerepareerd.** `getLibrary(population)` krijgt nu de populatie mee, en `lib/screening/population.ts`
+kiest de regel. Drie dingen liggen daarin vast, en de eerste is de gevaarlijkste om fout te hebben:
 
-Eén actieve regel per metriek, voor iedereen dezelfde. Ook laag 3, de vergelijking met de wetenschap,
-is dus op dit moment niet naar geslacht, sport of leeftijd gefilterd: een vrouw van 17 in de atletiek
-wordt tegen dezelfde drempel gelegd als een man van 28 in het roeien. De kolommen zijn als vorm geseed
-en worden niet gebruikt.
+- **Onbekend is geen match.** Staat het geslacht op `unspecified` (de standaardwaarde van de kolom),
+  dan geldt een regel die op geslacht filtert NIET. Iemand indelen tegen een vrouwennorm omdat zijn
+  geslacht leeg staat is erger dan hem niet indelen.
+- **Specifieker wint**, met de leeftijdsband als één dimensie en niet als twee. Bij gelijkspel de
+  hoogste versie, dan het hoogste id.
+- **Zonder populatie gelden alleen regels zonder beperking.** Niet de eerste de beste: een
+  vrouwendrempel tonen op een scherm dat niet weet over wie het gaat, is precies de stille fout waar
+  spec §10 voor waarschuwt.
 
-Dat is goedkoper te repareren dan cohortpercentielen en levert meer op. Het hoort bovenaan de lijst.
+Dat laatste maakt het ook een keuze in plaats van een filter, en daar zat een latente fout onder: de
+unieke sleutel staat op `rule_key` plus `version` en niet op de metriek, dus zodra er regels per
+populatie bestaan zijn er meerdere actieve regels per metriek. De oude query zou dezelfde test dan
+twee keer in het invoerscherm zetten. `getLibrary()` groepeert nu per metriek en kiest er één.
+
+Nagegaan tegen de lokale databank met een vrouwenregel erbij: vrouw van 17 krijgt die regel, man van
+28 krijgt er geen, zonder populatie ook geen, en één rij per metriek in alle drie de gevallen.
 
 ## 6. De enige echte afhankelijkheid van de intake
 
@@ -236,11 +245,14 @@ op screening; de intake heeft er een, de screening niet).
 
 ## Volgorde die ik zou aanhouden
 
-1. `lib/http.ts` losknippen van `lib/intake/session.ts`. Kleinste stap, nodig voor alles erna.
-2. De autorisatie repareren: `athleteId` server-side, en beslissen over de coach-atleetkoppeling.
-   **Dit hoort voor de splitsing, want het raakt code die daarna twee keer bestaat.**
-3. `getLibrary()` op populatie laten filteren. Losstaand van de splitsing, en het grootste
-   inhoudelijke gat dat er nu is.
+1. ~~`lib/http.ts` losknippen van `lib/intake/session.ts`.~~ **Gedaan.** De drie foutklassen staan nu
+   in `lib/errors.ts`, een bestand zonder enkele import; de oude plekken exporteren ze opnieuw zodat
+   bestaande imports blijven werken. De importketen van `lib/http.ts` is daarmee van de halve
+   intake-laag teruggebracht tot vijf bestanden: `errors.ts` en de drie i18n-modules.
+2. ~~De `athleteId` server-side controleren.~~ **Gedaan.** `POST /api/coach/screening` laadt de atleet
+   nu op en geeft 404 bij een onbekende of verwijderde id; daarvoor schreef het metingen weg onder
+   elke uuid die de client meestuurde. **Nog open:** of DEZE behandelaar bij DEZE atleet mag. Zie §4.
+3. ~~`getLibrary()` op populatie laten filteren.~~ **Gedaan.** Zie de bijgewerkte §5.
 4. Zelfinvoer door atleten, inclusief `source_system = 'self'` en zichtbaarheid in het rapport.
 5. Pas dan splitsen, met de keuze uit §1 bewust gemaakt.
 6. VALD.

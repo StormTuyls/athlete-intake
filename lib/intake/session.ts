@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
+import { IntakeAuthError, IntakeLockedError } from "@/lib/errors";
 import { appDb } from "@/lib/supabase/service";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -98,25 +99,13 @@ export async function currentIntake(): Promise<IntakeSession | null> {
   };
 }
 
-export class IntakeAuthError extends Error {
-  constructor() {
-    super("geen geldige intakesessie");
-    this.name = "IntakeAuthError";
-  }
-}
+export { IntakeAuthError, IntakeLockedError } from "@/lib/errors";
 
 /** Voor route handlers: sessie of een fout die als 401 uitkomt. */
 export async function requireIntake(): Promise<IntakeSession> {
   const session = await currentIntake();
   if (!session) throw new IntakeAuthError();
   return session;
-}
-
-export class IntakeLockedError extends Error {
-  constructor() {
-    super("intake is goedgekeurd en gesloten");
-    this.name = "IntakeLockedError";
-  }
 }
 
 /**
