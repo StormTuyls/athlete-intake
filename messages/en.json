@@ -45,6 +45,8 @@
     "dictate": "Dictate",
     "dictateStop": "Stop recording",
     "recording": "Recording",
+    "slideToCancel": "slide away to cancel",
+    "releaseToCancel": "Release to cancel",
     "transcribing": "Transcribing",
     "dictateFailed": "Transcribing failed. Try again or type your answer.",
     "dictateBrowserNote": "Your browser converts your speech to text. To do that it sends your voice to Google or Apple, not to us.",
