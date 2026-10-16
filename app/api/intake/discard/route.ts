@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { apiMessages } from "@/lib/i18n/server";
 import { badRequest, handleError } from "@/lib/http";
+import { appDb } from "@/lib/supabase/service";
 import { currentAthlete } from "@/lib/intake/athlete";
-import { requireIntake, clearSessionCookie } from "@/lib/intake/session";
+import { IntakeAuthError, clearSessionCookie, currentIntake } from "@/lib/intake/session";
 import { discardIntake } from "@/lib/intake/discard";
 
 /**
@@ -26,34 +28,73 @@ import { discardIntake } from "@/lib/intake/discard";
  * plaats van een databankfout.
  *
  * POST en geen DELETE, in lijn met de rest van deze API: elke mutatie hier is
- * een POST op een benoemde handeling. Een DELETE op /api/intake zou bovendien
- * suggereren dat er een resource in het pad staat, en die staat er niet: welke
- * intake het is, zegt het cookie.
+ * een POST op een benoemde handeling.
+ *
+ * ---------------------------------------------------------------------------
+ * Welke intake, en waarom niet het cookie
+ * ---------------------------------------------------------------------------
+ *
+ * Dit liep eerst over requireIntake(), dus over het capability-cookie. Dat was
+ * fout, en op een manier die precies de knop raakte die bedoeld is als uitgang:
+ * het thuisscherm haalt de concepten uit de databank op `athlete_id`, maar het
+ * cookie wordt alleen gezet door POST /api/intake. Wie vers inlogt, of op een
+ * tweede toestel komt, of wiens cookie van dertig dagen verlopen is, ziet zijn
+ * concept dus wel staan en kreeg bij het weggooien "je sessie is verlopen".
+ *
+ * De intake komt nu uit het verzoek en het eigendom uit de login, die sterker is
+ * dan het cookie. Het cookie wordt nog wel gelezen, voor twee dingen: het mag de
+ * intake aanwijzen als de client er geen noemt (de knop in het gesprek), en het
+ * moet gewist worden als het naar precies deze intake wees.
  */
-export async function POST() {
+
+const BODY = z.object({ intakeId: z.string().uuid().optional() });
+
+export async function POST(request: Request) {
   try {
     const t = await apiMessages();
 
-    // Twee poorten, en ze controleren verschillende dingen. requireIntake zegt
-    // welke intake het cookie aanwijst en dat die bij de ingelogde gebruiker
-    // hoort; currentAthlete levert het user-id voor het auditspoor. Zonder dat
-    // tweede staat er 'athlete' in de log zonder wie.
-    const session = await requireIntake();
+    // De login is de poort. Niet het cookie: dat zegt hooguit welke intake
+    // open stond, en hier is de vraag of deze gebruiker deze intake bezit.
     const athlete = await currentAthlete();
+    if (!athlete) throw new IntakeAuthError();
 
-    if (session.status !== "draft") {
+    const parsed = BODY.safeParse(await request.json().catch(() => ({})));
+    if (!parsed.success) return badRequest(t("intakeNotFound"));
+
+    const session = await currentIntake();
+    const intakeId = parsed.data.intakeId ?? session?.intakeId;
+    if (!intakeId) return badRequest(t("intakeNotFound"));
+
+    // Eigendom en status uit de databank. Het filter op athlete_id is wat een
+    // gekopieerd intake-id waardeloos maakt: een bestaande intake van iemand
+    // anders geeft hier nul rijen, en dus dezelfde melding als een intake die
+    // niet bestaat. Geen verschil, want het verschil zou verklappen dat hij
+    // bestaat.
+    const { data: intake } = await appDb()
+      .from("intakes")
+      .select("id, status")
+      .eq("id", intakeId)
+      .eq("athlete_id", athlete.athleteId)
+      .maybeSingle();
+
+    if (!intake) return badRequest(t("intakeNotFound"));
+
+    if (intake.status !== "draft") {
       return badRequest(t("discardOnlyDraft"));
     }
 
     const result = await discardIntake({
-      intakeId: session.intakeId,
-      actorId: athlete?.userId ?? null,
+      intakeId,
+      actorId: athlete.userId,
       actorKind: "athlete",
     });
 
-    // Het cookie wijst naar een intake die er niet meer is. Laten staan zou de
-    // volgende pagina een sessie geven die nergens op uitkomt.
-    await clearSessionCookie();
+    // Alleen als het cookie naar DEZE intake wees. Altijd wissen zou betekenen
+    // dat het weggooien van een oud concept de atleet uit het gesprek gooit dat
+    // hij op dat moment open heeft staan.
+    if (session?.intakeId === intakeId) {
+      await clearSessionCookie();
+    }
 
     return NextResponse.json({
       discarded: result.discarded,

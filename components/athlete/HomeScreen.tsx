@@ -273,6 +273,7 @@ export function HomeScreen({ data }: { data: HomeData }) {
                 "Verder" liep die buiten de kaart. Verdergaan blijft de actie in
                 de regel, dit staat er rustig onder. */}
             <DiscardIntake
+              intakeId={progress.id}
               disabled={busy}
               onDone={async (restart) => {
                 if (restart) {
