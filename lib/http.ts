@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMessages } from "@/lib/i18n/server";
-import { IntakeAuthError, IntakeLockedError } from "@/lib/intake/session";
-import { CoachAuthError } from "@/lib/review/access";
+import { CoachAuthError, IntakeAuthError, IntakeLockedError } from "@/lib/errors";
 
 /**
  * Foutafhandeling voor route handlers.

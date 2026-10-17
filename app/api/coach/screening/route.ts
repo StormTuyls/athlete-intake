@@ -3,7 +3,7 @@ import { z } from "zod";
 import { badRequest, handleError } from "@/lib/http";
 import { apiMessages } from "@/lib/i18n/server";
 import { isUuid, requireCoach } from "@/lib/review/access";
-import { createSession, getHistory, getLibrary, toSpecs } from "@/lib/db/screening";
+import { createSession, getAthletePopulation, getHistory, getLibrary, toSpecs } from "@/lib/db/screening";
 import { evaluate } from "@/lib/screening/evaluate";
 
 export const maxDuration = 60;
@@ -53,7 +53,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: t("athleteNotFound") }, { status: 404 });
     }
 
-    const library = await getLibrary();
+    /**
+     * Bestaat deze atleet, en welke referentieregels gelden voor hem?
+     *
+     * Twee dingen in een aanroep, en allebei ontbraken ze. Deze route schreef
+     * metingen weg onder de athleteId die de client meestuurde zonder ooit te
+     * kijken of daar iemand achter zat: een getypte of geplakte uuid leverde een
+     * screeningsessie op die aan niets hing en in geen enkel scherm terugkwam.
+     * getAthletePopulation geeft null bij een onbekende of verwijderde atleet.
+     *
+     * Wat hier NIET in zit: of DEZE behandelaar bij DEZE atleet mag. Dat is een
+     * beleidsvraag voor de praktijk; zie docs/screening-app.md.
+     */
+    const population = await getAthletePopulation(input.athleteId, input.occurredOn);
+    if (!population) {
+      return NextResponse.json({ error: t("athleteNotFound") }, { status: 404 });
+    }
+
+    // Met de populatie erbij, zodat een drempel voor vrouwen niet op een man
+    // wordt toegepast. Zie lib/screening/population.ts.
+    const library = await getLibrary(population);
     const byMetric = new Map(library.map((item) => [item.metricKey, item]));
 
     // Een metriek die niet in de bibliotheek staat is geen 400 van de gebruiker

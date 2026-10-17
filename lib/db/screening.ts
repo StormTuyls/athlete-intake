@@ -1,6 +1,7 @@
 import { logAudit } from "@/lib/audit";
 import { query, queryOne, transaction } from "@/lib/db/sql";
 import { BANDS, type Band } from "@/lib/screening/bands";
+import { type Population, ageOn, pickRule } from "@/lib/screening/population";
 import type { Direction } from "@/lib/screening/direction";
 import type { MetricSpec, ResultRow, Side } from "@/lib/screening/evaluate";
 import type { HistoryPoint } from "@/lib/screening/baseline";
@@ -68,15 +69,60 @@ export interface LibraryTest {
  *
  * Geen audit: public.test_definitions en vrienden zijn geen patientgegeven.
  */
-export async function getLibrary(): Promise<LibraryTest[]> {
+/**
+ * De populatie van een atleet op de dag van de meting.
+ *
+ * Op de dag van de meting en niet vandaag: een leeftijdsband van 16 tot 18 hoort
+ * te gelden op het moment dat er gemeten werd, anders verschuift de indeling van
+ * een oude screening op de dag dat de atleet jarig is.
+ *
+ * Via de directe verbinding, want die heeft select op public.athletes (zie
+ * 20260902110000_grants.sql). Geen audit: dit zijn de meetvariabelen voor een
+ * referentiefilter, en ze worden hier niet getoond maar gebruikt om een drempel
+ * te kiezen.
+ */
+export async function getAthletePopulation(
+  athleteId: string,
+  on: string,
+): Promise<Population | null> {
+  const row = await queryOne<Record<string, unknown>>(
+    `select sex, sport, discipline, competition_level, date_of_birth
+       from public.athletes
+      where id = $1 and deleted_at is null`,
+    [athleteId],
+  );
+  if (!row) return null;
+
+  return {
+    sex: (row.sex as string | null) ?? null,
+    sport: (row.sport as string | null) ?? null,
+    event: (row.discipline as string | null) ?? null,
+    competitionLevel: (row.competition_level as string | null) ?? null,
+    age: ageOn((row.date_of_birth as string | null) ?? null, on),
+  };
+}
+
+export async function getLibrary(
+  /**
+   * Over wie het gaat, als dat bekend is.
+   *
+   * Zonder dit gelden alleen regels zonder populatiebeperking. Zie
+   * lib/screening/population.ts voor waarom dat strenger is dan "de eerste de
+   * beste nemen", en waarom dat de bedoeling is.
+   */
+  population: Population | null = null,
+): Promise<LibraryTest[]> {
   const rows = await query<Record<string, unknown>>(
     `select t.key as test_key, t.block, t.sort_order, t.label_nl, t.label_en,
             t.laterality,
             p.id as protocol_id, p.protocol_confirmed,
             m.key as metric_key, m.label_nl as metric_label_nl,
             m.label_en as metric_label_en, m.unit, m.direction, m.decimals,
-            r.id as rule_id, r.layer, r.bands, r.coverage,
-            r.classification_enabled, r.source_note
+            r.id as rule_id, r.version as rule_version, r.layer, r.bands,
+            r.coverage, r.classification_enabled, r.source_note,
+            r.sex as rule_sex, r.sport as rule_sport, r.event as rule_event,
+            r.competition_level as rule_level,
+            r.age_min as rule_age_min, r.age_max as rule_age_max
        from public.test_definitions t
        join public.test_protocols p
          on p.test_key = t.key and p.retired_at is null
@@ -88,7 +134,48 @@ export async function getLibrary(): Promise<LibraryTest[]> {
       order by t.block, t.sort_order, m.sort_order`,
   );
 
-  return rows.map((row) => {
+  /**
+   * Eén rij per metriek, en de regel wordt gekozen.
+   *
+   * De join levert een rij per actieve regel. Zolang elke metriek er precies een
+   * had, viel dat niet op; met regels per populatie zijn het er meerdere en zou
+   * dezelfde test twee keer in het invoerscherm staan. Groeperen en dan kiezen.
+   */
+  const grouped = new Map<string, Record<string, unknown>[]>();
+  for (const row of rows) {
+    const key = `${row.test_key as string}|${row.metric_key as string}`;
+    const list = grouped.get(key);
+    if (list) list.push(row);
+    else grouped.set(key, [row]);
+  }
+
+  const chosen = [...grouped.values()].map((candidates) => {
+    const withRule = candidates.filter((row) => row.rule_id !== null);
+    if (withRule.length === 0) return candidates[0];
+
+    const picked = pickRule(
+      withRule.map((row) => ({
+        row,
+        id: Number(row.rule_id),
+        version: Number(row.rule_version),
+        sex: (row.rule_sex as string | null) ?? null,
+        sport: (row.rule_sport as string | null) ?? null,
+        event: (row.rule_event as string | null) ?? null,
+        competitionLevel: (row.rule_level as string | null) ?? null,
+        ageMin: row.rule_age_min === null ? null : Number(row.rule_age_min),
+        ageMax: row.rule_age_max === null ? null : Number(row.rule_age_max),
+      })),
+      population,
+    );
+
+    // Geen passende regel is geen fout: de test wordt gemeten en getrend, hij
+    // wordt alleen niet ingedeeld. Dezelfde uitkomst als een metriek zonder
+    // regel, en dat is precies wat het is voor DEZE atleet.
+    if (!picked) return { ...candidates[0], rule_id: null };
+    return picked.row;
+  });
+
+  return chosen.map((row) => {
     // bands komt als jsonb terug en wordt door hetzelfde schema gehaald als bij
     // het seeden. Een rij die de praktijk met de hand aanpaste en die niet meer
     // klopt, hoort hier te stranden en niet pas bij het classificeren.
