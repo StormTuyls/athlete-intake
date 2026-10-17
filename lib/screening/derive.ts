@@ -36,21 +36,6 @@ import { GRAVITY, type Unit, comparable, toCanonical } from "./units";
  */
 export const ENGINE_VERSION = 1;
 
-export type FormulaKind =
-  | "ratio"
-  | "lsi_higher_better"
-  | "lsi_lower_better"
-  | "asymmetry"
-  | "per_body_mass"
-  | "per_body_weight"
-  | "per_body_height"
-  | "per_limb_length"
-  | "sum"
-  | "mean_of"
-  | "percent_change";
-
-export type LsiConvention = "involved_uninvolved" | "weaker_stronger";
-
 /** Lichaamsmaten van de sessie zelf, niet uit het profiel. Spec §8. */
 export interface SessionContext {
   readonly bodyMassKg: number | null;
@@ -207,10 +192,6 @@ export function perBodyHeight(distance: Measured, ctx: SessionContext): Measured
 }
 
 /** Reikafstand als percentage van de ledemaatlengte. Y-balance, spec §8. */
-export function perLimbLength(distance: Measured, ctx: SessionContext): Measured {
-  return perLength(distance, ctx.limbLengthCm ?? null);
-}
-
 function perLength(distance: Measured, lengthCm: number | null): Measured {
   if (!distance.ok) return distance;
   const canonical = toCanonical(distance.value, distance.unit);

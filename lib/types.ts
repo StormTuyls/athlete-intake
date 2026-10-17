@@ -26,48 +26,12 @@ export type FieldStatus =
  */
 export type Confidence = "high" | "medium" | "low";
 
-/** Herkomst van een veldwaarde. Verplicht bij alles wat uit een document komt. */
-export interface Provenance {
-  sourceDocumentId: string;
-  sourcePage: number | null;
-  /** Letterlijk citaat uit de bron. Server verifieert dit tegen document_pages. */
-  sourceQuote: string | null;
-  quoteVerified: boolean;
-}
-
-export interface FieldValue<T = unknown> {
-  fieldKey: string;
-  value: T | null;
-  status: FieldStatus;
-  confidence: Confidence;
-  proposedBy: ProposedBy;
-  provenance: Provenance | null;
-  /** Model-id waarmee de waarde is voorgesteld, voor reproduceerbaarheid. */
-  modelId: string | null;
-  createdAt: string;
-}
-
 export type DocumentKind =
   | "pdf_text"
   | "pdf_scanned"
   | "image"
   | "whatsapp_export"
   | "vald_csv";
-
-export interface IntakeDocument {
-  id: string;
-  intakeId: string;
-  storagePath: string;
-  originalFilename: string;
-  mimeType: string;
-  byteSize: number;
-  sha256: string;
-  kind: DocumentKind;
-  /** Files API id, zodat hetzelfde document niet per call opnieuw geupload wordt. */
-  anthropicFileId: string | null;
-}
-
-export type IntakeStatus = "draft" | "submitted" | "in_review" | "approved";
 
 /**
  * Wat het model per veld mag teruggeven. `sourceQuote` is een schemavereiste,
