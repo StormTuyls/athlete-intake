@@ -297,6 +297,7 @@ supabase/
 evals/            testset en verwachte output
 docs/plan.md      scope, milestones, randvoorwaarden
 docs/screening-app.md  wat er beslist moet worden voor de screening een eigen app wordt
+docs/overdracht.md     waar het draait, wat open staat, en de valkuilen
 ```
 
 ## Wat hier niet in hoort
