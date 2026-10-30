@@ -226,9 +226,13 @@ await addInjuries([
 //
 // We maken ze hier NIET aan maar gebruiken een geseed protocol. intake_server
 // heeft met opzet alleen select op deze tabellen: de bibliotheek wordt geseed
-// (scripts/seed-screening.ts, als postgres) en nooit door de applicatieserver
-// geschreven. Een fixture die ze zelf aanmaakt zou alleen slagen met een recht
-// dat in productie niet bestaat.
+// als postgres en nooit door de applicatieserver geschreven. Een fixture die ze
+// zelf aanmaakt zou alleen slagen met een recht dat in productie niet bestaat.
+//
+// Sinds de splitsing zit die seed niet meer in deze repo maar in
+// unbound-screening. Dat is geen omissie: de databank is gedeeld, dus in elke
+// echte omgeving staat de bibliotheek er al. Deze test leunt dus op de
+// databank en niet op code die hier staat.
 const TEST_KEY = "mobility_ll.passive_slr";
 const METRIC_KEY = "mobility_ll.passive_slr.value";
 
@@ -237,7 +241,10 @@ const protocolRows = await query<{ id: string }>(
   [TEST_KEY],
 );
 if (protocolRows.length === 0) {
-  throw new Error(`geen actief protocol voor ${TEST_KEY}; draai eerst npm run seed:screening`);
+  throw new Error(
+    `geen actief protocol voor ${TEST_KEY}. De screeningbibliotheek wordt geseed ` +
+      "vanuit unbound-screening: draai daar npm run seed:screening tegen dezelfde databank.",
+  );
 }
 const protocolId = protocolRows[0].id;
 

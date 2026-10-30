@@ -6,7 +6,6 @@ import { getAthleteProfile } from "@/lib/db/athletes";
 import { listTeam } from "@/lib/db/practitioners";
 import { PurgeAthlete } from "@/components/coach/PurgeAthlete";
 import { AssignPractitioner } from "@/components/coach/AssignPractitioner";
-import { listSessions } from "@/lib/db/screening";
 
 export async function generateMetadata() {
   const t = await getTranslations("titles");
@@ -93,10 +92,9 @@ export default async function AthletePage({
   }
   if (access.kind !== "coach") notFound();
 
-  const [athlete, team, screenings] = await Promise.all([
+  const [athlete, team] = await Promise.all([
     getAthleteProfile(athleteId),
     listTeam(),
-    listSessions(athleteId, { id: access.coach.id }),
   ]);
   if (!athlete) notFound();
 
@@ -112,7 +110,6 @@ export default async function AthletePage({
       archived: member.archivedAt !== null,
     }));
 
-  const ts = await getTranslations("screening");
   const tc = await getTranslations("coach");
   const titles = await getTranslations("titles");
 
@@ -172,47 +169,6 @@ export default async function AthletePage({
           <p className="mt-2 text-xs text-ink-faint">
             {tc("adminNote")}
           </p>
-        </section>
-
-        <section className="mb-8">
-          <div className="mb-1 flex items-baseline justify-between gap-4">
-            <h2 className="text-sm font-medium">{ts("heading")}</h2>
-            <span className="flex gap-3">
-              {screenings.length > 0 && (
-                <Link
-                  href={`/coach/athletes/${athlete.id}/screening`}
-                  className="text-xs text-brand-700 underline"
-                >
-                  {ts("trend")}
-                </Link>
-              )}
-              <Link
-                href={`/coach/athletes/${athlete.id}/screening/new`}
-                className="text-xs text-brand-700 underline"
-              >
-                {ts("new")}
-              </Link>
-            </span>
-          </div>
-          {screenings.length === 0 ? (
-            <p className="text-sm text-ink-faint">{ts("none")}</p>
-          ) : (
-            <ul className="divide-y divide-hairline border-t border-hairline">
-              {screenings.map((screening) => (
-                <li key={screening.id}>
-                  <Link
-                    href={`/coach/screening/${screening.id}`}
-                    className="flex items-baseline justify-between gap-4 py-2.5 transition-colors hover:bg-canvas"
-                  >
-                    <span className="text-sm">{screening.occurredOn}</span>
-                    <span className="text-xs text-ink-muted">
-                      {ts("measurements", { count: screening.measurements })}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
         </section>
 
         <section className="mb-8">
