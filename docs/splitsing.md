@@ -83,7 +83,35 @@ alsnog in de geschiedenis van de nieuwe repo staan, en daar krijg je ze niet mee
    `change-request-testbibliotheek.md`: daar staan Frederiks benchmarks met citaten en zijn interne
    asymmetriegrenzen in.
 
-## 5. Wat niet beslist is, en dus blokkeert
+## 5. De purge is een gedeeld contract, geen gedeelde code
+
+Het wissen van screeningdata verhuist niet, want het zit niet in de applicatiecode. De intake roept
+`medical.purge_athlete()` aan en de databank doet de rest: de drie screeningtabellen hangen met
+`athlete_id ... on delete cascade` aan `public.athletes`. In `lib/purge/` staat alleen een
+typedeclaratie van de tellingen die die functie teruggeeft.
+
+Die functie wordt door twee migraties gedefinieerd:
+
+| Migratie | Van wie | Geeft terug |
+|---|---|---|
+| `20260908150000_purge_function.sql` | intake | zeven tellingen |
+| `20261009090300_screening_purge.sql` | screening | veertien tellingen plus `screening_session_ids` |
+
+De tweede doet een `create or replace` over de eerste heen. Wie als laatste `supabase db push`
+draait bepaalt dus welke versie leeft, en dat is precies het probleem uit §2b van
+`screening-app.md`.
+
+**Afgesproken:** de cascade en de functie blijven waar ze zijn. Na de splitsing herdefinieert alleen
+`unbound-screening` nog `purge_athlete`. Het json-contract van die functie is de koppeling tussen
+de twee repo's, en `PurgeCounts` in `lib/purge/db.ts` volgt dat contract in plaats van er een eigen
+waarheid naast te zetten.
+
+**Wat daarbij misgaat als je niets doet:** zodra de acht migraties uit deze repo verdwijnen, levert
+`supabase db reset` hier de intakeversie van de functie op, zonder screeningtellingen, terwijl
+`PurgeCounts` ze wel verwacht. Lokaal breekt dat stil; in productie niet, want daar is de
+screeningmigratie al toegepast. Dat is een reden te meer voor de `baseline.sql` uit §2b.
+
+## 6. Wat niet beslist is, en dus blokkeert
 
 **Wie de repo bezit.** De `gh`-cli hier is ingelogd als `tuylss`, met pushrecht op
 `StormTuyls/athlete-intake` maar zonder recht om repo's onder `StormTuyls` aan te maken. De repo is
