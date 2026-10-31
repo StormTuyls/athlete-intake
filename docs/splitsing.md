@@ -6,6 +6,9 @@ boom zoals hij nu is, niet uit het geheugen: elk pad is nagekeken.
 
 Geteld op 30 oktober 2026, bij `main` op `6bb72a1`.
 
+Uitgevoerd op 31 oktober 2026 in `2d26e6d`. De code hieronder staat niet meer in deze repo; de
+acht migraties wel. De lijsten blijven staan als verantwoording van wat er verhuisd is.
+
 ---
 
 ## 1. Wat verhuist: 30 bestanden
