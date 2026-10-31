@@ -3,11 +3,15 @@ import { queryOne } from "@/lib/db/sql";
 /**
  * De databankhelft van het verwijderpad.
  *
- * Roept medical.purge_athlete aan, de security-definer-functie uit
+ * Roept medical.purge_athlete aan, de security-definer-functie die begon in
  * 20260908150000_purge_function.sql. Die bestaat omdat geen enkele
  * applicatierol beide schemas kan wissen: intake_server mag niets schrijven in
  * public.athletes en service_role heeft geen recht op medical. Eén functie maakt
  * er één transactie van, die slaagt of niets doet.
+ *
+ * Let op welke versie er leeft: 20261009090300_screening_purge.sql doet er een
+ * `create or replace` overheen en telt de screeningtabellen mee. Dat is de versie
+ * die draait, en die migratie hoort bij de screening-repo. Zie PurgeCounts.
  *
  * Wat hier NIET gebeurt: Storage, auth.users en Notion. Die liggen buiten
  * Postgres en kunnen dus nooit in dezelfde transactie. De volgorde en het
@@ -17,6 +21,20 @@ import { queryOne } from "@/lib/db/sql";
  * bestaan de rijen die de storage-paden en het profiel-id beschrijven niet meer.
  */
 
+/**
+ * Het contract met de screening-repo, en niet een eigen waarheid.
+ *
+ * Deze velden spiegelen de json die medical.purge_athlete teruggeeft. Die
+ * functie wordt na de splitsing alleen nog door unbound-screening herdefinieerd;
+ * de intake leest hem en past dit type aan als het contract verandert. Wie hier
+ * een veld bijzet zonder dat de functie het teruggeeft, krijgt undefined en geen
+ * foutmelding.
+ *
+ * De screeningvelden staan hier terwijl de screeningcode weg is. Dat is geen
+ * rest: de rijen verdwijnen via `on delete cascade` op athlete_id, dus de
+ * tellingen komen ook zonder screeningcode terug, en zonder die tellingen staat
+ * nergens vastgelegd hoeveel er is gewist.
+ */
 export interface PurgeCounts {
   athletes: number;
   intakes: number;
