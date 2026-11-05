@@ -9,6 +9,15 @@
         ". \"${NVM_DIR:-$HOME/.nvm}/nvm.sh\" >/dev/null 2>&1 && nvm use >/dev/null 2>&1; exec npm run dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "screening",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd ../unbound-screening && . \"${NVM_DIR:-$HOME/.nvm}/nvm.sh\" >/dev/null 2>&1 && nvm use >/dev/null 2>&1; exec npm run dev -- --port 3100"
+      ],
+      "port": 3100
     }
   ]
 }
