@@ -124,9 +124,18 @@ export function CoachLogin({ next }: { next: string | null }) {
 
       {/* De andere voordeur. Er zijn twee loginschermen en niets wees naar het
           andere, dus wie op de verkeerde belandde kwam er alleen uit door de URL
-          te raden. */}
+          te raden.
+
+          /start bestaat alleen in de intake-app. Dit bestand staat in beide
+          repo's en is daar byte-identiek; in de screeningapp wees de link op
+          een 404. Vandaar het adres uit de omgeving: daar staat het, hier
+          niet, en de uitdrukking blijft in beide repo's dezelfde. */}
       <Link
-        href="/start"
+        href={
+          process.env.NEXT_PUBLIC_INTAKE_URL
+            ? `${process.env.NEXT_PUBLIC_INTAKE_URL}/start`
+            : "/start"
+        }
         className="mt-2 block text-center text-xs text-ink-faint underline-offset-2 hover:underline"
       >
         {t("toAthlete")}

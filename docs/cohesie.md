@@ -208,3 +208,65 @@ Niets over de schermen zelf: bereikbaarheid, het rapport en de meetstroom staan 
 
 Niet nagekeken: of de productiedatabank afwijkt van wat de migraties beschrijven, en of beide apps
 onder last dezelfde poolerinstellingen aankunnen. Beide vragen een leesactie op productie.
+
+---
+
+## 6. Naschrift: de routes nagelopen
+
+Toegevoegd op 5 november 2026, na het doorvoeren van punt 1 tot en met 3.
+
+Elke interne `href`, `redirect()`, `router.push()` en `action` in beide repo's is tegen de echte
+routeboom gelegd. Intake heeft 46 routes, screening 19.
+
+**Twee doden gevonden, beide in screening, beide een erfenis van de kopieerslag.**
+
+`components/coach/CoachLogin.tsx` is byte-identiek in beide repo's en wees naar `/start`. Dat is
+de voordeur van de atleet, en die bestaat alleen in de intake. Op het inlogscherm van screening
+stond dus een zichtbare link naar een 404, onder een comment dat uitlegt dat hij er juist staat
+zodat niemand de URL hoeft te raden.
+
+Opgelost zonder de twee bestanden uit elkaar te laten lopen: de href komt uit
+`NEXT_PUBLIC_INTAKE_URL`, die in screening gezet is en in de intake niet, met `/start` als
+terugval. Hetzelfde bestand, correct in beide apps.
+
+De tweede, `/coach/screening` vanuit `ScreeningEntry.tsx`, was vals alarm: dat is
+`` `/coach/screening/${sessionId}` `` en die route bestaat.
+
+**Intake heeft geen enkele error-, loading- of not-found-grens.**
+
+| | intake | screening |
+|---|---|---|
+| `error.tsx` | geen | `app/coach/(app)/` |
+| `loading.tsx` | geen | `app/coach/(app)/` |
+| `not-found.tsx` | geen | `app/coach/(app)/` |
+| `global-error.tsx` | geen | geen |
+
+46 routes, allemaal `force-dynamic`, en nul grenzen. Elke onverwachte fout in een server component
+valt door naar het standaardscherm van Next: ongestileerd, Engels, "Application error: a
+server-side exception has occurred". Hetzelfde voor `notFound()`, dat de intake op minstens vier
+plekken aanroept, bijvoorbeeld in `app/coach/athletes/[athleteId]/page.tsx:87` bij een id dat geen
+intake-id is. Een behandelaar die een verkeerde link opent, ziet de standaard-404 van Next.
+
+Screening kreeg deze drie bestanden in fase 1. De intake is nooit bijgetrokken. Dit is het
+grootste zichtbare gat aan de voorkant en het is drie kleine bestanden werk.
+
+**Vertalingen die nergens meer aangeroepen worden.**
+
+| Repo | Dood | Totaal | Waar |
+|---|---|---|---|
+| athlete-intake | 42 | 544 | `library` 23, `enums` 11, `intake` 6 |
+| unbound-screening | 325 | 662 | `review` 54, `coach` 48, `api` 38, `report` 33, `chat` 27 |
+
+De 23 `library`-sleutels in de intake zijn de bibliotheek die bij de splitsing vertrok. De 325 in
+screening zijn de intakecatalogus die meekwam: de helft van dat bestand wordt daar nooit gelezen.
+De elf `enums`-treffers in de intake zijn vermoedelijk vals alarm, die worden dynamisch opgebouwd.
+
+**Wat wel in orde is.** Alle 46 intake-routes zijn bereikbaar vanaf een link of een redirect. De
+`?next=`-afhandeling op beide inlogschermen controleert `next.startsWith("/")`, dus een open
+redirect zit er niet in. De atleet-ids in de URL's van beide apps komen uit dezelfde tabel en de
+vormen sluiten op elkaar aan, wat de diepe links van punt 1 mogelijk maakte zonder enige
+vertaalslag.
+
+**Nog een vondst, buiten de routes.** `proxy.ts` in screening bewaakte `/api/coach` niet. Die
+routes verlengen de sessie dus niet, en een coach wiens token tijdens het invullen van een meting
+verloopt kreeg een 401 op het bewaren in plaats van een vernieuwde sessie. Meegenomen in punt 3.

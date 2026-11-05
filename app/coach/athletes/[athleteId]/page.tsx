@@ -113,6 +113,10 @@ export default async function AthletePage({
   const tc = await getTranslations("coach");
   const titles = await getTranslations("titles");
 
+  // De screening van deze atleet woont in de screeningapp, op dezelfde id uit
+  // dezelfde tabel. Zonder adres geen knop.
+  const screeningUrl = process.env.NEXT_PUBLIC_SCREENING_URL;
+
   const retention =
     athlete.retentionMode === "until_date"
       ? tc("keptUntil", { date: athlete.retentionUntil ?? tc("unknown") })
@@ -124,14 +128,25 @@ export default async function AthletePage({
         {titles("athletes")}
       </Link>
 
-      <header className="mt-3 mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {athlete.name ?? tc("nameUnknown")}
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          {tc("intakeCount", { count: athlete.intakes.length })}
-          {athlete.hasAccount ? tc("hasAccount") : tc("noAccount")}
-        </p>
+      <header className="mt-3 mb-8 flex items-start justify-between gap-6">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {athlete.name ?? tc("nameUnknown")}
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            {tc("intakeCount", { count: athlete.intakes.length })}
+            {athlete.hasAccount ? tc("hasAccount") : tc("noAccount")}
+          </p>
+        </div>
+
+        {screeningUrl && (
+          <a
+            href={`${screeningUrl}/coach/athletes/${athlete.id}/screening`}
+            className="flex min-h-11 shrink-0 items-center rounded-md px-3 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
+          >
+            {titles("screening")}
+          </a>
+        )}
       </header>
 
       {/* Vanaf lg naast elkaar. Links waar de behandelaar voor komt: wie dit

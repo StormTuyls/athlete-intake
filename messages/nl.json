@@ -491,7 +491,8 @@
     "report": "Intakerapport",
     "profile": "Profiel",
     "password": "Wachtwoord",
-    "consent": "Toestemming"
+    "consent": "Toestemming",
+    "screening": "Screening"
   },
   "consentGate": {
     "title": "Eén ding voordat we beginnen",
