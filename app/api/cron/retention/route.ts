@@ -10,6 +10,20 @@ export const maxDuration = 300;
 /**
  * De retentiejob.
  *
+ * UITGEZET op 5 november 2026, bij de eerste productiedeploy. De `crons` in
+ * vercel.json is verwijderd, dus Vercel roept deze route niet meer aan. De
+ * route zelf blijft werken: een handmatige GET met het juiste Bearer-token doet
+ * precies hetzelfde.
+ *
+ * Waarom: de job had nog nooit gedraaid en wist definitief. Bij de eerste nacht
+ * staat er een voorraad klaar van alles wat sinds september is blijven liggen,
+ * en niemand had nagekeken wat daarin zit.
+ *
+ * Dit moet terug. Een bewaartermijn die niemand afdwingt is precies wat de
+ * eerste alinea hieronder een mededeling noemt in plaats van een eigenschap van
+ * het systeem. Zet de `crons` terug zodra iemand heeft gekeken wie er op de
+ * eerste ronde zou staan.
+ *
  * `athletes.retention_until` bestond met een constraint en zelfs een eigen
  * index, en niets las hem ooit. Een bewaartermijn die niemand afdwingt is een
  * mededeling in een consenttekst, niet een eigenschap van het systeem.
