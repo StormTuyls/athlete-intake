@@ -54,7 +54,12 @@
   },
   "errors": {
     "generic": "Something went wrong",
-    "fileKept": "The file is kept, nothing was lost"
+    "fileKept": "The file is kept, nothing was lost",
+    "loading": "Loading",
+    "retry": "Try again",
+    "notFound": "This page does not exist",
+    "notFoundNote": "The link is wrong, or the file has been deleted.",
+    "backHome": "Back to the start"
   },
   "sharing": {
     "title": "Before you send this to your coach",

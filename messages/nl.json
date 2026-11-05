@@ -54,7 +54,12 @@
   },
   "errors": {
     "generic": "Er ging iets mis",
-    "fileKept": "Het bestand is bewaard, er is niets verloren"
+    "fileKept": "Het bestand is bewaard, er is niets verloren",
+    "loading": "Bezig met laden",
+    "retry": "Opnieuw proberen",
+    "notFound": "Deze pagina bestaat niet",
+    "notFoundNote": "De link klopt niet, of het dossier is verwijderd.",
+    "backHome": "Terug naar het begin"
   },
   "sharing": {
     "title": "Voordat je dit naar je coach stuurt",

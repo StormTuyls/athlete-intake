@@ -236,10 +236,12 @@ De tweede, `/coach/screening` vanuit `ScreeningEntry.tsx`, was vals alarm: dat i
 
 | | intake | screening |
 |---|---|---|
-| `error.tsx` | geen | `app/coach/(app)/` |
-| `loading.tsx` | geen | `app/coach/(app)/` |
-| `not-found.tsx` | geen | `app/coach/(app)/` |
+| `error.tsx` | `app/` | `app/coach/(app)/` |
+| `loading.tsx` | `app/coach/` | `app/coach/(app)/` |
+| `not-found.tsx` | `app/` | `app/coach/(app)/` |
 | `global-error.tsx` | geen | geen |
+
+Ingevuld op 5 november 2026. De intake had bij het tellen nog niets.
 
 46 routes, allemaal `force-dynamic`, en nul grenzen. Elke onverwachte fout in een server component
 valt door naar het standaardscherm van Next: ongestileerd, Engels, "Application error: a
@@ -247,8 +249,22 @@ server-side exception has occurred". Hetzelfde voor `notFound()`, dat de intake 
 plekken aanroept, bijvoorbeeld in `app/coach/athletes/[athleteId]/page.tsx:87` bij een id dat geen
 intake-id is. Een behandelaar die een verkeerde link opent, ziet de standaard-404 van Next.
 
-Screening kreeg deze drie bestanden in fase 1. De intake is nooit bijgetrokken. Dit is het
-grootste zichtbare gat aan de voorkant en het is drie kleine bestanden werk.
+Screening kreeg deze drie bestanden in fase 1. De intake is nu bijgetrokken, met drie keuzes die
+van screening afwijken omdat de boom anders is:
+
+`error.tsx` en `not-found.tsx` staan in de wortel en niet onder `/coach`. Ze vangen daarmee ook
+`/review`, `/report` en de atleetschermen, die elk hun eigen schil hebben maar dezelfde behoefte.
+De terugkoppeling van de 404 gaat naar `/` en niet naar `/coach`, want `app/page.tsx` stuurt door
+op wie er is: een atleet komt zo op zijn thuisscherm en niet op een werklijst die hij niet mag
+zien.
+
+`loading.tsx` staat wel alleen onder `/coach`. Daar zitten de zware vragen aan de databank,
+terwijl een loading in de wortel ook over de donkere schil van de atleet zou vallen en daar als
+een lichte flits leest. `/review` en `/report` hebben er nog geen; dat is de volgende die
+opvalt.
+
+Vijf nieuwe sleutels in `errors`, in beide talen, met dezelfde tekst als die van screening. Daar
+heet de terugkoppeling `backToAthletes`, hier `backHome`, om de reden hierboven.
 
 **Vertalingen die nergens meer aangeroepen worden.**
 
