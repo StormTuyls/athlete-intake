@@ -45,6 +45,11 @@ export default async function CoachPage() {
 
   const athletes = await listAthletesForCoach();
 
+  // De bibliotheek verhuisde bij de splitsing naar de screeningapp. Zonder
+  // adres tonen we de knop niet: hij wees naar /coach/library in deze app en
+  // dat is sindsdien een 404.
+  const screeningUrl = process.env.NEXT_PUBLIC_SCREENING_URL;
+
   // max-w-3xl is een leesbreedte, en dit is geen tekst maar een lijst met een
   // naam links en een status rechts. Op 768 stond die status tegen de naam
   // aan; vanaf lg is er ruimte tussen de twee dingen die je vergelijkt.
@@ -64,12 +69,14 @@ export default async function CoachPage() {
           {/* Voor elke behandelaar: het bevestigen van een protocol is
               klinisch werk, geen beheerderswerk. Elke wijziging staat in het
               audit-log en de oude versie blijft bestaan. */}
-          <Link
-            href="/coach/library"
-            className="rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
-          >
-            {tl("title")}
-          </Link>
+          {screeningUrl && (
+            <a
+              href={`${screeningUrl}/coach/library`}
+              className="rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas"
+            >
+              {tl("title")}
+            </a>
+          )}
           {/* Alleen voor een admin, want alleen die komt er binnen. Een link
               tonen die op een 404 uitkomt is erger dan geen link. */}
           {coach.role === "admin" && (
