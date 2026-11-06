@@ -143,7 +143,7 @@ export function ChangePassword({ email }: { email: string | null }) {
         <button
           type="submit"
           disabled={!canSubmit}
-          className="mt-4 flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium text-ink ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas disabled:opacity-40"
+          className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-md px-3.5 text-sm font-medium text-ink ring-1 ring-hairline ring-inset transition-colors hover:bg-canvas disabled:opacity-40"
         >
           {busy ? t("changing") : done ? t("changed") : t("change")}
           {done && !busy && <CheckIcon className="size-4 text-ok" />}

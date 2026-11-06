@@ -84,12 +84,12 @@ export function CoachLogin({ next }: { next: string | null }) {
         </label>
 
         <label className="mt-4 block">
-          <span className="flex items-baseline justify-between">
+          <span className="flex items-center justify-between">
             <span className="text-label uppercase text-ink-faint">{t("password")}</span>
             <button
               type="button"
               onClick={() => setShowPassword((value) => !value)}
-              className="text-xs font-medium text-brand-600"
+              className="-my-2.5 inline-flex min-h-11 items-center text-xs font-medium text-brand-700"
             >
               {showPassword ? t("hide") : t("show")}
             </button>
@@ -109,7 +109,7 @@ export function CoachLogin({ next }: { next: string | null }) {
         <button
           type="submit"
           disabled={busy || !email.trim() || !password}
-          className="mt-6 w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
+          className="mt-6 min-h-11 w-full rounded-md bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800 disabled:opacity-40"
         >
           {busy ? t("signingIn") : t("signIn")}
         </button>
@@ -117,7 +117,7 @@ export function CoachLogin({ next }: { next: string | null }) {
 
       <Link
         href="/auth/forgot?from=coach"
-        className="mt-4 block text-center text-xs text-ink-muted underline-offset-2 hover:underline"
+        className="mt-4 flex min-h-11 items-center justify-center text-xs text-ink-muted underline-offset-2 hover:underline"
       >
         {tPassword("forgotLink")}
       </Link>
@@ -136,7 +136,7 @@ export function CoachLogin({ next }: { next: string | null }) {
             ? `${process.env.NEXT_PUBLIC_INTAKE_URL}/start`
             : "/start"
         }
-        className="mt-2 block text-center text-xs text-ink-faint underline-offset-2 hover:underline"
+        className="mt-2 flex min-h-11 items-center justify-center text-xs text-ink-faint underline-offset-2 hover:underline"
       >
         {t("toAthlete")}
       </Link>

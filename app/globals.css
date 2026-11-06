@@ -38,7 +38,15 @@
 
   --color-ink: #101828;
   --color-ink-muted: #667085;
-  --color-ink-faint: #98a2b3;
+  /* Dezelfde waarde als ink-muted, en dat is geen vergissing. Faint stond op
+     #98a2b3: ongeveer 2,6:1 op wit, ver onder de 4,5:1 die WCAG AA vraagt, en
+     het is de kleur onder vrijwel alle 10- en 12px-tekst in de app. Boven
+     canvas (#f4f5f7) ligt de grens voor 4,5:1 op een lichtheid van 0,164, en
+     ink-muted zit al op 0,161. Er is dus geen derde, lichtere grijstint die
+     haalbaar is. De naam blijft staan omdat hij op veertig plekken de bedoeling
+     draagt: dit is de stilste tekst op het scherm. Wie hier weer verschil wil,
+     maakt dat met maat of gewicht, niet met lichtere inkt. */
+  --color-ink-faint: #667085;
 
   /* Statuskleuren. Amber betekent 'kijk hier naar', nooit alleen decoratie. */
   --color-ok: #0e9384;
@@ -86,6 +94,27 @@
 body {
   background: var(--color-surface);
   color: var(--color-ink);
+}
+
+/**
+ * Elk invoerveld minstens 44px hoog.
+ *
+ * Dit draait op een tablet in een zaal, met een vinger en niet met een muis.
+ * De velden kregen hun hoogte tot nu toe van hun eigen padding, en die liep
+ * van py-1 tot py-2.5 door elkaar. Eén regel hier in plaats van per veld, en
+ * in beide apps dezelfde: het is dezelfde coach op dezelfde tablet.
+ *
+ * In @layer base, zodat een utility het alsnog kan overschrijven waar een veld
+ * echt kleiner moet. Selectievakjes en keuzerondjes vallen erbuiten: die
+ * krijgen hun maat van de browser en staan in een label dat zelf het raakvlak
+ * is.
+ */
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 2.75rem;
+  }
 }
 
 /**

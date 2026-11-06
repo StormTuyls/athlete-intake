@@ -84,7 +84,7 @@ export function ForgotPassword({ backTo }: { backTo: string }) {
           <button
             type="submit"
             disabled={busy || email.trim().length < 4}
-            className="mt-5 w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
+            className="mt-5 min-h-11 w-full rounded-md bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800 disabled:opacity-40"
           >
             {busy ? t("sending") : t("send")}
           </button>
@@ -93,7 +93,7 @@ export function ForgotPassword({ backTo }: { backTo: string }) {
 
       <Link
         href={backTo}
-        className="mt-5 text-center text-xs text-ink-muted underline-offset-2 hover:underline"
+        className="mt-5 flex min-h-11 items-center justify-center text-xs text-ink-muted underline-offset-2 hover:underline"
       >
         {t("backToSignIn")}
       </Link>

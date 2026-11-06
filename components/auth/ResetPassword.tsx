@@ -65,7 +65,7 @@ export function ResetPassword({ signedIn }: { signedIn: boolean }) {
           <p className="mt-1 text-sm text-ink-muted">{t("resetExpired")}</p>
           <Link
             href="/auth/forgot"
-            className="mt-5 w-full rounded-md bg-brand-600 px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-brand-700"
+            className="mt-5 flex min-h-11 w-full items-center justify-center rounded-md bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
           >
             {t("requestNew")}
           </Link>
@@ -117,7 +117,7 @@ export function ResetPassword({ signedIn }: { signedIn: boolean }) {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="mt-5 w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
+              className="mt-5 min-h-11 w-full rounded-md bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800 disabled:opacity-40"
             >
               {busy ? t("resetSaving") : t("resetSave")}
             </button>

@@ -50,8 +50,8 @@ export function LocaleToggle({ className }: { className?: string }) {
           disabled={busy !== null}
           className={
             locale === active
-              ? "px-2.5 py-1 text-[11px] font-medium tracking-wide uppercase bg-ink text-surface"
-              : "px-2.5 py-1 text-[11px] font-medium tracking-wide uppercase text-ink-muted transition-colors hover:bg-canvas disabled:opacity-50"
+              ? "inline-flex min-h-11 items-center px-4 text-[11px] font-medium tracking-wide uppercase bg-ink text-surface"
+              : "inline-flex min-h-11 items-center px-4 text-[11px] font-medium tracking-wide uppercase text-ink-muted transition-colors hover:bg-canvas disabled:opacity-50"
           }
         >
           {locale}
